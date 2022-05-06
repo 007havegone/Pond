@@ -100,43 +100,41 @@
  * Context of free variables.
  */
 struct Context {
-  void push_frame() {
-    frames_.push_back(VariableMap());
-  }
-
-  void pop_frame() {
-    frames_.pop_back();
-  }
-
-  void insert(const std::string& name, Variable v) {
-    frames_.back()[name] = v;
-  }
-
-  std::pair<Variable, bool> shallow_find(const std::string& name) const {
-    VariableMap::const_iterator vi = frames_.back().find(name);
-    if (vi != frames_.back().end()) {
-      return std::make_pair((*vi).second, true);
-    } else {
-      return std::make_pair(0, false);
+    void push_frame() {
+        frames_.push_back(VariableMap());
     }
-  }
 
-  std::pair<Variable, bool> find(const std::string& name) const {
-    for (std::vector<VariableMap>::const_reverse_iterator fi =
-	   frames_.rbegin(); fi != frames_.rend(); fi++) {
-      VariableMap::const_iterator vi = (*fi).find(name);
-      if (vi != (*fi).end()) {
-	return std::make_pair((*vi).second, true);
-      }
+    void pop_frame() {
+        frames_.pop_back();
     }
-    return std::make_pair(0, false);
-  }
+
+    void insert(const std::string& name, Variable v) {
+        frames_.back()[name] = v;
+    }
+
+    std::pair<Variable, bool> shallow_find(const std::string& name) const {
+        VariableMap::const_iterator vi = frames_.back().find(name);
+        if (vi != frames_.back().end()) {
+            return std::make_pair((*vi).second, true);
+        } else {
+            return std::make_pair(0, false);
+        }
+    }
+
+    std::pair<Variable, bool> find(const std::string& name) const {
+        for (std::vector<VariableMap>::const_reverse_iterator fi = frames_.rbegin(); fi != frames_.rend(); fi++) {
+            VariableMap::const_iterator vi = (*fi).find(name);
+            if (vi != (*fi).end()) {
+                return std::make_pair((*vi).second, true);
+            }
+        }
+        return std::make_pair(0, false);
+    }
 
 private:
-  struct VariableMap : public std::map<std::string, Variable> {
-  };
-
-  std::vector<VariableMap> frames_;
+    struct VariableMap : public std::map<std::string, Variable> {};
+    
+    std::vector<VariableMap> frames_;// 存储每一个变量名对应的index即variable
 };
 
 //DAN
@@ -196,7 +194,9 @@ static bool metric_fluent;
 static Function appl_function;
 /* Whether the function of the currently parsed application was undeclared. */
 static bool undeclared_appl_function;
-/* Paramerers for atomic state formula or function application being parsed. */
+/* Paramerers for atomic state formula or function application being parsed. 
+  状态变量表，一个domain/problem中使用的状态变量
+*/
 static TermList term_parameters;
 /* Whether parsing an atom. */
 static bool parsing_atom;
@@ -540,34 +540,33 @@ union YYSTYPE
 {
 #line 295 "parser.yy"
 
-  Assignment::AssignOp setop;
-  const pEffect* effect;
-  ConjunctiveEffect* ceffect;
-  ProbabilisticEffect* peffect; 
-  Observation* observation_defs;
-  ObservationEntry* observation;
-  const StateFormula* formula;
-  const Atom* atom;
-  Conjunction* conj;
-  Disjunction* disj;
-  OneOfDisjunction* odisj;
-  const Expression* expr;
-  const Application* appl;
-  Comparison::CmpPredicate comp;
-  Type type;
-  TypeSet* types;
-  const std::string* str;
-  std::vector<const std::string*>* strs;
-  const Rational* num;
-  //DAN
-  plan* t_plan;
-  Instruction * t_instr;
-  Guards *t_guards;
-  label_symbol* t_label_symbol;
+    Assignment::AssignOp setop;
+    const pEffect* effect;
+    ConjunctiveEffect* ceffect;
+    ProbabilisticEffect* peffect; 
+    Observation* observation_defs;
+    ObservationEntry* observation;
+    const StateFormula* formula;
+    const Atom* atom;
+    Conjunction* conj;
+    Disjunction* disj;
+    OneOfDisjunction* odisj;
+    const Expression* expr;
+    const Application* appl;
+    Comparison::CmpPredicate comp;
+    Type type;
+    TypeSet* types;
+    const std::string* str;
+    std::vector<const std::string*>* strs;
+    const Rational* num;
+    //DAN
+    plan* t_plan;
+    Instruction * t_instr;
+    Guards *t_guards;
+    label_symbol* t_label_symbol;
+    //NAD
 
-  //NAD
-
-#line 571 "parser.cc"
+#line 570 "parser.cc"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -950,8 +949,8 @@ static const yytype_int8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   356,   356,   356,   358,   358,   359,   359,   369,   377,
-     387,   393,   395,   402,   409,   410,   411,   412,   413,   418,
+       0,   355,   355,   355,   357,   357,   358,   358,   368,   376,
+     386,   392,   395,   402,   409,   410,   411,   412,   413,   418,
      424,   427,   446,   447,   450,   457,   464,   469,   476,   483,
      489,   493,   500,   508,   509,   510,   517,   517,   521,   522,
      523,   524,   527,   528,   529,   532,   533,   534,   535,   536,
@@ -2515,71 +2514,71 @@ yyreduce:
   switch (yyn)
     {
   case 2:
-#line 356 "parser.yy"
+#line 355 "parser.yy"
        { success = true; line_number = 1; }
-#line 2521 "parser.cc"
+#line 2520 "parser.cc"
     break;
 
   case 3:
-#line 356 "parser.yy"
+#line 355 "parser.yy"
                                                                  {}
-#line 2527 "parser.cc"
+#line 2526 "parser.cc"
     break;
 
   case 4:
-#line 358 "parser.yy"
+#line 357 "parser.yy"
    { success = true; line_number = 1; }
-#line 2533 "parser.cc"
+#line 2532 "parser.cc"
     break;
 
   case 5:
-#line 358 "parser.yy"
+#line 357 "parser.yy"
                                                {}
-#line 2539 "parser.cc"
+#line 2538 "parser.cc"
     break;
 
   case 6:
-#line 359 "parser.yy"
+#line 358 "parser.yy"
   { success = true; line_number = 1; }
-#line 2545 "parser.cc"
+#line 2544 "parser.cc"
     break;
 
   case 7:
-#line 359 "parser.yy"
+#line 358 "parser.yy"
                                                    {}
-#line 2551 "parser.cc"
+#line 2550 "parser.cc"
     break;
 
   case 8:
-#line 374 "parser.yy"
+#line 373 "parser.yy"
             {the_plan=(yyvsp[-1].t_plan); (yyval.t_plan)->name = (char*)(yyvsp[-7].str)->c_str(); (yyval.t_plan)->problem_name = (char*)(yyvsp[-3].str)->c_str();}
-#line 2557 "parser.cc"
+#line 2556 "parser.cc"
     break;
 
   case 9:
-#line 378 "parser.yy"
+#line 377 "parser.yy"
 {
-  //cout << "Plan" << endl;
-  (yyval.t_plan) = new plan(); 
-  (yyval.t_plan)->begin = (yyvsp[-1].t_instr);
+    //cout << "Plan" << endl;
+    (yyval.t_plan) = new plan(); 
+    (yyval.t_plan)->begin = (yyvsp[-1].t_instr);
 }
-#line 2567 "parser.cc"
+#line 2566 "parser.cc"
     break;
 
   case 10:
-#line 388 "parser.yy"
+#line 387 "parser.yy"
         {
 	  //cout << "Steps" << endl;
 	  (yyval.t_instr)= (yyvsp[-1].t_instr);
 	  (yyval.t_instr)->next = (yyvsp[0].t_instr);
 	}
-#line 2577 "parser.cc"
+#line 2576 "parser.cc"
     break;
 
   case 11:
-#line 393 "parser.yy"
+#line 392 "parser.yy"
                 { (yyval.t_instr)= 0; }
-#line 2583 "parser.cc"
+#line 2582 "parser.cc"
     break;
 
   case 12:
@@ -2590,7 +2589,7 @@ yyreduce:
   (yyvsp[-1].t_label_symbol)->instr = (yyvsp[0].t_instr);
   (yyval.t_instr) = (yyvsp[0].t_instr); 
 }
-#line 2594 "parser.cc"
+#line 2593 "parser.cc"
     break;
 
   case 13:
@@ -2599,31 +2598,31 @@ yyreduce:
   //cout << "Step" << endl;
   (yyval.t_instr) = (yyvsp[0].t_instr); 
 }
-#line 2603 "parser.cc"
+#line 2602 "parser.cc"
     break;
 
   case 14:
 #line 409 "parser.yy"
                                  { (yyval.t_instr) = (yyvsp[-1].t_instr); }
-#line 2609 "parser.cc"
+#line 2608 "parser.cc"
     break;
 
   case 15:
 #line 410 "parser.yy"
                        { (yyval.t_instr) = (yyvsp[-1].t_instr); }
-#line 2615 "parser.cc"
+#line 2614 "parser.cc"
     break;
 
   case 16:
 #line 411 "parser.yy"
                          { (yyval.t_instr) = (yyvsp[-1].t_instr); }
-#line 2621 "parser.cc"
+#line 2620 "parser.cc"
     break;
 
   case 17:
 #line 412 "parser.yy"
                          { (yyval.t_instr) = (yyvsp[-1].t_instr); }
-#line 2627 "parser.cc"
+#line 2626 "parser.cc"
     break;
 
   case 18:
@@ -2632,7 +2631,7 @@ yyreduce:
   //cout << "Done" << endl;
   (yyval.t_instr) = new Done(); 
 }
-#line 2636 "parser.cc"
+#line 2635 "parser.cc"
     break;
 
   case 19:
@@ -2641,13 +2640,13 @@ yyreduce:
   //cout << "LCPP"<<endl;
   (yyval.t_instr) = new Lcp_Done((yyvsp[-2].num)->double_value(), (yyvsp[-1].num)->double_value());
 }
-#line 2645 "parser.cc"
+#line 2644 "parser.cc"
     break;
 
   case 20:
 #line 424 "parser.yy"
         {std::cout <<"trouble parsing instruction"<<std::endl;}
-#line 2651 "parser.cc"
+#line 2650 "parser.cc"
     break;
 
   case 21:
@@ -2667,19 +2666,19 @@ yyreduce:
 
     (yyval.t_instr) = new mAction(findAct(tmp));
   }
-#line 2671 "parser.cc"
+#line 2670 "parser.cc"
     break;
 
   case 22:
 #line 446 "parser.yy"
                   {(yyval.strs)=(yyvsp[-1].strs); (yyvsp[-1].strs)->push_back((yyvsp[0].str));}
-#line 2677 "parser.cc"
+#line 2676 "parser.cc"
     break;
 
   case 23:
 #line 447 "parser.yy"
               {(yyval.strs)=new   std::vector<const std::string*>;}
-#line 2683 "parser.cc"
+#line 2682 "parser.cc"
     break;
 
   case 24:
@@ -2688,7 +2687,7 @@ yyreduce:
   //cout << "Then" << endl;
   (yyval.t_instr) = (yyvsp[-1].t_instr);
 }
-#line 2692 "parser.cc"
+#line 2691 "parser.cc"
     break;
 
   case 25:
@@ -2697,7 +2696,7 @@ yyreduce:
   //cout << "Else" << endl;
   (yyval.t_instr) = (yyvsp[-1].t_instr);
 }
-#line 2701 "parser.cc"
+#line 2700 "parser.cc"
     break;
 
   case 26:
@@ -2706,7 +2705,7 @@ yyreduce:
   //cout << "IfThen" << endl;
   (yyval.t_instr) = new IfThen(formula_bdd(*(yyvsp[-1].formula), false),(yyvsp[0].t_instr));
 }
-#line 2710 "parser.cc"
+#line 2709 "parser.cc"
     break;
 
   case 27:
@@ -2715,7 +2714,7 @@ yyreduce:
   //cout << "IfThenElse" << endl;
   (yyval.t_instr) = new IfThenElse(formula_bdd(*(yyvsp[-2].formula), false),(yyvsp[-1].t_instr),(yyvsp[0].t_instr));
 }
-#line 2719 "parser.cc"
+#line 2718 "parser.cc"
     break;
 
   case 28:
@@ -2724,7 +2723,7 @@ yyreduce:
   //cout << "Case" << endl;
   (yyval.t_instr) = new Case((yyvsp[0].t_guards));
 }
-#line 2728 "parser.cc"
+#line 2727 "parser.cc"
     break;
 
   case 29:
@@ -2734,13 +2733,13 @@ yyreduce:
   (yyval.t_guards) = (yyvsp[-4].t_guards);
   (yyval.t_guards)->push_back(std::make_pair(formula_bdd(*(yyvsp[-2].formula), false),(yyvsp[-1].t_instr)));
 }
-#line 2738 "parser.cc"
+#line 2737 "parser.cc"
     break;
 
   case 30:
 #line 489 "parser.yy"
               { (yyval.t_guards) = new Guards(); }
-#line 2744 "parser.cc"
+#line 2743 "parser.cc"
     break;
 
   case 31:
@@ -2749,7 +2748,7 @@ yyreduce:
   //cout << "Goto" << endl;
   (yyval.t_instr) = new Goto((yyvsp[0].t_label_symbol));
 }
-#line 2753 "parser.cc"
+#line 2752 "parser.cc"
     break;
 
   case 32:
@@ -2759,124 +2758,124 @@ yyreduce:
   // put/find in a hash table
   (yyval.t_label_symbol) = new label_symbol(*(yyvsp[0].str));//current_analysis->label_tab.symbol_ref($1);
 }
-#line 2763 "parser.cc"
+#line 2762 "parser.cc"
     break;
 
   case 36:
 #line 517 "parser.yy"
                                             { make_domain((yyvsp[-1].str)); }
-#line 2769 "parser.cc"
+#line 2768 "parser.cc"
     break;
 
   case 83:
 #line 584 "parser.yy"
                                    {// cout << "ob tokens"<<endl;
 }
-#line 2776 "parser.cc"
+#line 2775 "parser.cc"
     break;
 
   case 84:
 #line 585 "parser.yy"
                        {// cout << "done ob tokens"<<endl;
 }
-#line 2783 "parser.cc"
+#line 2782 "parser.cc"
     break;
 
   case 91:
 #line 603 "parser.yy"
                      { requirements->strips = true; }
-#line 2789 "parser.cc"
+#line 2788 "parser.cc"
     break;
 
   case 92:
 #line 604 "parser.yy"
                      { requirements->typing = true; }
-#line 2795 "parser.cc"
+#line 2794 "parser.cc"
     break;
 
   case 93:
 #line 606 "parser.yy"
                 { requirements->negative_preconditions = true; }
-#line 2801 "parser.cc"
+#line 2800 "parser.cc"
     break;
 
   case 94:
 #line 608 "parser.yy"
                 { requirements->disjunctive_preconditions = true; }
-#line 2807 "parser.cc"
+#line 2806 "parser.cc"
     break;
 
   case 95:
 #line 609 "parser.yy"
                        { requirements->equality = true; }
-#line 2813 "parser.cc"
+#line 2812 "parser.cc"
     break;
 
   case 96:
 #line 611 "parser.yy"
                 { requirements->existential_preconditions = true; }
-#line 2819 "parser.cc"
+#line 2818 "parser.cc"
     break;
 
   case 97:
 #line 613 "parser.yy"
                 { requirements->universal_preconditions = true; }
-#line 2825 "parser.cc"
+#line 2824 "parser.cc"
     break;
 
   case 98:
 #line 615 "parser.yy"
                 { requirements->quantified_preconditions(); }
-#line 2831 "parser.cc"
+#line 2830 "parser.cc"
     break;
 
   case 99:
 #line 616 "parser.yy"
                                   { requirements->conditional_effects = true; }
-#line 2837 "parser.cc"
+#line 2836 "parser.cc"
     break;
 
   case 100:
 #line 617 "parser.yy"
                                      { requirements->probabilistic = true; }
-#line 2843 "parser.cc"
+#line 2842 "parser.cc"
     break;
 
   case 101:
 #line 618 "parser.yy"
                                          { requirements->non_deterministic = true; 
 	    requirements->probabilistic_effects = true; 	    requirements->probabilistic = false;}
-#line 2850 "parser.cc"
+#line 2849 "parser.cc"
     break;
 
   case 102:
 #line 620 "parser.yy"
                       { requirements->fluents = true; }
-#line 2856 "parser.cc"
+#line 2855 "parser.cc"
     break;
 
   case 103:
 #line 621 "parser.yy"
                   { requirements->adl(); }
-#line 2862 "parser.cc"
+#line 2861 "parser.cc"
     break;
 
   case 104:
 #line 623 "parser.yy"
                 { throw Exception("`:durative-actions' not supported"); }
-#line 2868 "parser.cc"
+#line 2867 "parser.cc"
     break;
 
   case 105:
 #line 625 "parser.yy"
                 { throw Exception("`:duration-inequalities' not supported"); }
-#line 2874 "parser.cc"
+#line 2873 "parser.cc"
     break;
 
   case 106:
 #line 627 "parser.yy"
                 { throw Exception("`:continuous-effects' not supported"); }
-#line 2880 "parser.cc"
+#line 2879 "parser.cc"
     break;
 
   case 107:
@@ -2888,7 +2887,7 @@ yyreduce:
 		  goal_prob_function =
 		    domain->functions().add_function("goal-probability");
 		}
-#line 2892 "parser.cc"
+#line 2891 "parser.cc"
     break;
 
   case 108:
@@ -2897,7 +2896,7 @@ yyreduce:
 		  requirements->rewards = true;
 		  reward_function = domain->functions().add_function("reward");
 		}
-#line 2901 "parser.cc"
+#line 2900 "parser.cc"
     break;
 
   case 109:
@@ -2909,198 +2908,198 @@ yyreduce:
 		    domain->functions().add_function("goal-probability");
 		  reward_function = domain->functions().add_function("reward");
 		}
-#line 2913 "parser.cc"
+#line 2912 "parser.cc"
     break;
 
   case 110:
 #line 651 "parser.yy"
                       { require_typing(); name_kind = TYPE_KIND; }
-#line 2919 "parser.cc"
+#line 2918 "parser.cc"
     break;
 
   case 111:
 #line 652 "parser.yy"
                               { name_kind = VOID_KIND; }
-#line 2925 "parser.cc"
+#line 2924 "parser.cc"
     break;
 
   case 112:
 #line 655 "parser.yy"
                               { name_kind = CONSTANT_KIND; }
-#line 2931 "parser.cc"
+#line 2930 "parser.cc"
     break;
 
   case 113:
 #line 656 "parser.yy"
                   { name_kind = VOID_KIND; }
-#line 2937 "parser.cc"
+#line 2936 "parser.cc"
     break;
 
   case 115:
 #line 662 "parser.yy"
                               { require_fluents(); }
-#line 2943 "parser.cc"
+#line 2942 "parser.cc"
     break;
 
   case 119:
 #line 673 "parser.yy"
                                { make_predicate((yyvsp[0].str)); }
-#line 2949 "parser.cc"
+#line 2948 "parser.cc"
     break;
 
   case 120:
 #line 674 "parser.yy"
                    { parsing_predicate = false; }
-#line 2955 "parser.cc"
+#line 2954 "parser.cc"
     break;
 
   case 126:
 #line 686 "parser.yy"
                          { require_typing(); }
-#line 2961 "parser.cc"
+#line 2960 "parser.cc"
     break;
 
   case 128:
 #line 689 "parser.yy"
                              { make_function((yyvsp[0].str)); }
-#line 2967 "parser.cc"
+#line 2966 "parser.cc"
     break;
 
   case 129:
 #line 690 "parser.yy"
                   { parsing_function = false; }
-#line 2973 "parser.cc"
+#line 2972 "parser.cc"
     break;
 
   case 132:
 #line 697 "parser.yy"
                                  {make_predicate((yyvsp[0].str));// make_observable($2); parsing_obs_token = false;
 }
-#line 2980 "parser.cc"
+#line 2979 "parser.cc"
     break;
 
   case 133:
 #line 698 "parser.yy"
                  { //parsing_obs_token = false;
  parsing_predicate = false; }
-#line 2987 "parser.cc"
+#line 2986 "parser.cc"
     break;
 
   case 134:
 #line 706 "parser.yy"
                              {// cout << *$3<<endl;
                make_action((yyvsp[0].str));  }
-#line 2994 "parser.cc"
+#line 2993 "parser.cc"
     break;
 
   case 135:
 #line 708 "parser.yy"
                                           { add_action(); }
-#line 3000 "parser.cc"
+#line 2999 "parser.cc"
     break;
 
   case 136:
 #line 709 "parser.yy"
                             {
                make_action((yyvsp[0].str));  }
-#line 3007 "parser.cc"
+#line 3006 "parser.cc"
     break;
 
   case 137:
 #line 711 "parser.yy"
                                           { add_event(); }
-#line 3013 "parser.cc"
+#line 3012 "parser.cc"
     break;
 
   case 147:
 #line 732 "parser.yy"
                                     { action->set_precondition(*(yyvsp[0].formula)); }
-#line 3019 "parser.cc"
+#line 3018 "parser.cc"
     break;
 
   case 148:
 #line 735 "parser.yy"
                             { action->set_effect(*(yyvsp[0].effect)); }
-#line 3025 "parser.cc"
+#line 3024 "parser.cc"
     break;
 
   case 149:
 #line 738 "parser.yy"
                                                          {action->set_observation(*(yyvsp[-1].observation_defs));}
-#line 3031 "parser.cc"
+#line 3030 "parser.cc"
     break;
 
   case 150:
 #line 739 "parser.yy"
                                                      {action->set_observation(*(yyvsp[-1].observation_defs)); // cout << "parse ob"<<endl;
 }
-#line 3038 "parser.cc"
+#line 3037 "parser.cc"
     break;
 
   case 152:
 #line 746 "parser.yy"
                                        { (yyval.effect) = (yyvsp[-1].ceffect); }
-#line 3044 "parser.cc"
+#line 3043 "parser.cc"
     break;
 
   case 153:
 #line 747 "parser.yy"
                          { prepare_forall_effect(); }
-#line 3050 "parser.cc"
+#line 3049 "parser.cc"
     break;
 
   case 154:
 #line 748 "parser.yy"
                                 { (yyval.effect) = make_forall_effect(*(yyvsp[-1].effect)); }
-#line 3056 "parser.cc"
+#line 3055 "parser.cc"
     break;
 
   case 155:
 #line 749 "parser.yy"
            { require_conditional_effects(); }
-#line 3062 "parser.cc"
+#line 3061 "parser.cc"
     break;
 
   case 156:
 #line 750 "parser.yy"
                                 { (yyval.effect) = &ConditionalEffect::make(*(yyvsp[-2].formula), *(yyvsp[-1].effect)); }
-#line 3068 "parser.cc"
+#line 3067 "parser.cc"
     break;
 
   case 157:
 #line 751 "parser.yy"
                                               { if((yyvsp[-1].peffect)->size() ==1 && (yyvsp[-1].peffect)->probability(0) == 1.0){ (yyval.effect)=&(yyvsp[-1].peffect)->effect(0);} else (yyval.effect) = (yyvsp[-1].peffect); }
-#line 3074 "parser.cc"
+#line 3073 "parser.cc"
     break;
 
   case 158:
 #line 752 "parser.yy"
                                        { (yyval.effect) = (yyvsp[-1].peffect); }
-#line 3080 "parser.cc"
+#line 3079 "parser.cc"
     break;
 
   case 159:
 #line 753 "parser.yy"
                                  { (yyval.effect) = (yyvsp[-1].peffect); }
-#line 3086 "parser.cc"
+#line 3085 "parser.cc"
     break;
 
   case 160:
 #line 754 "parser.yy"
                                            { (yyval.effect) = (yyvsp[-1].peffect); }
-#line 3092 "parser.cc"
+#line 3091 "parser.cc"
     break;
 
   case 161:
 #line 757 "parser.yy"
                            { (yyval.ceffect) = new ConjunctiveEffect(); }
-#line 3098 "parser.cc"
+#line 3097 "parser.cc"
     break;
 
   case 162:
 #line 758 "parser.yy"
                                         { (yyval.ceffect) = (yyvsp[-1].ceffect); (yyval.ceffect)->add_conjunct(*(yyvsp[0].effect)); }
-#line 3104 "parser.cc"
+#line 3103 "parser.cc"
     break;
 
   case 163:
@@ -3109,13 +3108,13 @@ yyreduce:
  		(yyval.peffect) = new ProbabilisticEffect();
  		add_effect_outcome(*(yyval.peffect), (yyvsp[-1].num), *(yyvsp[0].effect));
  	      }
-#line 3113 "parser.cc"
+#line 3112 "parser.cc"
     break;
 
   case 164:
 #line 767 "parser.yy"
               { (yyval.peffect) = (yyvsp[-2].peffect); add_effect_outcome(*(yyval.peffect), (yyvsp[-1].num), *(yyvsp[0].effect)); }
-#line 3119 "parser.cc"
+#line 3118 "parser.cc"
     break;
 
   case 165:
@@ -3125,7 +3124,7 @@ yyreduce:
 		(yyval.peffect) = new ProbabilisticEffect();
 		add_feffect_outcome(*(yyval.peffect), (yyvsp[-1].expr), *(yyvsp[0].effect));
 	      }
-#line 3129 "parser.cc"
+#line 3128 "parser.cc"
     break;
 
   case 166:
@@ -3133,207 +3132,207 @@ yyreduce:
           {
 	    //$2->print(cout,problem->domain().functions(),problem->terms()); 
 	   (yyval.peffect) = (yyvsp[-2].peffect); add_feffect_outcome(*(yyval.peffect), (yyvsp[-1].expr), *(yyvsp[0].effect)); }
-#line 3137 "parser.cc"
+#line 3136 "parser.cc"
     break;
 
   case 167:
 #line 782 "parser.yy"
              { (yyval.peffect) = (yyvsp[-1].peffect); add_effect_outcome(*(yyval.peffect), new Rational(-1.0), *(yyvsp[0].effect)); }
-#line 3143 "parser.cc"
+#line 3142 "parser.cc"
     break;
 
   case 168:
 #line 784 "parser.yy"
 { (yyval.peffect) = new ProbabilisticEffect(); add_effect_outcome(*(yyval.peffect), new Rational(-1.0), *(yyvsp[0].effect)); }
-#line 3149 "parser.cc"
+#line 3148 "parser.cc"
     break;
 
   case 169:
 #line 788 "parser.yy"
              { (yyval.peffect) = (yyvsp[-1].peffect); add_effect_outcome(*(yyval.peffect), new Rational(-3.0), *(yyvsp[0].effect)); }
-#line 3155 "parser.cc"
+#line 3154 "parser.cc"
     break;
 
   case 170:
 #line 790 "parser.yy"
 { (yyval.peffect) = new ProbabilisticEffect(); add_effect_outcome(*(yyval.peffect), new Rational(-3.0), *(yyvsp[0].effect)); }
-#line 3161 "parser.cc"
+#line 3160 "parser.cc"
     break;
 
   case 171:
 #line 794 "parser.yy"
                { (yyval.peffect) = new ProbabilisticEffect(); 
                  add_effect_outcome(*(yyval.peffect), new Rational(-2.0), *(yyvsp[0].effect)); }
-#line 3168 "parser.cc"
+#line 3167 "parser.cc"
     break;
 
   case 173:
 #line 803 "parser.yy"
                                { (yyval.effect) = make_add_effect(*(yyvsp[0].atom)); }
-#line 3174 "parser.cc"
+#line 3173 "parser.cc"
     break;
 
   case 174:
 #line 804 "parser.yy"
                                            { (yyval.effect) = make_delete_effect(*(yyvsp[-1].atom)); }
-#line 3180 "parser.cc"
+#line 3179 "parser.cc"
     break;
 
   case 175:
 #line 805 "parser.yy"
                          { effect_fluent = true; }
-#line 3186 "parser.cc"
+#line 3185 "parser.cc"
     break;
 
   case 176:
 #line 806 "parser.yy"
              { (yyval.effect) = make_assignment_effect((yyvsp[-4].setop), *(yyvsp[-2].appl), *(yyvsp[-1].expr)); }
-#line 3192 "parser.cc"
+#line 3191 "parser.cc"
     break;
 
   case 177:
 #line 809 "parser.yy"
                    { (yyval.setop) = Assignment::ASSIGN_OP; }
-#line 3198 "parser.cc"
+#line 3197 "parser.cc"
     break;
 
   case 178:
 #line 810 "parser.yy"
                      { (yyval.setop) = Assignment::SCALE_UP_OP; }
-#line 3204 "parser.cc"
+#line 3203 "parser.cc"
     break;
 
   case 179:
 #line 811 "parser.yy"
                        { (yyval.setop) = Assignment::SCALE_DOWN_OP; }
-#line 3210 "parser.cc"
+#line 3209 "parser.cc"
     break;
 
   case 180:
 #line 812 "parser.yy"
                      { (yyval.setop) = Assignment::INCREASE_OP; }
-#line 3216 "parser.cc"
+#line 3215 "parser.cc"
     break;
 
   case 181:
 #line 813 "parser.yy"
                      { (yyval.setop) = Assignment::DECREASE_OP; }
-#line 3222 "parser.cc"
+#line 3221 "parser.cc"
     break;
 
   case 182:
 #line 819 "parser.yy"
                                                 {(yyval.observation_defs)->add_entry((yyvsp[0].observation)); }
-#line 3228 "parser.cc"
+#line 3227 "parser.cc"
     break;
 
   case 183:
 #line 820 "parser.yy"
                                {(yyval.observation_defs) = new Observation(); (yyval.observation_defs)->add_entry((yyvsp[0].observation)); }
-#line 3234 "parser.cc"
+#line 3233 "parser.cc"
     break;
 
   case 184:
 #line 823 "parser.yy"
                                                         {(yyval.observation) = make_observation(*(yyvsp[-3].formula), *(yyvsp[-2].num), *(yyvsp[-1].num));}
-#line 3240 "parser.cc"
+#line 3239 "parser.cc"
     break;
 
   case 185:
 #line 824 "parser.yy"
                                         {(yyval.observation) = make_observation(*(yyvsp[-3].formula), *(yyvsp[-2].formula) , *(yyvsp[-1].num)); }
-#line 3246 "parser.cc"
+#line 3245 "parser.cc"
     break;
 
   case 186:
 #line 825 "parser.yy"
                                                         {(yyval.observation) = make_observation(*(yyvsp[-5].formula), *(yyvsp[-2].peffect)); (yyvsp[-2].peffect)->setObservation();}
-#line 3252 "parser.cc"
+#line 3251 "parser.cc"
     break;
 
   case 187:
 #line 842 "parser.yy"
                 { make_problem((yyvsp[-5].str), (yyvsp[-1].str)); }
-#line 3258 "parser.cc"
+#line 3257 "parser.cc"
     break;
 
   case 188:
 #line 843 "parser.yy"
                 { problem->instantiate_actions(); problem->instantiate_events(); delete requirements; }
-#line 3264 "parser.cc"
+#line 3263 "parser.cc"
     break;
 
   case 189:
 #line 845 "parser.yy"
                { make_problem((yyvsp[-5].str), (yyvsp[-1].str)); }
-#line 3270 "parser.cc"
+#line 3269 "parser.cc"
     break;
 
   case 190:
 #line 846 "parser.yy"
                { problem->instantiate_actions();  problem->instantiate_events(); problem->set_plan_time(*(yyvsp[-1].num));
 	         delete (yyvsp[-1].num); delete requirements; }
-#line 3277 "parser.cc"
+#line 3276 "parser.cc"
     break;
 
   case 219:
 #line 908 "parser.yy"
                           { name_kind = OBJECT_KIND; }
-#line 3283 "parser.cc"
+#line 3282 "parser.cc"
     break;
 
   case 220:
 #line 909 "parser.yy"
                 { name_kind = VOID_KIND; }
-#line 3289 "parser.cc"
+#line 3288 "parser.cc"
     break;
 
   case 221:
 #line 912 "parser.yy"
                                       {problem->set_plan_horizon(*(yyvsp[-1].num));}
-#line 3295 "parser.cc"
+#line 3294 "parser.cc"
     break;
 
   case 222:
 #line 913 "parser.yy"
                                                {problem->set_plan_horizon(*(yyvsp[-1].num));}
-#line 3301 "parser.cc"
+#line 3300 "parser.cc"
     break;
 
   case 224:
 #line 919 "parser.yy"
        { problem->set_init_formula(*(yyvsp[-1].conj)); get_init_elts();}
-#line 3307 "parser.cc"
+#line 3306 "parser.cc"
     break;
 
   case 228:
 #line 928 "parser.yy"
                                    { problem->add_init_atom(*(yyvsp[0].atom));  problem->add_init_effect(*(new AddEffect(*(yyvsp[0].atom))));}
-#line 3313 "parser.cc"
+#line 3312 "parser.cc"
     break;
 
   case 229:
 #line 930 "parser.yy"
                  { problem->add_init_value(*(yyvsp[-2].appl), *(yyvsp[-1].num)); delete (yyvsp[-1].num); }
-#line 3319 "parser.cc"
+#line 3318 "parser.cc"
     break;
 
   case 230:
 #line 932 "parser.yy"
                  { problem->add_init_effect(*(yyvsp[-1].peffect)); }
-#line 3325 "parser.cc"
+#line 3324 "parser.cc"
     break;
 
   case 231:
 #line 933 "parser.yy"
                                         { problem->add_init_effect(*(yyvsp[-1].peffect)); }
-#line 3331 "parser.cc"
+#line 3330 "parser.cc"
     break;
 
   case 232:
 #line 934 "parser.yy"
                                             { problem->add_init_effect(*(yyvsp[-1].peffect)); }
-#line 3337 "parser.cc"
+#line 3336 "parser.cc"
     break;
 
   case 234:
@@ -3342,786 +3341,786 @@ yyreduce:
 		 (yyval.peffect) = new ProbabilisticEffect();
 		 add_effect_outcome(*(yyval.peffect), (yyvsp[-1].num), *(yyvsp[0].effect));
 	       }
-#line 3346 "parser.cc"
+#line 3345 "parser.cc"
     break;
 
   case 235:
 #line 951 "parser.yy"
            { (yyval.peffect) = (yyvsp[-2].peffect); add_effect_outcome(*(yyval.peffect), (yyvsp[-1].num), *(yyvsp[0].effect)); }
-#line 3352 "parser.cc"
+#line 3351 "parser.cc"
     break;
 
   case 236:
 #line 955 "parser.yy"
              { (yyval.peffect) = (yyvsp[-1].peffect); add_effect_outcome(*(yyval.peffect), new Rational(-1.0), *(yyvsp[0].effect)); }
-#line 3358 "parser.cc"
+#line 3357 "parser.cc"
     break;
 
   case 237:
 #line 957 "parser.yy"
 { (yyval.peffect) = new ProbabilisticEffect(); add_effect_outcome(*(yyval.peffect), new Rational(-1.0), *(yyvsp[0].effect)); }
-#line 3364 "parser.cc"
+#line 3363 "parser.cc"
     break;
 
   case 238:
 #line 961 "parser.yy"
                { (yyval.peffect) = new ProbabilisticEffect(); 
                  add_effect_outcome(*(yyval.peffect), new Rational(-2.0), *(yyvsp[0].effect)); }
-#line 3371 "parser.cc"
+#line 3370 "parser.cc"
     break;
 
   case 240:
 #line 966 "parser.yy"
                                     { (yyval.effect) = (yyvsp[-1].ceffect); }
-#line 3377 "parser.cc"
+#line 3376 "parser.cc"
     break;
 
   case 241:
 #line 969 "parser.yy"
                         { (yyval.ceffect) = new ConjunctiveEffect(); }
-#line 3383 "parser.cc"
+#line 3382 "parser.cc"
     break;
 
   case 242:
 #line 970 "parser.yy"
                                { (yyval.ceffect) = (yyvsp[-1].ceffect); (yyval.ceffect)->add_conjunct(*(yyvsp[0].effect)); }
-#line 3389 "parser.cc"
+#line 3388 "parser.cc"
     break;
 
   case 243:
 #line 973 "parser.yy"
                                { (yyval.effect) = make_add_effect(*(yyvsp[0].atom)); }
-#line 3395 "parser.cc"
+#line 3394 "parser.cc"
     break;
 
   case 244:
 #line 975 "parser.yy"
              { (yyval.effect) = make_assignment_effect(Assignment::ASSIGN_OP, *(yyvsp[-2].appl), *(yyvsp[-1].expr)); }
-#line 3401 "parser.cc"
+#line 3400 "parser.cc"
     break;
 
   case 245:
 #line 978 "parser.yy"
                { (yyval.expr) = new Value(*(yyvsp[0].num)); delete (yyvsp[0].num); }
-#line 3407 "parser.cc"
+#line 3406 "parser.cc"
     break;
 
   case 246:
 #line 981 "parser.yy"
                                              { problem->set_goal(*(yyvsp[-2].formula), true); }
-#line 3413 "parser.cc"
+#line 3412 "parser.cc"
     break;
 
   case 247:
 #line 982 "parser.yy"
                                                     { problem->set_goal(*(yyvsp[-3].formula), *(yyvsp[-2].num)); delete (yyvsp[-2].num); }
-#line 3419 "parser.cc"
+#line 3418 "parser.cc"
     break;
 
   case 248:
 #line 983 "parser.yy"
                                                       { problem->set_goal(*(yyvsp[-3].formula), true); }
-#line 3425 "parser.cc"
+#line 3424 "parser.cc"
     break;
 
   case 250:
 #line 987 "parser.yy"
                                {set_discount(*(yyvsp[-1].num));}
-#line 3431 "parser.cc"
+#line 3430 "parser.cc"
     break;
 
   case 251:
 #line 988 "parser.yy"
                                         {set_discount(*(yyvsp[-1].num));}
-#line 3437 "parser.cc"
+#line 3436 "parser.cc"
     break;
 
   case 253:
 #line 993 "parser.yy"
                 { set_goal_reward(*(yyvsp[-2].expr)); }
-#line 3443 "parser.cc"
+#line 3442 "parser.cc"
     break;
 
   case 254:
 #line 996 "parser.yy"
                           { set_default_metric(); }
-#line 3449 "parser.cc"
+#line 3448 "parser.cc"
     break;
 
   case 255:
 #line 997 "parser.yy"
                                   { metric_fluent = true; }
-#line 3455 "parser.cc"
+#line 3454 "parser.cc"
     break;
 
   case 256:
 #line 998 "parser.yy"
                 { problem->set_metric(*(yyvsp[-1].expr)); metric_fluent = false; }
-#line 3461 "parser.cc"
+#line 3460 "parser.cc"
     break;
 
   case 257:
 #line 999 "parser.yy"
                                   { metric_fluent = true; }
-#line 3467 "parser.cc"
+#line 3466 "parser.cc"
     break;
 
   case 258:
 #line 1000 "parser.yy"
                 { problem->set_metric(*(yyvsp[-1].expr), true); metric_fluent = false; }
-#line 3473 "parser.cc"
+#line 3472 "parser.cc"
     break;
 
   case 259:
 #line 1007 "parser.yy"
                               { (yyval.formula) = (yyvsp[0].atom); }
-#line 3479 "parser.cc"
+#line 3478 "parser.cc"
     break;
 
   case 260:
 #line 1009 "parser.yy"
             { first_eq_term = eq_term; first_eq_expr = eq_expr; }
-#line 3485 "parser.cc"
+#line 3484 "parser.cc"
     break;
 
   case 261:
 #line 1010 "parser.yy"
                               { (yyval.formula) = make_equality(); }
-#line 3491 "parser.cc"
+#line 3490 "parser.cc"
     break;
 
   case 262:
 #line 1011 "parser.yy"
                           { require_fluents(); }
-#line 3497 "parser.cc"
+#line 3496 "parser.cc"
     break;
 
   case 263:
 #line 1012 "parser.yy"
             { (yyval.formula) = new Comparison((yyvsp[-4].comp), *(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3503 "parser.cc"
+#line 3502 "parser.cc"
     break;
 
   case 264:
 #line 1013 "parser.yy"
                               { (yyval.formula) = make_negation(*(yyvsp[-1].formula)); }
-#line 3509 "parser.cc"
+#line 3508 "parser.cc"
     break;
 
   case 265:
 #line 1014 "parser.yy"
                                 { (yyval.formula) = (yyvsp[-1].conj); }
-#line 3515 "parser.cc"
+#line 3514 "parser.cc"
     break;
 
   case 266:
 #line 1015 "parser.yy"
                  { require_disjunction(); }
-#line 3521 "parser.cc"
+#line 3520 "parser.cc"
     break;
 
   case 267:
 #line 1015 "parser.yy"
                                                           { (yyval.formula) = (yyvsp[-1].disj); }
-#line 3527 "parser.cc"
+#line 3526 "parser.cc"
     break;
 
   case 268:
 #line 1016 "parser.yy"
                     { require_disjunction(); }
-#line 3533 "parser.cc"
+#line 3532 "parser.cc"
     break;
 
   case 269:
 #line 1016 "parser.yy"
                                                                    { (yyval.formula) = (yyvsp[-1].odisj); }
-#line 3539 "parser.cc"
+#line 3538 "parser.cc"
     break;
 
   case 270:
 #line 1017 "parser.yy"
                                         { (yyval.formula) = make_implication(*(yyvsp[-2].formula), *(yyvsp[-1].formula)); }
-#line 3545 "parser.cc"
+#line 3544 "parser.cc"
     break;
 
   case 271:
 #line 1018 "parser.yy"
                      { prepare_exists(); }
-#line 3551 "parser.cc"
+#line 3550 "parser.cc"
     break;
 
   case 272:
 #line 1019 "parser.yy"
             { (yyval.formula) = make_exists(*(yyvsp[-1].formula)); }
-#line 3557 "parser.cc"
+#line 3556 "parser.cc"
     break;
 
   case 273:
 #line 1020 "parser.yy"
                      { prepare_forall(); }
-#line 3563 "parser.cc"
+#line 3562 "parser.cc"
     break;
 
   case 274:
 #line 1021 "parser.yy"
             { (yyval.formula) = make_forall(*(yyvsp[-1].formula)); }
-#line 3569 "parser.cc"
+#line 3568 "parser.cc"
     break;
 
   case 275:
 #line 1024 "parser.yy"
                         { (yyval.conj) = new Conjunction(); }
-#line 3575 "parser.cc"
+#line 3574 "parser.cc"
     break;
 
   case 276:
 #line 1025 "parser.yy"
                               { (yyval.conj)->add_conjunct(*(yyvsp[0].formula)); }
-#line 3581 "parser.cc"
+#line 3580 "parser.cc"
     break;
 
   case 277:
 #line 1028 "parser.yy"
                         { (yyval.disj) = new Disjunction(); }
-#line 3587 "parser.cc"
+#line 3586 "parser.cc"
     break;
 
   case 278:
 #line 1029 "parser.yy"
                               { (yyval.disj)->add_disjunct(*(yyvsp[0].formula)); }
-#line 3593 "parser.cc"
+#line 3592 "parser.cc"
     break;
 
   case 279:
 #line 1031 "parser.yy"
                               { (yyval.odisj) = new OneOfDisjunction(); }
-#line 3599 "parser.cc"
+#line 3598 "parser.cc"
     break;
 
   case 280:
 #line 1032 "parser.yy"
                                     { (yyval.odisj)->add_oneof_disjunct(*(yyvsp[0].formula)); }
-#line 3605 "parser.cc"
+#line 3604 "parser.cc"
     break;
 
   case 281:
 #line 1035 "parser.yy"
                                     { prepare_atom((yyvsp[0].str)); }
-#line 3611 "parser.cc"
+#line 3610 "parser.cc"
     break;
 
   case 282:
 #line 1036 "parser.yy"
                         { (yyval.atom) = make_atom(); }
-#line 3617 "parser.cc"
+#line 3616 "parser.cc"
     break;
 
   case 283:
 #line 1037 "parser.yy"
                                 { prepare_atom((yyvsp[0].str)); (yyval.atom) = make_atom(); }
-#line 3623 "parser.cc"
+#line 3622 "parser.cc"
     break;
 
   case 284:
 #line 1040 "parser.yy"
                                     { prepare_atom((yyvsp[0].str)); }
-#line 3629 "parser.cc"
+#line 3628 "parser.cc"
     break;
 
   case 285:
 #line 1041 "parser.yy"
                         { (yyval.atom) = make_atom(); }
-#line 3635 "parser.cc"
+#line 3634 "parser.cc"
     break;
 
   case 286:
 #line 1042 "parser.yy"
                                 { prepare_atom((yyvsp[0].str)); (yyval.atom) = make_atom(); }
-#line 3641 "parser.cc"
+#line 3640 "parser.cc"
     break;
 
   case 287:
 #line 1045 "parser.yy"
                   { (yyval.comp) = Comparison::LT_CMP; }
-#line 3647 "parser.cc"
+#line 3646 "parser.cc"
     break;
 
   case 288:
 #line 1046 "parser.yy"
                  { (yyval.comp) = Comparison::LE_CMP; }
-#line 3653 "parser.cc"
+#line 3652 "parser.cc"
     break;
 
   case 289:
 #line 1047 "parser.yy"
                  { (yyval.comp) = Comparison::GE_CMP; }
-#line 3659 "parser.cc"
+#line 3658 "parser.cc"
     break;
 
   case 290:
 #line 1048 "parser.yy"
                   {(yyval.comp) = Comparison::GT_CMP; }
-#line 3665 "parser.cc"
+#line 3664 "parser.cc"
     break;
 
   case 291:
 #line 1055 "parser.yy"
                { (yyval.expr) = new Value(*(yyvsp[0].num)); delete (yyvsp[0].num); }
-#line 3671 "parser.cc"
+#line 3670 "parser.cc"
     break;
 
   case 292:
 #line 1056 "parser.yy"
                                 { (yyval.expr) = new Addition(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3677 "parser.cc"
+#line 3676 "parser.cc"
     break;
 
   case 293:
 #line 1057 "parser.yy"
                                     { (yyval.expr) = make_subtraction(*(yyvsp[-2].expr), (yyvsp[-1].expr)); }
-#line 3683 "parser.cc"
+#line 3682 "parser.cc"
     break;
 
   case 294:
 #line 1058 "parser.yy"
                                 { (yyval.expr) = new Multiplication(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3689 "parser.cc"
+#line 3688 "parser.cc"
     break;
 
   case 295:
 #line 1059 "parser.yy"
                                 { (yyval.expr) = new Division(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3695 "parser.cc"
+#line 3694 "parser.cc"
     break;
 
   case 296:
 #line 1060 "parser.yy"
                { (yyval.expr) = (yyvsp[0].appl); }
-#line 3701 "parser.cc"
+#line 3700 "parser.cc"
     break;
 
   case 297:
 #line 1064 "parser.yy"
                   { require_fluents(); eq_expr = new Value(*(yyvsp[0].num)); delete (yyvsp[0].num); }
-#line 3707 "parser.cc"
+#line 3706 "parser.cc"
     break;
 
   case 298:
 #line 1065 "parser.yy"
                         { require_fluents(); }
-#line 3713 "parser.cc"
+#line 3712 "parser.cc"
     break;
 
   case 299:
 #line 1066 "parser.yy"
                   { eq_expr = new Addition(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3719 "parser.cc"
+#line 3718 "parser.cc"
     break;
 
   case 300:
 #line 1067 "parser.yy"
                         { require_fluents(); }
-#line 3725 "parser.cc"
+#line 3724 "parser.cc"
     break;
 
   case 301:
 #line 1068 "parser.yy"
                   { eq_expr = make_subtraction(*(yyvsp[-2].expr), (yyvsp[-1].expr)); }
-#line 3731 "parser.cc"
+#line 3730 "parser.cc"
     break;
 
   case 302:
 #line 1069 "parser.yy"
                         { require_fluents(); }
-#line 3737 "parser.cc"
+#line 3736 "parser.cc"
     break;
 
   case 303:
 #line 1070 "parser.yy"
                   { eq_expr = new Multiplication(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3743 "parser.cc"
+#line 3742 "parser.cc"
     break;
 
   case 304:
 #line 1071 "parser.yy"
                         { require_fluents(); }
-#line 3749 "parser.cc"
+#line 3748 "parser.cc"
     break;
 
   case 305:
 #line 1072 "parser.yy"
                   { eq_expr = new Division(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3755 "parser.cc"
+#line 3754 "parser.cc"
     break;
 
   case 306:
 #line 1073 "parser.yy"
                              { require_fluents(); prepare_application((yyvsp[0].str)); }
-#line 3761 "parser.cc"
+#line 3760 "parser.cc"
     break;
 
   case 307:
 #line 1074 "parser.yy"
                             { eq_expr = make_application(); }
-#line 3767 "parser.cc"
+#line 3766 "parser.cc"
     break;
 
   case 308:
 #line 1075 "parser.yy"
                      { make_eq_name((yyvsp[0].str)); }
-#line 3773 "parser.cc"
+#line 3772 "parser.cc"
     break;
 
   case 309:
 #line 1076 "parser.yy"
                          { eq_term = make_term((yyvsp[0].str)); eq_expr = NULL; }
-#line 3779 "parser.cc"
+#line 3778 "parser.cc"
     break;
 
   case 310:
 #line 1079 "parser.yy"
                         { (yyval.expr) = NULL; }
-#line 3785 "parser.cc"
+#line 3784 "parser.cc"
     break;
 
   case 312:
 #line 1083 "parser.yy"
                       { prepare_application((yyvsp[0].str)); }
-#line 3791 "parser.cc"
+#line 3790 "parser.cc"
     break;
 
   case 313:
 #line 1084 "parser.yy"
            { (yyval.appl) = make_application(); }
-#line 3797 "parser.cc"
+#line 3796 "parser.cc"
     break;
 
   case 314:
 #line 1085 "parser.yy"
                   { prepare_application((yyvsp[0].str)); (yyval.appl) = make_application(); }
-#line 3803 "parser.cc"
+#line 3802 "parser.cc"
     break;
 
   case 315:
 #line 1088 "parser.yy"
                       { (yyval.expr) = new Value(*(yyvsp[0].num)); delete (yyvsp[0].num); }
-#line 3809 "parser.cc"
+#line 3808 "parser.cc"
     break;
 
   case 316:
 #line 1090 "parser.yy"
                  { (yyval.expr) = new Addition(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3815 "parser.cc"
+#line 3814 "parser.cc"
     break;
 
   case 317:
 #line 1092 "parser.yy"
                  { (yyval.expr) = make_subtraction(*(yyvsp[-2].expr), (yyvsp[-1].expr)); }
-#line 3821 "parser.cc"
+#line 3820 "parser.cc"
     break;
 
   case 318:
 #line 1094 "parser.yy"
                  { (yyval.expr) = new Multiplication(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3827 "parser.cc"
+#line 3826 "parser.cc"
     break;
 
   case 319:
 #line 1096 "parser.yy"
                  { (yyval.expr) = new Division(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 3833 "parser.cc"
+#line 3832 "parser.cc"
     break;
 
   case 320:
 #line 1097 "parser.yy"
                              { (yyval.expr) = (yyvsp[0].appl); }
-#line 3839 "parser.cc"
+#line 3838 "parser.cc"
     break;
 
   case 321:
 #line 1099 "parser.yy"
                  { prepare_application((yyvsp[0].str)); (yyval.expr) = make_application(); }
-#line 3845 "parser.cc"
+#line 3844 "parser.cc"
     break;
 
   case 322:
 #line 1102 "parser.yy"
                                { (yyval.expr) = NULL; }
-#line 3851 "parser.cc"
+#line 3850 "parser.cc"
     break;
 
   case 324:
 #line 1106 "parser.yy"
                              { prepare_application((yyvsp[0].str)); }
-#line 3857 "parser.cc"
+#line 3856 "parser.cc"
     break;
 
   case 325:
 #line 1107 "parser.yy"
                   { (yyval.appl) = make_application(); }
-#line 3863 "parser.cc"
+#line 3862 "parser.cc"
     break;
 
   case 326:
 #line 1109 "parser.yy"
                     { prepare_application((yyvsp[0].str)); (yyval.appl) = make_application(); }
-#line 3869 "parser.cc"
+#line 3868 "parser.cc"
     break;
 
   case 328:
 #line 1117 "parser.yy"
                    { add_term((yyvsp[0].str)); }
-#line 3875 "parser.cc"
+#line 3874 "parser.cc"
     break;
 
   case 329:
 #line 1118 "parser.yy"
                        { add_term((yyvsp[0].str)); }
-#line 3881 "parser.cc"
+#line 3880 "parser.cc"
     break;
 
   case 331:
 #line 1122 "parser.yy"
                    { add_term((yyvsp[0].str)); }
-#line 3887 "parser.cc"
+#line 3886 "parser.cc"
     break;
 
   case 333:
 #line 1126 "parser.yy"
                          { add_variables((yyvsp[0].strs), OBJECT_TYPE); }
-#line 3893 "parser.cc"
+#line 3892 "parser.cc"
     break;
 
   case 334:
 #line 1127 "parser.yy"
                                    { add_variables((yyvsp[-1].strs), (yyvsp[0].type)); }
-#line 3899 "parser.cc"
+#line 3898 "parser.cc"
     break;
 
   case 336:
 #line 1130 "parser.yy"
                         { (yyval.strs) = new std::vector<const std::string*>(1, (yyvsp[0].str)); }
-#line 3905 "parser.cc"
+#line 3904 "parser.cc"
     break;
 
   case 337:
 #line 1131 "parser.yy"
                                      { (yyval.strs) = (yyvsp[-1].strs); (yyval.strs)->push_back((yyvsp[0].str)); }
-#line 3911 "parser.cc"
+#line 3910 "parser.cc"
     break;
 
   case 339:
 #line 1135 "parser.yy"
                        { add_names((yyvsp[0].strs), OBJECT_TYPE); }
-#line 3917 "parser.cc"
+#line 3916 "parser.cc"
     break;
 
   case 340:
 #line 1136 "parser.yy"
                                  { add_names((yyvsp[-1].strs), (yyvsp[0].type)); }
-#line 3923 "parser.cc"
+#line 3922 "parser.cc"
     break;
 
   case 342:
 #line 1139 "parser.yy"
                 { (yyval.strs) = new std::vector<const std::string*>(1, (yyvsp[0].str)); }
-#line 3929 "parser.cc"
+#line 3928 "parser.cc"
     break;
 
   case 343:
 #line 1140 "parser.yy"
                          { (yyval.strs) = (yyvsp[-1].strs); (yyval.strs)->push_back((yyvsp[0].str)); }
-#line 3935 "parser.cc"
+#line 3934 "parser.cc"
     break;
 
   case 344:
 #line 1143 "parser.yy"
                 { require_typing(); }
-#line 3941 "parser.cc"
+#line 3940 "parser.cc"
     break;
 
   case 345:
 #line 1143 "parser.yy"
                                            { (yyval.type) = (yyvsp[0].type); }
-#line 3947 "parser.cc"
+#line 3946 "parser.cc"
     break;
 
   case 346:
 #line 1146 "parser.yy"
               { (yyval.type) = OBJECT_TYPE; }
-#line 3953 "parser.cc"
+#line 3952 "parser.cc"
     break;
 
   case 347:
 #line 1147 "parser.yy"
                  { (yyval.type) = make_type((yyvsp[0].str)); }
-#line 3959 "parser.cc"
+#line 3958 "parser.cc"
     break;
 
   case 348:
 #line 1148 "parser.yy"
                             { (yyval.type) = make_type(*(yyvsp[-1].types)); delete (yyvsp[-1].types); }
-#line 3965 "parser.cc"
+#line 3964 "parser.cc"
     break;
 
   case 349:
 #line 1151 "parser.yy"
                { (yyval.types) = new TypeSet(); }
-#line 3971 "parser.cc"
+#line 3970 "parser.cc"
     break;
 
   case 350:
 #line 1152 "parser.yy"
                   { (yyval.types) = new TypeSet(); (yyval.types)->insert(make_type((yyvsp[0].str))); }
-#line 3977 "parser.cc"
+#line 3976 "parser.cc"
     break;
 
   case 351:
 #line 1153 "parser.yy"
                      { (yyval.types) = (yyvsp[-1].types); }
-#line 3983 "parser.cc"
+#line 3982 "parser.cc"
     break;
 
   case 352:
 #line 1154 "parser.yy"
                         { (yyval.types) = (yyvsp[-1].types); (yyval.types)->insert(make_type((yyvsp[0].str))); }
-#line 3989 "parser.cc"
+#line 3988 "parser.cc"
     break;
 
   case 354:
 #line 1164 "parser.yy"
                 { delete (yyvsp[0].str); }
-#line 3995 "parser.cc"
+#line 3994 "parser.cc"
     break;
 
   case 355:
 #line 1167 "parser.yy"
                       { delete (yyvsp[0].str); }
-#line 4001 "parser.cc"
+#line 4000 "parser.cc"
     break;
 
   case 356:
 #line 1170 "parser.yy"
                   { delete (yyvsp[0].str); }
-#line 4007 "parser.cc"
+#line 4006 "parser.cc"
     break;
 
   case 357:
 #line 1173 "parser.yy"
             { delete (yyvsp[0].str); }
-#line 4013 "parser.cc"
+#line 4012 "parser.cc"
     break;
 
   case 358:
 #line 1176 "parser.yy"
           { delete (yyvsp[0].str); }
-#line 4019 "parser.cc"
+#line 4018 "parser.cc"
     break;
 
   case 359:
 #line 1179 "parser.yy"
           { delete (yyvsp[0].str); }
-#line 4025 "parser.cc"
+#line 4024 "parser.cc"
     break;
 
   case 360:
 #line 1182 "parser.yy"
         { delete (yyvsp[0].str); }
-#line 4031 "parser.cc"
+#line 4030 "parser.cc"
     break;
 
   case 361:
 #line 1185 "parser.yy"
               { delete (yyvsp[0].str); }
-#line 4037 "parser.cc"
+#line 4036 "parser.cc"
     break;
 
   case 362:
 #line 1188 "parser.yy"
                 { delete (yyvsp[0].str); }
-#line 4043 "parser.cc"
+#line 4042 "parser.cc"
     break;
 
   case 363:
 #line 1191 "parser.yy"
                 { delete (yyvsp[0].str); }
-#line 4049 "parser.cc"
+#line 4048 "parser.cc"
     break;
 
   case 364:
 #line 1194 "parser.yy"
                               { delete (yyvsp[0].str); }
-#line 4055 "parser.cc"
+#line 4054 "parser.cc"
     break;
 
   case 365:
 #line 1197 "parser.yy"
                 { delete (yyvsp[0].str); }
-#line 4061 "parser.cc"
+#line 4060 "parser.cc"
     break;
 
   case 366:
 #line 1200 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4067 "parser.cc"
+#line 4066 "parser.cc"
     break;
 
   case 367:
 #line 1203 "parser.yy"
                         { delete (yyvsp[0].str); }
-#line 4073 "parser.cc"
+#line 4072 "parser.cc"
     break;
 
   case 368:
 #line 1206 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4079 "parser.cc"
+#line 4078 "parser.cc"
     break;
 
   case 369:
 #line 1209 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4085 "parser.cc"
+#line 4084 "parser.cc"
     break;
 
   case 370:
 #line 1212 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4091 "parser.cc"
+#line 4090 "parser.cc"
     break;
 
   case 371:
 #line 1215 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4097 "parser.cc"
+#line 4096 "parser.cc"
     break;
 
   case 372:
 #line 1218 "parser.yy"
                       { delete (yyvsp[0].str); }
-#line 4103 "parser.cc"
+#line 4102 "parser.cc"
     break;
 
   case 373:
 #line 1221 "parser.yy"
                       { delete (yyvsp[0].str); }
-#line 4109 "parser.cc"
+#line 4108 "parser.cc"
     break;
 
   case 374:
 #line 1224 "parser.yy"
                 { delete (yyvsp[0].str); }
-#line 4115 "parser.cc"
+#line 4114 "parser.cc"
     break;
 
   case 375:
 #line 1227 "parser.yy"
                     { delete (yyvsp[0].str); }
-#line 4121 "parser.cc"
+#line 4120 "parser.cc"
     break;
 
 
-#line 4125 "parser.cc"
+#line 4124 "parser.cc"
 
       default: break;
     }
@@ -4358,209 +4357,211 @@ yyreturn:
 
 /* Outputs an error message. */
 static void yyerror(const std::string& s) {
-  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	    << std::endl;
-  success = false;
+	std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s << std::endl;
+	success = false;
 }
 
 
 /* Outputs a warning. */
 static void yywarning(const std::string& s) {
-  if (warning_level > 0) {
-    std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	      << std::endl;
-    if (warning_level > 1) {
-      success = false;
-    }
-  }
+	if (warning_level > 0) {
+		std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s << std::endl;
+		if (warning_level > 1) {
+			success = false;
+		}
+	}
 }
 
 
 /* Creates an empty domain with the given name. */
 static void make_domain(const std::string* name) {
-  domain = new Domain(*name);
-  domains[*name] = domain;
-  requirements = &domain->requirements;
-  problem = NULL;
-  delete name;
+	domain = new Domain(*name);
+	domains[*name] = domain;// 添加映射关系
+	requirements = &domain->requirements;
+	problem = NULL;
+	delete name;
 }
 
 
 
 /* Creates an empty problem with the given name. */
-static void make_problem(const std::string* name,
-			 const std::string* domain_name) {
-  std::map<std::string, Domain*>::const_iterator di =
-    domains.find(*domain_name);
-  if (di != domains.end()) {
-    domain = (*di).second;
-  } else {
-    domain = new Domain(*domain_name);
-    domains[*domain_name] = domain;
-    yyerror("undeclared domain `" + *domain_name + "' used");
-  }
-  requirements = new Requirements(domain->requirements);
-  problem = new Problem(*name, *domain);
-  my_problem = problem;
-   if (requirements->rewards) {
-     Action* noopAct = new Action("noop_action");
-     const Application& reward_appl =
-       Application::make_application(reward_function, TermList());
-     const Assignment* reward_assignment =
-       new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
-     noopAct->set_effect(*new AssignmentEffect(*reward_assignment));
-     //add_action(noopAct);
-     problem->add_action(noopAct);
+static void make_problem(const std::string* name, const std::string* domain_name) {
+	// 获取problem对应的domain是否存在
+	std::map<std::string, Domain*>::const_iterator di = domains.find(*domain_name);
+	if (di != domains.end()) {
+		domain = (*di).second;
+	}
+	// domain不存在直接结束 
+	else {
+		domain = new Domain(*domain_name);
+		domains[*domain_name] = domain;
+		yyerror("undeclared domain `" + *domain_name + "' used");
+  	}
+	// 获取domain的requirement
+	requirements = new Requirements(domain->requirements);
+	problem = new Problem(*name, *domain);
+	my_problem = problem;
+	// 判断是否需要reward
+	if (requirements->rewards) {
+		Action* noopAct = new Action("noop_action");
+		const Application& reward_appl =
+			Application::make_application(reward_function, TermList());
+		const Assignment* reward_assignment =
+			new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
+		noopAct->set_effect(*new AssignmentEffect(*reward_assignment));
+		//add_action(noopAct);
+		problem->add_action(noopAct);
      
 //     const Application& reward_appl =
 //       Application::make_application(reward_function, TermList());
 //     const Assignment* reward_assignment =
 //       new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
 //     problem->add_init_effect(*new AssignmentEffect(*reward_assignment));
-   }
-  delete name;
-  delete domain_name;
+	}
+	delete name;
+	delete domain_name;
 }
 
 
 /* Adds :typing to the requirements. */
 static void require_typing() {
-  if (!requirements->typing) {
-    yywarning("assuming `:typing' requirement");
-    requirements->typing = true;
-  }
+	if (!requirements->typing) {
+		yywarning("assuming `:typing' requirement");
+		requirements->typing = true;
+	}
 }
 
 
 /* Adds :fluents to the requirements. */
 static void require_fluents() {
-  if (!requirements->fluents) {
-    yywarning("assuming `:fluents' requirement");
-    requirements->fluents = true;
-  }
+	if (!requirements->fluents) {
+		yywarning("assuming `:fluents' requirement");
+		requirements->fluents = true;
+	}
 }
 
 
 /* Adds :disjunctive-preconditions to the requirements. */
 static void require_disjunction() {
-  if (!requirements->disjunctive_preconditions) {
-    yywarning("assuming `:disjunctive-preconditions' requirement");
-    requirements->disjunctive_preconditions = true;
-  }
+	if (!requirements->disjunctive_preconditions) {
+		yywarning("assuming `:disjunctive-preconditions' requirement");
+		requirements->disjunctive_preconditions = true;
+	}
 }
 
 
 /* Adds :conditional-effects to the requirements. */ 
 static void require_conditional_effects() {
-  if (!requirements->conditional_effects) {
-    yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
-  }
+	if (!requirements->conditional_effects) {
+		yywarning("assuming `:conditional-effects' requirement");
+		requirements->conditional_effects = true;
+	}
 }
 
 
 /* Returns a simple type with the given name. */
 static Type make_type(const std::string* name) {
-  std::pair<Type, bool> t = domain->types().find_type(*name);
-  if (!t.second) {
-    t.first = domain->types().add_type(*name);
-    if (name_kind != TYPE_KIND) {
-      yywarning("implicit declaration of type `" + *name + "'");
-    }
-  }
-  delete name;
-  return t.first;
+	std::pair<Type, bool> t = domain->types().find_type(*name);
+	if (!t.second)
+	{
+		t.first = domain->types().add_type(*name);
+		
+		if (name_kind != TYPE_KIND)
+			yywarning("implicit declaration of type `" + *name + "'");
+	}
+
+	delete name;
+	return t.first;
 }
 
 
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types) {
-  return domain->types().add_type(types);
+	return domain->types().add_type(types);
 }
 
 
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name) {
-  if ((*name)[0] == '?') {
-    std::pair<Variable, bool> v = context.find(*name);
-    if (!v.second) {
-      if (problem != NULL) {
-	v.first = problem->terms().add_variable(OBJECT_TYPE);
-      } else {
-	v.first = domain->terms().add_variable(OBJECT_TYPE);
-      }
-      context.insert(*name, v.first);
-      yyerror("free variable `" + *name + "' used");
-    }
-    delete name;
-    return v.first;
-  } else {
-    TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
-    
-    
-    const PredicateTable& predicates = (parsing_obs_token ? 
-					domain->observables() :
-					domain->predicates());
-    std::pair<Object, bool> o = terms.find_object(*name);
-    if (!o.second) {
-      size_t n = term_parameters.size();
-      if (parsing_atom && predicates.arity(atom_predicate) > n) {
-	o.first = terms.add_object(*name,
-				   predicates.parameter(atom_predicate, n));
-      } else {
-	o.first = terms.add_object(*name, OBJECT_TYPE);
-      }
-      yywarning("implicit declaration of object `" + *name + "'");
-    }
-    delete name;
-    return o.first;
-  }
+	if ((*name)[0] == '?') {
+		std::pair<Variable, bool> v = context.find(*name);
+		if (!v.second) {
+			if (problem != NULL)
+				v.first = problem->terms().add_variable(OBJECT_TYPE);
+			else
+				v.first = domain->terms().add_variable(OBJECT_TYPE);
+
+			context.insert(*name, v.first);
+			yyerror("free variable `" + *name + "' used");
+    	}
+		delete name;
+		return v.first;
+	} 
+	else {	
+		TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+		
+		const PredicateTable& predicates = (parsing_obs_token ? domain->observables() : domain->predicates());
+		
+		std::pair<Object, bool> o = terms.find_object(*name);
+
+		if (!o.second) {
+			size_t n = term_parameters.size();
+			if (parsing_atom && predicates.arity(atom_predicate) > n) {
+				o.first = terms.add_object(*name, predicates.parameter(atom_predicate, n));
+		} else {
+			o.first = terms.add_object(*name, OBJECT_TYPE);
+		}
+			yywarning("implicit declaration of object `" + *name + "'");
+		}
+		delete name;
+		return o.first;
+	}
 }
 
 
 /* Creates a predicate with the given name. */
 static void make_predicate(const std::string* name) {
-  repeated_predicate = false;
-  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    //    cout << "Make pred " << *name << endl;
-    p.first = domain->predicates().add_predicate(*name);
-  } else {
-    repeated_predicate = true;
-    yywarning("ignoring repeated declaration of predicate `" + *name + "'");
-  }
-  predicate = p.first;
-  parsing_predicate = true;
-  delete name;
+	repeated_predicate = false;
+	std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
+	if (!p.second) {
+		//    cout << "Make pred " << *name << endl;
+		p.first = domain->predicates().add_predicate(*name);
+	} else {
+		repeated_predicate = true;
+		yywarning("ignoring repeated declaration of predicate `" + *name + "'");
+	}
+	predicate = p.first;
+	parsing_predicate = true;
+	delete name;
 }
 
 /* Creates a observation token with the given name. */
 static void make_observable(const std::string* name) {
-  repeated_predicate = false;
-  std::cout << "observable: " << *name <<std::endl;
-  std::pair<Predicate, bool> p = domain->observables().find_predicate(*name);
-  if (!p.second) {
-    p.first = domain->observables().add_predicate(*name);
-  } else {
-    repeated_predicate = true;
-    yywarning("ignoring repeated declaration of observable `" + *name + "'");
-  }
-  predicate = p.first;
-  //  parsing_obs_token = true;
-  parsing_predicate = true;
-  delete name;
+	repeated_predicate = false;
+	std::cout << "observable: " << *name <<std::endl;
+	std::pair<Predicate, bool> p = domain->observables().find_predicate(*name);
+	if (!p.second) {
+		p.first = domain->observables().add_predicate(*name);
+	} else {
+		repeated_predicate = true;
+		yywarning("ignoring repeated declaration of observable `" + *name + "'");
+	}
+	predicate = p.first;
+	//  parsing_obs_token = true;
+	parsing_predicate = true;
+	delete name;
 }
 
 //static ObservationCptRow* make_observation(
 static ObservationEntry* make_observation(
 					   const StateFormula& form,
 					   const ProbabilisticEffect& eff){
-  //  ObservationCptRow *row = new ObservationCptRow(form, eff);
-  OBS_TYPE=OBS_CPT;
-  //  const Rational& prob = eff.probability(0);
-  // const Atom& symbol = ((SimpleEffect&)eff.effect(0)).atom();
-  ObservationEntry *row = new ObservationEntry(form, eff);
-  return row;
+	//  ObservationCptRow *row = new ObservationCptRow(form, eff);
+	OBS_TYPE=OBS_CPT;
+	//  const Rational& prob = eff.probability(0);
+	// const Atom& symbol = ((SimpleEffect&)eff.effect(0)).atom();
+	ObservationEntry *row = new ObservationEntry(form, eff);
+	return row;
 }
 
 /* Appends new observation entry to list of observation entries */
@@ -4568,18 +4569,16 @@ static ObservationEntry* make_observation(
 			       const StateFormula& form,
 			       const Rational& posprob,
 			       const Rational& negprob){
-  //  cout << "make entry"<<endl;
-  OBS_TYPE=OBS_TPFP;
-  if (typeid(form) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
-//   token.print(cout, ((Domain)problem->domain()).observables(),
-// 	      problem->domain().functions(),
-// 	      problem->terms());
-  ObservationEntry *ob = new ObservationEntry(form, posprob, negprob);
-
-  
-  return ob;
+	//  cout << "make entry"<<endl;
+	OBS_TYPE=OBS_TPFP;
+	if (typeid(form) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
+/* token.print(cout, ((Domain)problem->domain()).observables(),
+    	problem->domain().functions(),
+    	problem->terms()); */
+	ObservationEntry *ob = new ObservationEntry(form, posprob, negprob);
+  	return ob;
 }
 
 /* Appends new observation entry to list of observation entries */
@@ -4587,172 +4586,161 @@ static ObservationEntry* make_observation(
 			       const StateFormula& form,
 			       const StateFormula& o,
 			       const Rational& prob){
-  //  cout << "make entry"<<endl;
-  OBS_TYPE=OBS_TPFP;
-  if (typeid(form) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
+	//  cout << "make entry"<<endl;
+	OBS_TYPE=OBS_TPFP;
+	if (typeid(form) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
 
-  if (typeid(o) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
+	if (typeid(o) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
 
-  //  o.print(cout, ((Domain)problem->domain()).predicates(),
-  //	      problem->domain().functions(),
-  //	      problem->terms());
+    /* o.print(cout, ((Domain)problem->domain()).predicates(),
+  	      problem->domain().functions(),
+  	      problem->terms()); */
 
-//   token
-  ObservationEntry *ob = new ObservationEntry(form, &o, prob, prob);
-
-  
-  return ob;
+	/* token */
+	ObservationEntry *ob = new ObservationEntry(form, &o, prob, prob);
+  	return ob;
 }
 
 /* Creates a function with the given name. */
 static void make_function(const std::string* name) {
-  repeated_function = false;
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (!f.second) {
-    f.first = domain->functions().add_function(*name);
-  } else {
-    repeated_function = true;
-    if (requirements->rewards && f.first == reward_function) {
-      yywarning("ignoring declaration of reserved function `reward'");
-    } else {
-      yywarning("ignoring repeated declaration of function `" + *name + "'");
-    }
-  }
-  function = f.first;
-  parsing_function = true;
-  delete name;
+	repeated_function = false;
+	std::pair<Function, bool> f = domain->functions().find_function(*name);
+	if (!f.second) {
+		f.first = domain->functions().add_function(*name);
+	} else {
+    	repeated_function = true;
+    	if (requirements->rewards && f.first == reward_function) {
+    		yywarning("ignoring declaration of reserved function `reward'");
+    	} else {
+    		yywarning("ignoring repeated declaration of function `" + *name + "'");
+    	}
+	}
+	function = f.first;
+	parsing_function = true;
+	delete name;
 }
 
 
 /* Creates an action with the given name. */
 static void make_action(const std::string* name) {
-  context.push_frame();
-  action = new ActionSchema(*name);
-  delete name;
+	context.push_frame();
+	action = new ActionSchema(*name);
+	delete name;
 }
 
 
 /* Adds the current action to the current domain. */
 static void add_action() {
-  context.pop_frame();
-  if (domain->find_action(action->name()) == NULL) {
-    domain->add_action(*action);
-  } else {
-    yywarning("ignoring repeated declaration of action `"
-	      + action->name() + "'");
-    delete action;
-  }
-  action = NULL;
+	context.pop_frame();
+	if (domain->find_action(action->name()) == NULL) {
+		domain->add_action(*action);
+	} else {
+		yywarning("ignoring repeated declaration of action `" + action->name() + "'");
+		delete action;
+	}
+	action = NULL;
 }
 
 /* Adds the current event to the current domain. */
 static void add_event() {
-  context.pop_frame();
-  if (domain->find_event(action->name()) == NULL) {
-    domain->add_event(*action);
-  } else {
-    yywarning("ignoring repeated declaration of event `"
-	      + action->name() + "'");
-    delete action;
-  }
-  action = NULL;
+	context.pop_frame();
+	if (domain->find_event(action->name()) == NULL) {
+		domain->add_event(*action);
+	} else {
+		yywarning("ignoring repeated declaration of event `" + action->name() + "'");
+		delete action;
+	}
+	action = NULL;
 }
 
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect() {
-  if (!requirements->conditional_effects) {
-    yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->conditional_effects) {
+		yywarning("assuming `:conditional-effects' requirement");
+		requirements->conditional_effects = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Creates a universally quantified effect. */
 static const pEffect* make_forall_effect(const pEffect& effect) {
-  context.pop_frame();
-  QuantifiedEffect* qeffect = new QuantifiedEffect(effect);
-  size_t n = quantified.size() - 1;
-  size_t m = n;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  for (size_t i = n + 1; i <= m; i++) {
-    qeffect->add_parameter(quantified[i]);
-  }
-  quantified.resize(n);
-  return qeffect;
+	context.pop_frame();
+	QuantifiedEffect* qeffect = new QuantifiedEffect(effect);
+	size_t n = quantified.size() - 1;
+	size_t m = n;
+
+	while (is_variable(quantified[n])) n--;
+	
+	for (size_t i = n + 1; i <= m; i++) {
+		qeffect->add_parameter(quantified[i]);
+	}
+
+	quantified.resize(n);
+	return qeffect;
 }
 
 
-/* Adds an outcome to the given probabilistic effect. */
+/* Adds an outcome to the given probabilistic effect.*/
 static void add_effect_outcome(ProbabilisticEffect& peffect,
 			        const Rational* p, const pEffect& effect) {
-   if((*p == -1.0 || *p == -2.0 || *p == -3.0) 
-      && !requirements->non_deterministic
-     ){
-    yywarning("assuming `:non-deterministic' requirement");
-    requirements->non_deterministic = true;    
-    // requirements->probabilistic_effects = true;
-  }
-  
-   else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) &&
-	    !requirements->probabilistic_effects) {
-    yywarning("assuming `:probabilistic-effects' requirement");
-    requirements->probabilistic_effects = true;
-    
-  } 
+	if((*p == -1.0 || *p == -2.0 || *p == -3.0) && !requirements->non_deterministic){
+		yywarning("assuming `:non-deterministic' requirement");
+		requirements->non_deterministic = true;    
+		/* requirements->probabilistic_effects = true; */
+	}
+	else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) && !requirements->probabilistic_effects) {
+    	yywarning("assuming `:probabilistic-effects' requirement");
+		requirements->probabilistic_effects = true;
+	} 
 
-
-  if(*p == -1.0){ // okay, its an oneof nd-effect
-  }
-  else if(*p == -2.0){ // okay, its an unknown nd-effect
-  }
-  else if(*p == -3.0){ // okay, its an or nd-effect
-  }
-  else if (*p < 0.0 || 
-	   *p > 1.0) {
-    yyerror("outcome probability needs to be in the interval [0,1]");
-  }
-  if (!peffect.add_outcome(*p, effect)) {
-    yyerror("effect outcome probabilities add up to more than 1");
-  }
-
-  delete p;
+	if(*p == -1.0){ // okay, its an oneof nd-effect
+	}
+	else if(*p == -2.0){ // okay, its an unknown nd-effect
+	}
+	else if(*p == -3.0){ // okay, its an or nd-effect
+	}
+	else if (*p < 0.0 || *p > 1.0) {
+		yyerror("outcome probability needs to be in the interval [0,1]");
+	}
+	if (!peffect.add_outcome(*p, effect)) {
+		yyerror("effect outcome probabilities add up to more than 1");
+	}
+	delete p;
 }
 static void add_feffect_outcome(ProbabilisticEffect& peffect,
 			        const Expression* p, const pEffect& effect) {
    
-  if (!requirements->probabilistic_effects) {
-    yywarning("assuming `:probabilistic-effects' requirement");
-    requirements->probabilistic_effects = true;
-  }
- //  if (*p < 0 || *p > 1) {
-//     yyerror("outcome probability needs to be in the interval [0,1]");
-//   }
-  if (!peffect.add_foutcome(*p, effect)) {
-    yyerror("effect outcome probabilities add up to more than 1");
-  }
-  //cout << "done adding feffect" <<endl;
-  // delete p;
+	if (!requirements->probabilistic_effects) {
+		yywarning("assuming `:probabilistic-effects' requirement");
+		requirements->probabilistic_effects = true;
+	}
+	/* if (*p < 0 || *p > 1) {
+		yyerror("outcome probability needs to be in the interval [0,1]");
+	} */
+	if (!peffect.add_foutcome(*p, effect)) {
+		yyerror("effect outcome probabilities add up to more than 1");
+	}
+	/* cout << "done adding feffect" <<endl; */
+	/* delete p; */
 }
 
 /* Creates an add effect. */
 static const pEffect* make_add_effect(const Atom& atom) {
-  domain->predicates().make_dynamic(atom.predicate());
-  return new AddEffect(atom);
+	domain->predicates().make_dynamic(atom.predicate());
+	return new AddEffect(atom);
 }
 
 
 /* Creates a delete effect. */
 static const pEffect* make_delete_effect(const Atom& atom) {
-  domain->predicates().make_dynamic(atom.predicate());
-  return new DeleteEffect(atom);
+	domain->predicates().make_dynamic(atom.predicate());
+	return new DeleteEffect(atom);
 }
 
 
@@ -4760,422 +4748,430 @@ static const pEffect* make_delete_effect(const Atom& atom) {
 static const pEffect* make_assignment_effect(Assignment::AssignOp oper,
 					    const Application& application,
 					    const Expression& expr) {
-  if (requirements->rewards && application.function() == reward_function) {
-    if ((oper != Assignment::INCREASE_OP && oper != Assignment::DECREASE_OP)
-	|| typeid(expr) != typeid(Value)) {
-      yyerror("only constant reward increments/decrements allowed");
-    }
-  } else {
-    require_fluents();
-  }
-  effect_fluent = false;
-  domain->functions().make_dynamic(application.function());
-  const Assignment& assignment = *new Assignment(oper, application, expr);
-  return new AssignmentEffect(assignment);
+	if (requirements->rewards && application.function() == reward_function) {
+		if ((oper != Assignment::INCREASE_OP && oper != Assignment::DECREASE_OP) 
+			|| typeid(expr) != typeid(Value)) {
+				yyerror("only constant reward increments/decrements allowed");
+		}
+	} else {
+		require_fluents();
+	}
+	effect_fluent = false;
+	domain->functions().make_dynamic(application.function());
+	const Assignment& assignment = *new Assignment(oper, application, expr);
+	return new AssignmentEffect(assignment);
 }
 
 
 /* Adds types, constants, or objects to the current domain or problem. */
-static void add_names(const std::vector<const std::string*>* names,
-		      Type type) {
-  for (std::vector<const std::string*>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string* s = *si;
-    if (name_kind == TYPE_KIND) {
-      if (*s == OBJECT_NAME) {
-	yywarning("ignoring declaration of reserved type `object'");
-      } else if (*s == NUMBER_NAME) {
-	yywarning("ignoring declaration of reserved type `number'");
-      } else {
-	std::pair<Type, bool> t = domain->types().find_type(*s);
-	if (!t.second) {
-	  t.first = domain->types().add_type(*s);
-	}
-	if (!domain->types().add_supertype(t.first, type)) {
-	  yyerror("cyclic type hierarchy");
-	}
-      }
-    } else if (name_kind == CONSTANT_KIND) {
-      std::pair<Object, bool> o = domain->terms().find_object(*s);
-      if (!o.second) {
-	domain->terms().add_object(*s, type);
-      } else {
-	TypeSet components;
-	domain->types().components(components, domain->terms().type(o.first));
-	components.insert(type);
-	domain->terms().set_type(o.first, make_type(components));
-      }
-    } else { /* name_kind == OBJECT_KIND */
-      if (domain->terms().find_object(*s).second) {
-	yywarning("ignoring declaration of object `" + *s
-		  + "' previously declared as constant");
-      } else {
-	std::pair<Object, bool> o = problem->terms().find_object(*s);
-	if (!o.second) {
-	  problem->terms().add_object(*s, type);
-	} else {
-	  TypeSet components;
-	  domain->types().components(components,
-				     problem->terms().type(o.first));
-	  components.insert(type);
-	  problem->terms().set_type(o.first, make_type(components));
-	}
-      }
-    }
-    delete s;
-  }
-  delete names;
+static void add_names(const std::vector<const std::string*>* names, Type type) {
+	for (std::vector<const std::string*>::const_iterator si = names->begin(); si != names->end(); si++) {
+		const std::string* s = *si;
+		if (name_kind == TYPE_KIND) {// 1-if
+			if (*s == OBJECT_NAME) {// 2-if
+				yywarning("ignoring declaration of reserved type `object'");
+			} else if (*s == NUMBER_NAME) {
+				yywarning("ignoring declaration of reserved type `number'");
+			} else {
+				std::pair<Type, bool> t = domain->types().find_type(*s);
+				if (!t.second) {
+				  t.first = domain->types().add_type(*s);
+				}
+				if (!domain->types().add_supertype(t.first, type)) {
+				  yyerror("cyclic type hierarchy");
+				}
+			}// end 2-if
+
+		} else if (name_kind == CONSTANT_KIND) {// 1-if
+			std::pair<Object, bool> o = domain->terms().find_object(*s);
+			if (!o.second) {
+				domain->terms().add_object(*s, type);
+			} else {
+				TypeSet components;
+				domain->types().components(components, domain->terms().type(o.first));
+				components.insert(type);
+				domain->terms().set_type(o.first, make_type(components));
+			}
+
+		} else { /* name_kind == OBJECT_KIND */
+			if (domain->terms().find_object(*s).second) {
+				yywarning("ignoring declaration of object `" + *s + "' previously declared as constant");
+			} else {
+				std::pair<Object, bool> o = problem->terms().find_object(*s);
+				if (!o.second) {
+					problem->terms().add_object(*s, type);
+				} else {
+					TypeSet components;
+					domain->types().components(components, problem->terms().type(o.first));
+					components.insert(type);
+					problem->terms().set_type(o.first, make_type(components));
+				}
+			}
+		}// end 1-if
+		delete s;
+	}// end-for
+
+	delete names;
 }
 
 
 /* Adds variables to the current variable list. */
-static void add_variables(const std::vector<const std::string*>* names,
-			  Type type) {
-  for (std::vector<const std::string*>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string* s = *si;
-    if (parsing_predicate && !parsing_obs_token) {
-      if (!repeated_predicate) {
-	domain->predicates().add_parameter(predicate, type);
-      }
-    } else if (parsing_function && !parsing_obs_token ) {
-      if (!repeated_function) {
-	domain->functions().add_parameter(function, type);
-      }
-    }
-    else if(parsing_predicate && parsing_obs_token){
-      if (!repeated_function) {
-	domain->observables().add_parameter(function, type);
-      }
-    }
-    else {
-      if (context.shallow_find(*s).second) {
-	yyerror("repetition of parameter `" + *s + "'");
-      } else if (context.find(*s).second) {
-	yywarning("shadowing parameter `" + *s + "'");
-      }
-      Variable var;
-      if (problem != NULL) {
-	var = problem->terms().add_variable(type);
-      } else {
-	var = domain->terms().add_variable(type);
-      }
-      context.insert(*s, var);
-      if (!quantified.empty()) {
-	quantified.push_back(var);
-      } else { /* action != NULL */
-	action->add_parameter(var);
-      }
-    }
-    delete s;
-  }
-  delete names;
+static void add_variables(const std::vector<const std::string*>* names, Type type) {
+	for (std::vector<const std::string*>::const_iterator si = names->begin(); si != names->end(); si++) {
+    	const std::string* s = *si;// 获取名字
+		// 是普通谓词
+		if (parsing_predicate && !parsing_obs_token) {
+			if (!repeated_predicate)
+				domain->predicates().add_parameter(predicate, type);
+		}
+		// 函数
+		else if (parsing_function && !parsing_obs_token ) {
+			if (!repeated_function) {
+				domain->functions().add_parameter(function, type);
+			}
+		}
+		// 可观察谓词
+		else if(parsing_predicate && parsing_obs_token){
+			if (!repeated_function) {
+				domain->observables().add_parameter(function, type);
+			}
+		}
+		// term
+		else {
+			if (context.shallow_find(*s).second) {
+				yyerror("repetition of parameter `" + *s + "'");
+			} else if (context.find(*s).second) {
+				yywarning("shadowing parameter `" + *s + "'");
+			}
+
+			Variable var;
+			if (problem != NULL) {
+				var = problem->terms().add_variable(type);
+			} else {
+				var = domain->terms().add_variable(type);
+			}
+			context.insert(*s, var);
+			if (!quantified.empty()) {
+				quantified.push_back(var);
+			} else { /* action != NULL */
+				action->add_parameter(var);
+			}
+		}
+		delete s;
+	}// end-for
+	delete names;
 }
 
 
 /* Prepares for the parsing of an atomic state formula. */ 
 static void prepare_atom(const std::string* name) {
-  std::pair<Predicate, bool> p;
-  if(parsing_obs_token)
-     p = domain->observables().find_predicate(*name);
-  else
-     p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    if(parsing_obs_token){
-      atom_predicate = domain->observables().add_predicate(*name);      
-    }
-    else
-      atom_predicate = domain->predicates().add_predicate(*name);
-    undeclared_atom_predicate = true;
-    if (problem != NULL) {
-      yywarning("undeclared predicate `" + *name + "' used");
-    } else {
-      yywarning("implicit declaration of predicate `" + *name + "'");
-    }
-  } else {
-    atom_predicate = p.first;
-    undeclared_atom_predicate = false;
-  }
-  term_parameters.clear();
-  parsing_atom = true;
-  delete name;
+	std::pair<Predicate, bool> p;
+	if(parsing_obs_token)
+		p = domain->observables().find_predicate(*name);
+	else
+		p = domain->predicates().find_predicate(*name);
+	if (!p.second) {
+		if(parsing_obs_token)
+			atom_predicate = domain->observables().add_predicate(*name);      
+		else
+			atom_predicate = domain->predicates().add_predicate(*name);
+	
+		undeclared_atom_predicate = true;
+	
+		if (problem != NULL)
+			yywarning("undeclared predicate `" + *name + "' used");
+		else
+			yywarning("implicit declaration of predicate `" + *name + "'");
+	} 
+	else {
+		atom_predicate = p.first;
+		undeclared_atom_predicate = false;
+	}
+	term_parameters.clear();
+	parsing_atom = true;
+	delete name;
 }
 
 
 /* Prepares for the parsing of a function application. */ 
 static void prepare_application(const std::string* name) {
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (!f.second) {
-    appl_function = domain->functions().add_function(*name);
-    undeclared_appl_function = true;
-    if (problem != NULL) {
-      yywarning("undeclared function `" + *name + "' used");
-    } else {
-      yywarning("implicit declaration of function `" + *name + "'");
-    }
-  } else {
-    appl_function = f.first;
-    undeclared_appl_function = false;
-  }
-  if (requirements->rewards && f.first == reward_function) {
-    if (!effect_fluent && !metric_fluent) {
-      yyerror("reserved function `reward' not allowed here");
-    }
-  } else {
-    require_fluents();
-  }
-  term_parameters.clear();
-  parsing_application = true;
-  delete name;
+	std::pair<Function, bool> f = domain->functions().find_function(*name);
+	if (!f.second) {
+		appl_function = domain->functions().add_function(*name);
+		undeclared_appl_function = true;
+		if (problem != NULL)
+			yywarning("undeclared function `" + *name + "' used");
+		else 
+			yywarning("implicit declaration of function `" + *name + "'");
+	} else {
+		appl_function = f.first;
+		undeclared_appl_function = false;
+	}
+	
+	if (requirements->rewards && f.first == reward_function) {
+		if (!effect_fluent && !metric_fluent) {
+			yyerror("reserved function `reward' not allowed here");
+		}
+	} else {
+		require_fluents();
+	}
+	term_parameters.clear();
+	parsing_application = true;
+	delete name;
 }
 
 
 /* Adds a term with the given name to the current atomic state formula. */
 static void add_term(const std::string* name) {
-  Term term = make_term(name);
-  const TermTable& terms =
-    (problem != NULL) ? problem->terms() : domain->terms();
-  if (parsing_atom) {
-    PredicateTable& predicates = (!parsing_obs_token ? 
-				  domain->predicates() :
-				  domain->observables());
-    size_t n = term_parameters.size();
-    if (undeclared_atom_predicate) {
-      predicates.add_parameter(atom_predicate, terms.type(term));
-    } else if (predicates.arity(atom_predicate) > n
-	       && !domain->types().subtype(terms.type(term),
-					   predicates.parameter(atom_predicate,
-								n))) {
-      yyerror("type mismatch");
+    Term term = make_term(name);// 根据名字创建term
+    // 获取term table
+    const TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+    // 当前正在解析atom
+    if (parsing_atom) {
+        // 根据是否解析obs判断是普通谓词还是可观察变量
+        PredicateTable& predicates = (!parsing_obs_token ? domain->predicates() : domain->observables());
+        size_t n = term_parameters.size();
+        if (undeclared_atom_predicate) {
+            predicates.add_parameter(atom_predicate, terms.type(term));
+        } else if (predicates.arity(atom_predicate) > n 
+                && !domain->types().subtype(terms.type(term),predicates.parameter(atom_predicate,n))) {
+            yyerror("type mismatch");
+        }
+    // 当前在解析application
+    } else if (parsing_application) {
+        FunctionTable& functions = domain->functions();
+        size_t n = term_parameters.size();
+        if (undeclared_appl_function) {
+            functions.add_parameter(appl_function, terms.type(term));
+        } else if (functions.arity(appl_function) > n 
+                && !domain->types().subtype(terms.type(term), functions.parameter(appl_function, n))) {
+            yyerror("type mismatch");
+        }
     }
-  } else if (parsing_application) {
-    FunctionTable& functions = domain->functions();
-    size_t n = term_parameters.size();
-    if (undeclared_appl_function) {
-      functions.add_parameter(appl_function, terms.type(term));
-    } else if (functions.arity(appl_function) > n
-	       && !domain->types().subtype(terms.type(term),
-					   functions.parameter(appl_function,
-							       n))) {
-      yyerror("type mismatch");
-    }
-  }
   term_parameters.push_back(term);
 }
 
 
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom() {
-  size_t n = term_parameters.size();
-  if(parsing_obs_token){
-
-    if (domain->observables().arity(atom_predicate) < n) {
-      yyerror("too many parameters passed to obs `"
-	      + domain->observables().name(atom_predicate) + "'");
-    } else if (domain->observables().arity(atom_predicate) > n) {
-      yyerror("too few parameters passed to obs `"
-	      + domain->observables().name(atom_predicate) + "'");
+    size_t n = term_parameters.size();
+    if(parsing_obs_token){// 当前正在解析observation
+        // 参数个数情况判断
+        if (domain->observables().arity(atom_predicate) < n) {
+            yyerror("too many parameters passed to obs `"
+                + domain->observables().name(atom_predicate) + "'");
+        } else if (domain->observables().arity(atom_predicate) > n) {
+            yyerror("too few parameters passed to obs `"
+                + domain->observables().name(atom_predicate) + "'");
+        }
     }
-  }
-  else{
-    if (domain->predicates().arity(atom_predicate) < n) {
-      yyerror("too many parameters passed to predicate `"
-	      + domain->predicates().name(atom_predicate) + "'");
-    } else if (domain->predicates().arity(atom_predicate) > n) {
-      yyerror("too few parameters passed to predicate `"
-	      + domain->predicates().name(atom_predicate) + "'");
+    // 当前解析普通atom
+    else{
+        // 参数个数情况判断
+        if (domain->predicates().arity(atom_predicate) < n) {
+            yyerror("too many parameters passed to predicate `"
+                + domain->predicates().name(atom_predicate) + "'");
+        } else if (domain->predicates().arity(atom_predicate) > n) {
+            yyerror("too few parameters passed to predicate `"
+                + domain->predicates().name(atom_predicate) + "'");
+        }
     }
-  }
-  parsing_atom = false;
-  return &Atom::make_atom(atom_predicate, term_parameters);
+    parsing_atom = false;
+    // 创建atom
+    return &Atom::make_atom(atom_predicate, term_parameters);
 }
 
 
 /* Creates the function application just parsed. */
 static const Application* make_application() {
-  size_t n = term_parameters.size();
-  if (domain->functions().arity(appl_function) < n) {
-    yyerror("too many parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
-  } else if (domain->functions().arity(appl_function) > n) {
-    yyerror("too few parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
-  }
-  parsing_application = false;
-  return &Application::make_application(appl_function, term_parameters);
+
+    size_t n = term_parameters.size();
+    if (domain->functions().arity(appl_function) < n) {
+        yyerror("too many parameters passed to function `"
+            + domain->functions().name(appl_function) + "'");
+    } else if (domain->functions().arity(appl_function) > n) {
+        yyerror("too few parameters passed to function `"
+            + domain->functions().name(appl_function) + "'");
+    }
+    parsing_application = false;
+    return &Application::make_application(appl_function, term_parameters);
 }
 
 
-/* Creates a subtraction. */
+/* Creates a subtraction.  term - opt_term */
 static const Expression* make_subtraction(const Expression& term,
 					  const Expression* opt_term) {
-  if (opt_term != NULL) {
-    return new Subtraction(term, *opt_term);
-  } else {
-    return new Subtraction(*new Value(0.0), term);
-  }
+    if (opt_term != NULL) {// 两个数实现减法
+        return new Subtraction(term, *opt_term);
+    } else {// 一个数实现负数
+        return new Subtraction(*new Value(0.0), term);
+    }
 }
 
 
 /* Creates an atom or fluent for the given name to be used in an
    equality formula. */
 static void make_eq_name(const std::string* name) {
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (f.second) {
-    prepare_application(name);
-    eq_expr = make_application();
-  } else {
-    /* Assume this is a term. */
-    eq_term = make_term(name);
-    eq_expr = NULL;
-  }
+    std::pair<Function, bool> f = domain->functions().find_function(*name);
+    if (f.second) {// domain中定义的function
+        prepare_application(name);
+        eq_expr = make_application();
+    } else {
+        /* Assume this is a term. */
+        eq_term = make_term(name);
+        eq_expr = NULL;
+    }
 }
 
 
-/* Creates an equality formula. */
+/* Creates an equality formula. 使用到了 =的前提条件 */
 static const StateFormula* make_equality() {
-  if (!requirements->equality) {
-    yywarning("assuming `:equality' requirement");
-    requirements->equality = true;
-  }
-  if (first_eq_expr != NULL && eq_expr != NULL) {
-    return new Comparison(Comparison::EQ_CMP, *first_eq_expr, *eq_expr);
-  } else if (first_eq_expr == NULL && eq_expr == NULL) {
-    const TermTable& terms =
-      (problem != NULL) ? problem->terms() : domain->terms();
-    if (domain->types().subtype(terms.type(first_eq_term), terms.type(eq_term))
-	|| domain->types().subtype(terms.type(eq_term),
-				   terms.type(first_eq_term))) {
-      return new Equality(first_eq_term, eq_term);
-    } else {
-      return 0;//&StateFormula::FALSE;
+    if (!requirements->equality) {
+        yywarning("assuming `:equality' requirement");
+        requirements->equality = true;
     }
-  } else {
-    yyerror("comparison of term and numeric expression");
-    return 0;//&StateFormula::FALSE;
-  }
+    // 等号两侧表达式不为空
+    if (first_eq_expr != NULL && eq_expr != NULL) {
+        return new Comparison(Comparison::EQ_CMP, *first_eq_expr, *eq_expr);
+    } else if (first_eq_expr == NULL && eq_expr == NULL) {// 两者均为空
+        // 获取term表格
+        const TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+        // 判断类型是否相同
+        if (domain->types().subtype(terms.type(first_eq_term), terms.type(eq_term))
+            || domain->types().subtype(terms.type(eq_term),  terms.type(first_eq_term)))
+        {
+            return new Equality(first_eq_term, eq_term);
+        } else {
+            return 0;//&StateFormula::FALSE;
+        }
+    } else {
+        yyerror("comparison of term and numeric expression");
+        return 0;//&StateFormula::FALSE;
+    }
 }
 
 
 /* Creates a negated formula. */
 static const StateFormula* make_negation(const StateFormula& negand) {
-  if (typeid(negand) == typeid(Atom)) {
-    if (!requirements->negative_preconditions) {
-      yywarning("assuming `:negative-preconditions' requirement");
-      requirements->negative_preconditions = true;
-    }
-  } else if (typeid(negand) != typeid(Equality)
-	     && typeid(negand) != typeid(Comparison)) {
-    require_disjunction();
-  }
-  return &Negation::make_negation(negand);
+    if (typeid(negand) == typeid(Atom)) {
+        if (!requirements->negative_preconditions) {
+            yywarning("assuming `:negative-preconditions' requirement");
+            requirements->negative_preconditions = true;
+        }
+        // 需要否定的formual不是赋值或者比较，则需要支持析取式
+        } else if (typeid(negand) != typeid(Equality) && typeid(negand) != typeid(Comparison)) {
+            require_disjunction();
+        }
+    //创建并返回指针
+    return &Negation::make_negation(negand);
 }
 
 
-/* Creates an implication. */
-static const StateFormula* make_implication(const StateFormula& f1,
-					    const StateFormula& f2) {
-  require_disjunction();
-  Disjunction* disj = new Disjunction();
-  disj->add_disjunct(Negation::make_negation(f1));
-  disj->add_disjunct(f2);
-  return disj;
+/* Creates an implication. f1 -> f2 */
+static const StateFormula* make_implication(const StateFormula& f1, const StateFormula& f2) {
+    require_disjunction();// 判断是否有disjunction，没有则warning并开启
+    Disjunction* disj = new Disjunction();//创建析取式
+    disj->add_disjunct(Negation::make_negation(f1));//创建 !f1 \/ f2 
+    disj->add_disjunct(f2);
+    return disj;
 }
 
 
 /* Prepares for the parsing of an existentially quantified formula. */
 static void prepare_exists() {
-  if (!requirements->existential_preconditions) {
-    yywarning("assuming `:existential-preconditions' requirement");
-    requirements->existential_preconditions = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->existential_preconditions) {
+		yywarning("assuming `:existential-preconditions' requirement");
+		requirements->existential_preconditions = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Prepares for the parsing of a universally quantified formula. */
 static void prepare_forall() {
-  if (!requirements->universal_preconditions) {
-    yywarning("assuming `:universal-preconditions' requirement");
-    requirements->universal_preconditions = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->universal_preconditions) {
+		yywarning("assuming `:universal-preconditions' requirement");
+		requirements->universal_preconditions = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Creates an existentially quantified formula. */
 static const StateFormula* make_exists(const StateFormula& body) {
-  context.pop_frame();
-  size_t m = quantified.size() - 1;
-  size_t n = m;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  if (n < m) {
-    Exists* exists = new Exists();
-    for (size_t i = n + 1; i <= m; i++) {
-      exists->add_parameter(quantified[i]);
-    }
-    exists->set_body(body);
-    quantified.resize(n);
-    return exists;
-  } else {
-    quantified.pop_back();
-    return &body;
-  }
+	context.pop_frame();
+	size_t m = quantified.size() - 1;
+	size_t n = m;
+	
+	while (is_variable(quantified[n])) n--;
+
+	if (n < m) {
+		Exists* exists = new Exists();
+		
+		for (size_t i = n + 1; i <= m; i++) {
+			exists->add_parameter(quantified[i]);
+		}
+
+		exists->set_body(body);
+		quantified.resize(n);
+		return exists;
+	} else {
+		quantified.pop_back();
+		return &body;
+	}
 }
 
 
 /* Creates a universally quantified formula. */
 static const StateFormula* make_forall(const StateFormula& body) {
-  context.pop_frame();
-  size_t m = quantified.size() - 1;
-  size_t n = m;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  if (n < m) {
-    Forall* forall = new Forall();
-    for (size_t i = n + 1; i <= m; i++) {
-      forall->add_parameter(quantified[i]);
-    }
-    forall->set_body(body);
-    quantified.resize(n);
-    return forall;
-  } else {
-    quantified.pop_back();
-    return &body;
-  }
+	context.pop_frame();
+	size_t m = quantified.size() - 1;
+	size_t n = m;
+	while (is_variable(quantified[n])) {
+		n--;
+	}
+	if (n < m) {
+		Forall* forall = new Forall();
+		for (size_t i = n + 1; i <= m; i++) {
+			forall->add_parameter(quantified[i]);
+		}
+		forall->set_body(body);
+		quantified.resize(n);
+		return forall;
+	} else {
+		quantified.pop_back();
+		return &body;
+	}
 }
 
 void set_discount(const Rational& discount){
-  problem->set_discount(discount);
+	problem->set_discount(discount);
 }
 
 
 /* Sets the goal reward for the current problem. */
 void set_goal_reward(const Expression& goal_reward) {
-  if (!requirements->rewards) {
-    yyerror("goal reward only allowed with the `:rewards' requirement");
-  } else {
-    const Application& reward_appl =
-      Application::make_application(reward_function, TermList());
-    const Assignment* reward_assignment =
-      new Assignment(Assignment::INCREASE_OP, reward_appl, goal_reward);
-    problem->set_goal_reward(*reward_assignment);
-  }
+    if (!requirements->rewards) {// goal中含有reward判断是否使用reward关键字
+        yyerror("goal reward only allowed with the `:rewards' requirement");
+    } else {
+        const Application& reward_appl =
+            Application::make_application(reward_function, TermList());// 创建一个application存储reward的操作
+        const Assignment* reward_assignment =
+            new Assignment(Assignment::INCREASE_OP, reward_appl, goal_reward);// 对该aplication赋值
+        problem->set_goal_reward(*reward_assignment);//设置reward目标
+    }
 }
 
 
 /* Sets the default metric for the current problem. */
 static void set_default_metric() {
-  if (requirements->rewards) {
-    const Application& reward_appl =
-      Application::make_application(reward_function, TermList());
-    problem->set_metric(reward_appl);
-  }
+    if (requirements->rewards) {
+        const Application& reward_appl =
+            Application::make_application(reward_function, TermList());
+        problem->set_metric(reward_appl);//设置评估函数
+    }
 }
 
 /* make all atoms in formula or subformula dynamic */
@@ -5254,25 +5250,23 @@ void make_all_dynamic(const StateFormula &formula){
    purposes*/
 static void get_init_elts(){
   
-  const StateFormula &init = problem->init_formula();
-  if(!&init)
-    return;
-
-  const Conjunction *c = dynamic_cast<const Conjunction*>(&init);
-  if(c != NULL){
-    for (size_t i = 0; i < c->size(); i++) {
-      const Atom *a = dynamic_cast<const Atom*>(&c->conjunct(i));
-      if(a != NULL){
-	problem->add_init_atom(*a);	
-      }
-      else{
-	make_all_dynamic(c->conjunct(i));
-      }      
+    const StateFormula &init = problem->init_formula();// 得到初始状态公式
+    if(!&init)
+        return;
+    // 判断是否为和取式
+    const Conjunction *c = dynamic_cast<const Conjunction*>(&init);
+    if(c != NULL){
+        // 将初始状态的每一个atom添加
+        for (size_t i = 0; i < c->size(); i++) {
+            const Atom *a = dynamic_cast<const Atom*>(&c->conjunct(i));
+            if(a != NULL){// 普通atom直接添加
+                problem->add_init_atom(*a);	
+            }
+            else{// oneof等形式的atom，递归处理
+                make_all_dynamic(c->conjunct(i));
+            }      
+        }
     }
-  }
-  else
-    make_all_dynamic(init);
-
-  
-
+    else
+        make_all_dynamic(init);
 }

@@ -217,34 +217,33 @@ union YYSTYPE
 {
 #line 295 "parser.yy"
 
-  Assignment::AssignOp setop;
-  const pEffect* effect;
-  ConjunctiveEffect* ceffect;
-  ProbabilisticEffect* peffect; 
-  Observation* observation_defs;
-  ObservationEntry* observation;
-  const StateFormula* formula;
-  const Atom* atom;
-  Conjunction* conj;
-  Disjunction* disj;
-  OneOfDisjunction* odisj;
-  const Expression* expr;
-  const Application* appl;
-  Comparison::CmpPredicate comp;
-  Type type;
-  TypeSet* types;
-  const std::string* str;
-  std::vector<const std::string*>* strs;
-  const Rational* num;
-  //DAN
-  plan* t_plan;
-  Instruction * t_instr;
-  Guards *t_guards;
-  label_symbol* t_label_symbol;
+    Assignment::AssignOp setop;
+    const pEffect* effect;
+    ConjunctiveEffect* ceffect;
+    ProbabilisticEffect* peffect; 
+    Observation* observation_defs;
+    ObservationEntry* observation;
+    const StateFormula* formula;
+    const Atom* atom;
+    Conjunction* conj;
+    Disjunction* disj;
+    OneOfDisjunction* odisj;
+    const Expression* expr;
+    const Application* appl;
+    Comparison::CmpPredicate comp;
+    Type type;
+    TypeSet* types;
+    const std::string* str;
+    std::vector<const std::string*>* strs;
+    const Rational* num;
+    //DAN
+    plan* t_plan;
+    Instruction * t_instr;
+    Guards *t_guards;
+    label_symbol* t_label_symbol;
+    //NAD
 
-  //NAD
-
-#line 248 "parser.hh"
+#line 247 "parser.hh"
 
 };
 typedef union YYSTYPE YYSTYPE;

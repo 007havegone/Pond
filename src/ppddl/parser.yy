@@ -50,43 +50,41 @@
  * Context of free variables.
  */
 struct Context {
-  void push_frame() {
-    frames_.push_back(VariableMap());
-  }
-
-  void pop_frame() {
-    frames_.pop_back();
-  }
-
-  void insert(const std::string& name, Variable v) {
-    frames_.back()[name] = v;
-  }
-
-  std::pair<Variable, bool> shallow_find(const std::string& name) const {
-    VariableMap::const_iterator vi = frames_.back().find(name);
-    if (vi != frames_.back().end()) {
-      return std::make_pair((*vi).second, true);
-    } else {
-      return std::make_pair(0, false);
+    void push_frame() {
+        frames_.push_back(VariableMap());
     }
-  }
 
-  std::pair<Variable, bool> find(const std::string& name) const {
-    for (std::vector<VariableMap>::const_reverse_iterator fi =
-	   frames_.rbegin(); fi != frames_.rend(); fi++) {
-      VariableMap::const_iterator vi = (*fi).find(name);
-      if (vi != (*fi).end()) {
-	return std::make_pair((*vi).second, true);
-      }
+    void pop_frame() {
+        frames_.pop_back();
     }
-    return std::make_pair(0, false);
-  }
+
+    void insert(const std::string& name, Variable v) {
+        frames_.back()[name] = v;
+    }
+
+    std::pair<Variable, bool> shallow_find(const std::string& name) const {
+        VariableMap::const_iterator vi = frames_.back().find(name);
+        if (vi != frames_.back().end()) {
+            return std::make_pair((*vi).second, true);
+        } else {
+            return std::make_pair(0, false);
+        }
+    }
+
+    std::pair<Variable, bool> find(const std::string& name) const {
+        for (std::vector<VariableMap>::const_reverse_iterator fi = frames_.rbegin(); fi != frames_.rend(); fi++) {
+            VariableMap::const_iterator vi = (*fi).find(name);
+            if (vi != (*fi).end()) {
+                return std::make_pair((*vi).second, true);
+            }
+        }
+        return std::make_pair(0, false);
+    }
 
 private:
-  struct VariableMap : public std::map<std::string, Variable> {
-  };
-
-  std::vector<VariableMap> frames_;
+    struct VariableMap : public std::map<std::string, Variable> {};
+    
+    std::vector<VariableMap> frames_;// 存储每一个变量名对应的index即variable
 };
 
 //DAN
@@ -146,7 +144,9 @@ static bool metric_fluent;
 static Function appl_function;
 /* Whether the function of the currently parsed application was undeclared. */
 static bool undeclared_appl_function;
-/* Paramerers for atomic state formula or function application being parsed. */
+/* Paramerers for atomic state formula or function application being parsed. 
+  状态变量表，一个domain/problem中使用的状态变量
+*/
 static TermList term_parameters;
 /* Whether parsing an atom. */
 static bool parsing_atom;
@@ -293,32 +293,31 @@ static void set_default_metric();
 %token ANTI_COMMENT
 
 %union {
-  Assignment::AssignOp setop;
-  const pEffect* effect;
-  ConjunctiveEffect* ceffect;
-  ProbabilisticEffect* peffect; 
-  Observation* observation_defs;
-  ObservationEntry* observation;
-  const StateFormula* formula;
-  const Atom* atom;
-  Conjunction* conj;
-  Disjunction* disj;
-  OneOfDisjunction* odisj;
-  const Expression* expr;
-  const Application* appl;
-  Comparison::CmpPredicate comp;
-  Type type;
-  TypeSet* types;
-  const std::string* str;
-  std::vector<const std::string*>* strs;
-  const Rational* num;
-  //DAN
-  plan* t_plan;
-  Instruction * t_instr;
-  Guards *t_guards;
-  label_symbol* t_label_symbol;
-
-  //NAD
+    Assignment::AssignOp setop;
+    const pEffect* effect;
+    ConjunctiveEffect* ceffect;
+    ProbabilisticEffect* peffect; 
+    Observation* observation_defs;
+    ObservationEntry* observation;
+    const StateFormula* formula;
+    const Atom* atom;
+    Conjunction* conj;
+    Disjunction* disj;
+    OneOfDisjunction* odisj;
+    const Expression* expr;
+    const Application* appl;
+    Comparison::CmpPredicate comp;
+    Type type;
+    TypeSet* types;
+    const std::string* str;
+    std::vector<const std::string*>* strs;
+    const Rational* num;
+    //DAN
+    plan* t_plan;
+    Instruction * t_instr;
+    Guards *t_guards;
+    label_symbol* t_label_symbol;
+    //NAD
 }
 
 %type <setop> assign_op
@@ -376,9 +375,9 @@ c_plan : '('  DEFINE
 
 c_plan_body : '(' c_steps ')'
 {
-  //cout << "Plan" << endl;
-  $$ = new plan(); 
-  $$->begin = $2;
+    //cout << "Plan" << endl;
+    $$ = new plan(); 
+    $$->begin = $2;
 }
 ;
 
@@ -392,6 +391,7 @@ c_steps : c_step c_steps
 	}
 |   /* empty */ { $$= 0; }
 ;
+
 c_step : c_label c_instruction
 {
   //cout << "Label Step" << endl;
@@ -1257,209 +1257,211 @@ variable : VARIABLE
 
 /* Outputs an error message. */
 static void yyerror(const std::string& s) {
-  std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	    << std::endl;
-  success = false;
+	std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s << std::endl;
+	success = false;
 }
 
 
 /* Outputs a warning. */
 static void yywarning(const std::string& s) {
-  if (warning_level > 0) {
-    std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	      << std::endl;
-    if (warning_level > 1) {
-      success = false;
-    }
-  }
+	if (warning_level > 0) {
+		std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s << std::endl;
+		if (warning_level > 1) {
+			success = false;
+		}
+	}
 }
 
 
 /* Creates an empty domain with the given name. */
 static void make_domain(const std::string* name) {
-  domain = new Domain(*name);
-  domains[*name] = domain;
-  requirements = &domain->requirements;
-  problem = NULL;
-  delete name;
+	domain = new Domain(*name);
+	domains[*name] = domain;// 添加映射关系
+	requirements = &domain->requirements;
+	problem = NULL;
+	delete name;
 }
 
 
 
 /* Creates an empty problem with the given name. */
-static void make_problem(const std::string* name,
-			 const std::string* domain_name) {
-  std::map<std::string, Domain*>::const_iterator di =
-    domains.find(*domain_name);
-  if (di != domains.end()) {
-    domain = (*di).second;
-  } else {
-    domain = new Domain(*domain_name);
-    domains[*domain_name] = domain;
-    yyerror("undeclared domain `" + *domain_name + "' used");
-  }
-  requirements = new Requirements(domain->requirements);
-  problem = new Problem(*name, *domain);
-  my_problem = problem;
-   if (requirements->rewards) {
-     Action* noopAct = new Action("noop_action");
-     const Application& reward_appl =
-       Application::make_application(reward_function, TermList());
-     const Assignment* reward_assignment =
-       new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
-     noopAct->set_effect(*new AssignmentEffect(*reward_assignment));
-     //add_action(noopAct);
-     problem->add_action(noopAct);
+static void make_problem(const std::string* name, const std::string* domain_name) {
+	// 获取problem对应的domain是否存在
+	std::map<std::string, Domain*>::const_iterator di = domains.find(*domain_name);
+	if (di != domains.end()) {
+		domain = (*di).second;
+	}
+	// domain不存在直接结束 
+	else {
+		domain = new Domain(*domain_name);
+		domains[*domain_name] = domain;
+		yyerror("undeclared domain `" + *domain_name + "' used");
+  	}
+	// 获取domain的requirement
+	requirements = new Requirements(domain->requirements);
+	problem = new Problem(*name, *domain);
+	my_problem = problem;
+	// 判断是否需要reward
+	if (requirements->rewards) {
+		Action* noopAct = new Action("noop_action");
+		const Application& reward_appl =
+			Application::make_application(reward_function, TermList());
+		const Assignment* reward_assignment =
+			new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
+		noopAct->set_effect(*new AssignmentEffect(*reward_assignment));
+		//add_action(noopAct);
+		problem->add_action(noopAct);
      
 //     const Application& reward_appl =
 //       Application::make_application(reward_function, TermList());
 //     const Assignment* reward_assignment =
 //       new Assignment(Assignment::ASSIGN_OP, reward_appl, *new Value(0.0));
 //     problem->add_init_effect(*new AssignmentEffect(*reward_assignment));
-   }
-  delete name;
-  delete domain_name;
+	}
+	delete name;
+	delete domain_name;
 }
 
 
 /* Adds :typing to the requirements. */
 static void require_typing() {
-  if (!requirements->typing) {
-    yywarning("assuming `:typing' requirement");
-    requirements->typing = true;
-  }
+	if (!requirements->typing) {
+		yywarning("assuming `:typing' requirement");
+		requirements->typing = true;
+	}
 }
 
 
 /* Adds :fluents to the requirements. */
 static void require_fluents() {
-  if (!requirements->fluents) {
-    yywarning("assuming `:fluents' requirement");
-    requirements->fluents = true;
-  }
+	if (!requirements->fluents) {
+		yywarning("assuming `:fluents' requirement");
+		requirements->fluents = true;
+	}
 }
 
 
 /* Adds :disjunctive-preconditions to the requirements. */
 static void require_disjunction() {
-  if (!requirements->disjunctive_preconditions) {
-    yywarning("assuming `:disjunctive-preconditions' requirement");
-    requirements->disjunctive_preconditions = true;
-  }
+	if (!requirements->disjunctive_preconditions) {
+		yywarning("assuming `:disjunctive-preconditions' requirement");
+		requirements->disjunctive_preconditions = true;
+	}
 }
 
 
 /* Adds :conditional-effects to the requirements. */ 
 static void require_conditional_effects() {
-  if (!requirements->conditional_effects) {
-    yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
-  }
+	if (!requirements->conditional_effects) {
+		yywarning("assuming `:conditional-effects' requirement");
+		requirements->conditional_effects = true;
+	}
 }
 
 
 /* Returns a simple type with the given name. */
 static Type make_type(const std::string* name) {
-  std::pair<Type, bool> t = domain->types().find_type(*name);
-  if (!t.second) {
-    t.first = domain->types().add_type(*name);
-    if (name_kind != TYPE_KIND) {
-      yywarning("implicit declaration of type `" + *name + "'");
-    }
-  }
-  delete name;
-  return t.first;
+	std::pair<Type, bool> t = domain->types().find_type(*name);
+	if (!t.second)
+	{
+		t.first = domain->types().add_type(*name);
+		
+		if (name_kind != TYPE_KIND)
+			yywarning("implicit declaration of type `" + *name + "'");
+	}
+
+	delete name;
+	return t.first;
 }
 
 
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types) {
-  return domain->types().add_type(types);
+	return domain->types().add_type(types);
 }
 
 
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name) {
-  if ((*name)[0] == '?') {
-    std::pair<Variable, bool> v = context.find(*name);
-    if (!v.second) {
-      if (problem != NULL) {
-	v.first = problem->terms().add_variable(OBJECT_TYPE);
-      } else {
-	v.first = domain->terms().add_variable(OBJECT_TYPE);
-      }
-      context.insert(*name, v.first);
-      yyerror("free variable `" + *name + "' used");
-    }
-    delete name;
-    return v.first;
-  } else {
-    TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
-    
-    
-    const PredicateTable& predicates = (parsing_obs_token ? 
-					domain->observables() :
-					domain->predicates());
-    std::pair<Object, bool> o = terms.find_object(*name);
-    if (!o.second) {
-      size_t n = term_parameters.size();
-      if (parsing_atom && predicates.arity(atom_predicate) > n) {
-	o.first = terms.add_object(*name,
-				   predicates.parameter(atom_predicate, n));
-      } else {
-	o.first = terms.add_object(*name, OBJECT_TYPE);
-      }
-      yywarning("implicit declaration of object `" + *name + "'");
-    }
-    delete name;
-    return o.first;
-  }
+	if ((*name)[0] == '?') {
+		std::pair<Variable, bool> v = context.find(*name);
+		if (!v.second) {
+			if (problem != NULL)
+				v.first = problem->terms().add_variable(OBJECT_TYPE);
+			else
+				v.first = domain->terms().add_variable(OBJECT_TYPE);
+
+			context.insert(*name, v.first);
+			yyerror("free variable `" + *name + "' used");
+    	}
+		delete name;
+		return v.first;
+	} 
+	else {	
+		TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+		
+		const PredicateTable& predicates = (parsing_obs_token ? domain->observables() : domain->predicates());
+		
+		std::pair<Object, bool> o = terms.find_object(*name);
+
+		if (!o.second) {
+			size_t n = term_parameters.size();
+			if (parsing_atom && predicates.arity(atom_predicate) > n) {
+				o.first = terms.add_object(*name, predicates.parameter(atom_predicate, n));
+		} else {
+			o.first = terms.add_object(*name, OBJECT_TYPE);
+		}
+			yywarning("implicit declaration of object `" + *name + "'");
+		}
+		delete name;
+		return o.first;
+	}
 }
 
 
 /* Creates a predicate with the given name. */
 static void make_predicate(const std::string* name) {
-  repeated_predicate = false;
-  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    //    cout << "Make pred " << *name << endl;
-    p.first = domain->predicates().add_predicate(*name);
-  } else {
-    repeated_predicate = true;
-    yywarning("ignoring repeated declaration of predicate `" + *name + "'");
-  }
-  predicate = p.first;
-  parsing_predicate = true;
-  delete name;
+	repeated_predicate = false;
+	std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
+	if (!p.second) {
+		//    cout << "Make pred " << *name << endl;
+		p.first = domain->predicates().add_predicate(*name);
+	} else {
+		repeated_predicate = true;
+		yywarning("ignoring repeated declaration of predicate `" + *name + "'");
+	}
+	predicate = p.first;
+	parsing_predicate = true;
+	delete name;
 }
 
 /* Creates a observation token with the given name. */
 static void make_observable(const std::string* name) {
-  repeated_predicate = false;
-  std::cout << "observable: " << *name <<std::endl;
-  std::pair<Predicate, bool> p = domain->observables().find_predicate(*name);
-  if (!p.second) {
-    p.first = domain->observables().add_predicate(*name);
-  } else {
-    repeated_predicate = true;
-    yywarning("ignoring repeated declaration of observable `" + *name + "'");
-  }
-  predicate = p.first;
-  //  parsing_obs_token = true;
-  parsing_predicate = true;
-  delete name;
+	repeated_predicate = false;
+	std::cout << "observable: " << *name <<std::endl;
+	std::pair<Predicate, bool> p = domain->observables().find_predicate(*name);
+	if (!p.second) {
+		p.first = domain->observables().add_predicate(*name);
+	} else {
+		repeated_predicate = true;
+		yywarning("ignoring repeated declaration of observable `" + *name + "'");
+	}
+	predicate = p.first;
+	//  parsing_obs_token = true;
+	parsing_predicate = true;
+	delete name;
 }
 
 //static ObservationCptRow* make_observation(
 static ObservationEntry* make_observation(
 					   const StateFormula& form,
 					   const ProbabilisticEffect& eff){
-  //  ObservationCptRow *row = new ObservationCptRow(form, eff);
-  OBS_TYPE=OBS_CPT;
-  //  const Rational& prob = eff.probability(0);
-  // const Atom& symbol = ((SimpleEffect&)eff.effect(0)).atom();
-  ObservationEntry *row = new ObservationEntry(form, eff);
-  return row;
+	//  ObservationCptRow *row = new ObservationCptRow(form, eff);
+	OBS_TYPE=OBS_CPT;
+	//  const Rational& prob = eff.probability(0);
+	// const Atom& symbol = ((SimpleEffect&)eff.effect(0)).atom();
+	ObservationEntry *row = new ObservationEntry(form, eff);
+	return row;
 }
 
 /* Appends new observation entry to list of observation entries */
@@ -1467,18 +1469,16 @@ static ObservationEntry* make_observation(
 			       const StateFormula& form,
 			       const Rational& posprob,
 			       const Rational& negprob){
-  //  cout << "make entry"<<endl;
-  OBS_TYPE=OBS_TPFP;
-  if (typeid(form) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
-//   token.print(cout, ((Domain)problem->domain()).observables(),
-// 	      problem->domain().functions(),
-// 	      problem->terms());
-  ObservationEntry *ob = new ObservationEntry(form, posprob, negprob);
-
-  
-  return ob;
+	//  cout << "make entry"<<endl;
+	OBS_TYPE=OBS_TPFP;
+	if (typeid(form) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
+/* token.print(cout, ((Domain)problem->domain()).observables(),
+    	problem->domain().functions(),
+    	problem->terms()); */
+	ObservationEntry *ob = new ObservationEntry(form, posprob, negprob);
+  	return ob;
 }
 
 /* Appends new observation entry to list of observation entries */
@@ -1486,172 +1486,161 @@ static ObservationEntry* make_observation(
 			       const StateFormula& form,
 			       const StateFormula& o,
 			       const Rational& prob){
-  //  cout << "make entry"<<endl;
-  OBS_TYPE=OBS_TPFP;
-  if (typeid(form) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
+	//  cout << "make entry"<<endl;
+	OBS_TYPE=OBS_TPFP;
+	if (typeid(form) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
 
-  if (typeid(o) == typeid(Constant)) {
-    std::cout << "token is cosnt"<<std::endl;
-  }
+	if (typeid(o) == typeid(Constant)) {
+		std::cout << "token is cosnt"<<std::endl;
+	}
 
-  //  o.print(cout, ((Domain)problem->domain()).predicates(),
-  //	      problem->domain().functions(),
-  //	      problem->terms());
+    /* o.print(cout, ((Domain)problem->domain()).predicates(),
+  	      problem->domain().functions(),
+  	      problem->terms()); */
 
-//   token
-  ObservationEntry *ob = new ObservationEntry(form, &o, prob, prob);
-
-  
-  return ob;
+	/* token */
+	ObservationEntry *ob = new ObservationEntry(form, &o, prob, prob);
+  	return ob;
 }
 
 /* Creates a function with the given name. */
 static void make_function(const std::string* name) {
-  repeated_function = false;
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (!f.second) {
-    f.first = domain->functions().add_function(*name);
-  } else {
-    repeated_function = true;
-    if (requirements->rewards && f.first == reward_function) {
-      yywarning("ignoring declaration of reserved function `reward'");
-    } else {
-      yywarning("ignoring repeated declaration of function `" + *name + "'");
-    }
-  }
-  function = f.first;
-  parsing_function = true;
-  delete name;
+	repeated_function = false;
+	std::pair<Function, bool> f = domain->functions().find_function(*name);
+	if (!f.second) {
+		f.first = domain->functions().add_function(*name);
+	} else {
+    	repeated_function = true;
+    	if (requirements->rewards && f.first == reward_function) {
+    		yywarning("ignoring declaration of reserved function `reward'");
+    	} else {
+    		yywarning("ignoring repeated declaration of function `" + *name + "'");
+    	}
+	}
+	function = f.first;
+	parsing_function = true;
+	delete name;
 }
 
 
 /* Creates an action with the given name. */
 static void make_action(const std::string* name) {
-  context.push_frame();
-  action = new ActionSchema(*name);
-  delete name;
+	context.push_frame();
+	action = new ActionSchema(*name);
+	delete name;
 }
 
 
 /* Adds the current action to the current domain. */
 static void add_action() {
-  context.pop_frame();
-  if (domain->find_action(action->name()) == NULL) {
-    domain->add_action(*action);
-  } else {
-    yywarning("ignoring repeated declaration of action `"
-	      + action->name() + "'");
-    delete action;
-  }
-  action = NULL;
+	context.pop_frame();
+	if (domain->find_action(action->name()) == NULL) {
+		domain->add_action(*action);
+	} else {
+		yywarning("ignoring repeated declaration of action `" + action->name() + "'");
+		delete action;
+	}
+	action = NULL;
 }
 
 /* Adds the current event to the current domain. */
 static void add_event() {
-  context.pop_frame();
-  if (domain->find_event(action->name()) == NULL) {
-    domain->add_event(*action);
-  } else {
-    yywarning("ignoring repeated declaration of event `"
-	      + action->name() + "'");
-    delete action;
-  }
-  action = NULL;
+	context.pop_frame();
+	if (domain->find_event(action->name()) == NULL) {
+		domain->add_event(*action);
+	} else {
+		yywarning("ignoring repeated declaration of event `" + action->name() + "'");
+		delete action;
+	}
+	action = NULL;
 }
 
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect() {
-  if (!requirements->conditional_effects) {
-    yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->conditional_effects) {
+		yywarning("assuming `:conditional-effects' requirement");
+		requirements->conditional_effects = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Creates a universally quantified effect. */
 static const pEffect* make_forall_effect(const pEffect& effect) {
-  context.pop_frame();
-  QuantifiedEffect* qeffect = new QuantifiedEffect(effect);
-  size_t n = quantified.size() - 1;
-  size_t m = n;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  for (size_t i = n + 1; i <= m; i++) {
-    qeffect->add_parameter(quantified[i]);
-  }
-  quantified.resize(n);
-  return qeffect;
+	context.pop_frame();
+	QuantifiedEffect* qeffect = new QuantifiedEffect(effect);
+	size_t n = quantified.size() - 1;
+	size_t m = n;
+
+	while (is_variable(quantified[n])) n--;
+	
+	for (size_t i = n + 1; i <= m; i++) {
+		qeffect->add_parameter(quantified[i]);
+	}
+
+	quantified.resize(n);
+	return qeffect;
 }
 
 
-/* Adds an outcome to the given probabilistic effect. */
+/* Adds an outcome to the given probabilistic effect.*/
 static void add_effect_outcome(ProbabilisticEffect& peffect,
 			        const Rational* p, const pEffect& effect) {
-   if((*p == -1.0 || *p == -2.0 || *p == -3.0) 
-      && !requirements->non_deterministic
-     ){
-    yywarning("assuming `:non-deterministic' requirement");
-    requirements->non_deterministic = true;    
-    // requirements->probabilistic_effects = true;
-  }
-  
-   else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) &&
-	    !requirements->probabilistic_effects) {
-    yywarning("assuming `:probabilistic-effects' requirement");
-    requirements->probabilistic_effects = true;
-    
-  } 
+	if((*p == -1.0 || *p == -2.0 || *p == -3.0) && !requirements->non_deterministic){
+		yywarning("assuming `:non-deterministic' requirement");
+		requirements->non_deterministic = true;    
+		/* requirements->probabilistic_effects = true; */
+	}
+	else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) && !requirements->probabilistic_effects) {
+    	yywarning("assuming `:probabilistic-effects' requirement");
+		requirements->probabilistic_effects = true;
+	} 
 
-
-  if(*p == -1.0){ // okay, its an oneof nd-effect
-  }
-  else if(*p == -2.0){ // okay, its an unknown nd-effect
-  }
-  else if(*p == -3.0){ // okay, its an or nd-effect
-  }
-  else if (*p < 0.0 || 
-	   *p > 1.0) {
-    yyerror("outcome probability needs to be in the interval [0,1]");
-  }
-  if (!peffect.add_outcome(*p, effect)) {
-    yyerror("effect outcome probabilities add up to more than 1");
-  }
-
-  delete p;
+	if(*p == -1.0){ // okay, its an oneof nd-effect
+	}
+	else if(*p == -2.0){ // okay, its an unknown nd-effect
+	}
+	else if(*p == -3.0){ // okay, its an or nd-effect
+	}
+	else if (*p < 0.0 || *p > 1.0) {
+		yyerror("outcome probability needs to be in the interval [0,1]");
+	}
+	if (!peffect.add_outcome(*p, effect)) {
+		yyerror("effect outcome probabilities add up to more than 1");
+	}
+	delete p;
 }
 static void add_feffect_outcome(ProbabilisticEffect& peffect,
 			        const Expression* p, const pEffect& effect) {
    
-  if (!requirements->probabilistic_effects) {
-    yywarning("assuming `:probabilistic-effects' requirement");
-    requirements->probabilistic_effects = true;
-  }
- //  if (*p < 0 || *p > 1) {
-//     yyerror("outcome probability needs to be in the interval [0,1]");
-//   }
-  if (!peffect.add_foutcome(*p, effect)) {
-    yyerror("effect outcome probabilities add up to more than 1");
-  }
-  //cout << "done adding feffect" <<endl;
-  // delete p;
+	if (!requirements->probabilistic_effects) {
+		yywarning("assuming `:probabilistic-effects' requirement");
+		requirements->probabilistic_effects = true;
+	}
+	/* if (*p < 0 || *p > 1) {
+		yyerror("outcome probability needs to be in the interval [0,1]");
+	} */
+	if (!peffect.add_foutcome(*p, effect)) {
+		yyerror("effect outcome probabilities add up to more than 1");
+	}
+	/* cout << "done adding feffect" <<endl; */
+	/* delete p; */
 }
 
 /* Creates an add effect. */
 static const pEffect* make_add_effect(const Atom& atom) {
-  domain->predicates().make_dynamic(atom.predicate());
-  return new AddEffect(atom);
+	domain->predicates().make_dynamic(atom.predicate());
+	return new AddEffect(atom);
 }
 
 
 /* Creates a delete effect. */
 static const pEffect* make_delete_effect(const Atom& atom) {
-  domain->predicates().make_dynamic(atom.predicate());
-  return new DeleteEffect(atom);
+	domain->predicates().make_dynamic(atom.predicate());
+	return new DeleteEffect(atom);
 }
 
 
@@ -1659,422 +1648,430 @@ static const pEffect* make_delete_effect(const Atom& atom) {
 static const pEffect* make_assignment_effect(Assignment::AssignOp oper,
 					    const Application& application,
 					    const Expression& expr) {
-  if (requirements->rewards && application.function() == reward_function) {
-    if ((oper != Assignment::INCREASE_OP && oper != Assignment::DECREASE_OP)
-	|| typeid(expr) != typeid(Value)) {
-      yyerror("only constant reward increments/decrements allowed");
-    }
-  } else {
-    require_fluents();
-  }
-  effect_fluent = false;
-  domain->functions().make_dynamic(application.function());
-  const Assignment& assignment = *new Assignment(oper, application, expr);
-  return new AssignmentEffect(assignment);
+	if (requirements->rewards && application.function() == reward_function) {
+		if ((oper != Assignment::INCREASE_OP && oper != Assignment::DECREASE_OP) 
+			|| typeid(expr) != typeid(Value)) {
+				yyerror("only constant reward increments/decrements allowed");
+		}
+	} else {
+		require_fluents();
+	}
+	effect_fluent = false;
+	domain->functions().make_dynamic(application.function());
+	const Assignment& assignment = *new Assignment(oper, application, expr);
+	return new AssignmentEffect(assignment);
 }
 
 
 /* Adds types, constants, or objects to the current domain or problem. */
-static void add_names(const std::vector<const std::string*>* names,
-		      Type type) {
-  for (std::vector<const std::string*>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string* s = *si;
-    if (name_kind == TYPE_KIND) {
-      if (*s == OBJECT_NAME) {
-	yywarning("ignoring declaration of reserved type `object'");
-      } else if (*s == NUMBER_NAME) {
-	yywarning("ignoring declaration of reserved type `number'");
-      } else {
-	std::pair<Type, bool> t = domain->types().find_type(*s);
-	if (!t.second) {
-	  t.first = domain->types().add_type(*s);
-	}
-	if (!domain->types().add_supertype(t.first, type)) {
-	  yyerror("cyclic type hierarchy");
-	}
-      }
-    } else if (name_kind == CONSTANT_KIND) {
-      std::pair<Object, bool> o = domain->terms().find_object(*s);
-      if (!o.second) {
-	domain->terms().add_object(*s, type);
-      } else {
-	TypeSet components;
-	domain->types().components(components, domain->terms().type(o.first));
-	components.insert(type);
-	domain->terms().set_type(o.first, make_type(components));
-      }
-    } else { /* name_kind == OBJECT_KIND */
-      if (domain->terms().find_object(*s).second) {
-	yywarning("ignoring declaration of object `" + *s
-		  + "' previously declared as constant");
-      } else {
-	std::pair<Object, bool> o = problem->terms().find_object(*s);
-	if (!o.second) {
-	  problem->terms().add_object(*s, type);
-	} else {
-	  TypeSet components;
-	  domain->types().components(components,
-				     problem->terms().type(o.first));
-	  components.insert(type);
-	  problem->terms().set_type(o.first, make_type(components));
-	}
-      }
-    }
-    delete s;
-  }
-  delete names;
+static void add_names(const std::vector<const std::string*>* names, Type type) {
+	for (std::vector<const std::string*>::const_iterator si = names->begin(); si != names->end(); si++) {
+		const std::string* s = *si;
+		if (name_kind == TYPE_KIND) {// 1-if
+			if (*s == OBJECT_NAME) {// 2-if
+				yywarning("ignoring declaration of reserved type `object'");
+			} else if (*s == NUMBER_NAME) {
+				yywarning("ignoring declaration of reserved type `number'");
+			} else {
+				std::pair<Type, bool> t = domain->types().find_type(*s);
+				if (!t.second) {
+				  t.first = domain->types().add_type(*s);
+				}
+				if (!domain->types().add_supertype(t.first, type)) {
+				  yyerror("cyclic type hierarchy");
+				}
+			}// end 2-if
+
+		} else if (name_kind == CONSTANT_KIND) {// 1-if
+			std::pair<Object, bool> o = domain->terms().find_object(*s);
+			if (!o.second) {
+				domain->terms().add_object(*s, type);
+			} else {
+				TypeSet components;
+				domain->types().components(components, domain->terms().type(o.first));
+				components.insert(type);
+				domain->terms().set_type(o.first, make_type(components));
+			}
+
+		} else { /* name_kind == OBJECT_KIND */
+			if (domain->terms().find_object(*s).second) {
+				yywarning("ignoring declaration of object `" + *s + "' previously declared as constant");
+			} else {
+				std::pair<Object, bool> o = problem->terms().find_object(*s);
+				if (!o.second) {
+					problem->terms().add_object(*s, type);
+				} else {
+					TypeSet components;
+					domain->types().components(components, problem->terms().type(o.first));
+					components.insert(type);
+					problem->terms().set_type(o.first, make_type(components));
+				}
+			}
+		}// end 1-if
+		delete s;
+	}// end-for
+
+	delete names;
 }
 
 
 /* Adds variables to the current variable list. */
-static void add_variables(const std::vector<const std::string*>* names,
-			  Type type) {
-  for (std::vector<const std::string*>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string* s = *si;
-    if (parsing_predicate && !parsing_obs_token) {
-      if (!repeated_predicate) {
-	domain->predicates().add_parameter(predicate, type);
-      }
-    } else if (parsing_function && !parsing_obs_token ) {
-      if (!repeated_function) {
-	domain->functions().add_parameter(function, type);
-      }
-    }
-    else if(parsing_predicate && parsing_obs_token){
-      if (!repeated_function) {
-	domain->observables().add_parameter(function, type);
-      }
-    }
-    else {
-      if (context.shallow_find(*s).second) {
-	yyerror("repetition of parameter `" + *s + "'");
-      } else if (context.find(*s).second) {
-	yywarning("shadowing parameter `" + *s + "'");
-      }
-      Variable var;
-      if (problem != NULL) {
-	var = problem->terms().add_variable(type);
-      } else {
-	var = domain->terms().add_variable(type);
-      }
-      context.insert(*s, var);
-      if (!quantified.empty()) {
-	quantified.push_back(var);
-      } else { /* action != NULL */
-	action->add_parameter(var);
-      }
-    }
-    delete s;
-  }
-  delete names;
+static void add_variables(const std::vector<const std::string*>* names, Type type) {
+	for (std::vector<const std::string*>::const_iterator si = names->begin(); si != names->end(); si++) {
+    	const std::string* s = *si;// 获取名字
+		// 是普通谓词
+		if (parsing_predicate && !parsing_obs_token) {
+			if (!repeated_predicate)
+				domain->predicates().add_parameter(predicate, type);
+		}
+		// 函数
+		else if (parsing_function && !parsing_obs_token ) {
+			if (!repeated_function) {
+				domain->functions().add_parameter(function, type);
+			}
+		}
+		// 可观察谓词
+		else if(parsing_predicate && parsing_obs_token){
+			if (!repeated_function) {
+				domain->observables().add_parameter(function, type);
+			}
+		}
+		// term
+		else {
+			if (context.shallow_find(*s).second) {
+				yyerror("repetition of parameter `" + *s + "'");
+			} else if (context.find(*s).second) {
+				yywarning("shadowing parameter `" + *s + "'");
+			}
+
+			Variable var;
+			if (problem != NULL) {
+				var = problem->terms().add_variable(type);
+			} else {
+				var = domain->terms().add_variable(type);
+			}
+			context.insert(*s, var);
+			if (!quantified.empty()) {
+				quantified.push_back(var);
+			} else { /* action != NULL */
+				action->add_parameter(var);
+			}
+		}
+		delete s;
+	}// end-for
+	delete names;
 }
 
 
 /* Prepares for the parsing of an atomic state formula. */ 
 static void prepare_atom(const std::string* name) {
-  std::pair<Predicate, bool> p;
-  if(parsing_obs_token)
-     p = domain->observables().find_predicate(*name);
-  else
-     p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    if(parsing_obs_token){
-      atom_predicate = domain->observables().add_predicate(*name);      
-    }
-    else
-      atom_predicate = domain->predicates().add_predicate(*name);
-    undeclared_atom_predicate = true;
-    if (problem != NULL) {
-      yywarning("undeclared predicate `" + *name + "' used");
-    } else {
-      yywarning("implicit declaration of predicate `" + *name + "'");
-    }
-  } else {
-    atom_predicate = p.first;
-    undeclared_atom_predicate = false;
-  }
-  term_parameters.clear();
-  parsing_atom = true;
-  delete name;
+	std::pair<Predicate, bool> p;
+	if(parsing_obs_token)
+		p = domain->observables().find_predicate(*name);
+	else
+		p = domain->predicates().find_predicate(*name);
+	if (!p.second) {
+		if(parsing_obs_token)
+			atom_predicate = domain->observables().add_predicate(*name);      
+		else
+			atom_predicate = domain->predicates().add_predicate(*name);
+	
+		undeclared_atom_predicate = true;
+	
+		if (problem != NULL)
+			yywarning("undeclared predicate `" + *name + "' used");
+		else
+			yywarning("implicit declaration of predicate `" + *name + "'");
+	} 
+	else {
+		atom_predicate = p.first;
+		undeclared_atom_predicate = false;
+	}
+	term_parameters.clear();
+	parsing_atom = true;
+	delete name;
 }
 
 
 /* Prepares for the parsing of a function application. */ 
 static void prepare_application(const std::string* name) {
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (!f.second) {
-    appl_function = domain->functions().add_function(*name);
-    undeclared_appl_function = true;
-    if (problem != NULL) {
-      yywarning("undeclared function `" + *name + "' used");
-    } else {
-      yywarning("implicit declaration of function `" + *name + "'");
-    }
-  } else {
-    appl_function = f.first;
-    undeclared_appl_function = false;
-  }
-  if (requirements->rewards && f.first == reward_function) {
-    if (!effect_fluent && !metric_fluent) {
-      yyerror("reserved function `reward' not allowed here");
-    }
-  } else {
-    require_fluents();
-  }
-  term_parameters.clear();
-  parsing_application = true;
-  delete name;
+	std::pair<Function, bool> f = domain->functions().find_function(*name);
+	if (!f.second) {
+		appl_function = domain->functions().add_function(*name);
+		undeclared_appl_function = true;
+		if (problem != NULL)
+			yywarning("undeclared function `" + *name + "' used");
+		else 
+			yywarning("implicit declaration of function `" + *name + "'");
+	} else {
+		appl_function = f.first;
+		undeclared_appl_function = false;
+	}
+	
+	if (requirements->rewards && f.first == reward_function) {
+		if (!effect_fluent && !metric_fluent) {
+			yyerror("reserved function `reward' not allowed here");
+		}
+	} else {
+		require_fluents();
+	}
+	term_parameters.clear();
+	parsing_application = true;
+	delete name;
 }
 
 
 /* Adds a term with the given name to the current atomic state formula. */
 static void add_term(const std::string* name) {
-  Term term = make_term(name);
-  const TermTable& terms =
-    (problem != NULL) ? problem->terms() : domain->terms();
-  if (parsing_atom) {
-    PredicateTable& predicates = (!parsing_obs_token ? 
-				  domain->predicates() :
-				  domain->observables());
-    size_t n = term_parameters.size();
-    if (undeclared_atom_predicate) {
-      predicates.add_parameter(atom_predicate, terms.type(term));
-    } else if (predicates.arity(atom_predicate) > n
-	       && !domain->types().subtype(terms.type(term),
-					   predicates.parameter(atom_predicate,
-								n))) {
-      yyerror("type mismatch");
+    Term term = make_term(name);// 根据名字创建term
+    // 获取term table
+    const TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+    // 当前正在解析atom
+    if (parsing_atom) {
+        // 根据是否解析obs判断是普通谓词还是可观察变量
+        PredicateTable& predicates = (!parsing_obs_token ? domain->predicates() : domain->observables());
+        size_t n = term_parameters.size();
+        if (undeclared_atom_predicate) {
+            predicates.add_parameter(atom_predicate, terms.type(term));
+        } else if (predicates.arity(atom_predicate) > n 
+                && !domain->types().subtype(terms.type(term),predicates.parameter(atom_predicate,n))) {
+            yyerror("type mismatch");
+        }
+    // 当前在解析application
+    } else if (parsing_application) {
+        FunctionTable& functions = domain->functions();
+        size_t n = term_parameters.size();
+        if (undeclared_appl_function) {
+            functions.add_parameter(appl_function, terms.type(term));
+        } else if (functions.arity(appl_function) > n 
+                && !domain->types().subtype(terms.type(term), functions.parameter(appl_function, n))) {
+            yyerror("type mismatch");
+        }
     }
-  } else if (parsing_application) {
-    FunctionTable& functions = domain->functions();
-    size_t n = term_parameters.size();
-    if (undeclared_appl_function) {
-      functions.add_parameter(appl_function, terms.type(term));
-    } else if (functions.arity(appl_function) > n
-	       && !domain->types().subtype(terms.type(term),
-					   functions.parameter(appl_function,
-							       n))) {
-      yyerror("type mismatch");
-    }
-  }
   term_parameters.push_back(term);
 }
 
 
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom() {
-  size_t n = term_parameters.size();
-  if(parsing_obs_token){
-
-    if (domain->observables().arity(atom_predicate) < n) {
-      yyerror("too many parameters passed to obs `"
-	      + domain->observables().name(atom_predicate) + "'");
-    } else if (domain->observables().arity(atom_predicate) > n) {
-      yyerror("too few parameters passed to obs `"
-	      + domain->observables().name(atom_predicate) + "'");
+    size_t n = term_parameters.size();
+    if(parsing_obs_token){// 当前正在解析observation
+        // 参数个数情况判断
+        if (domain->observables().arity(atom_predicate) < n) {
+            yyerror("too many parameters passed to obs `"
+                + domain->observables().name(atom_predicate) + "'");
+        } else if (domain->observables().arity(atom_predicate) > n) {
+            yyerror("too few parameters passed to obs `"
+                + domain->observables().name(atom_predicate) + "'");
+        }
     }
-  }
-  else{
-    if (domain->predicates().arity(atom_predicate) < n) {
-      yyerror("too many parameters passed to predicate `"
-	      + domain->predicates().name(atom_predicate) + "'");
-    } else if (domain->predicates().arity(atom_predicate) > n) {
-      yyerror("too few parameters passed to predicate `"
-	      + domain->predicates().name(atom_predicate) + "'");
+    // 当前解析普通atom
+    else{
+        // 参数个数情况判断
+        if (domain->predicates().arity(atom_predicate) < n) {
+            yyerror("too many parameters passed to predicate `"
+                + domain->predicates().name(atom_predicate) + "'");
+        } else if (domain->predicates().arity(atom_predicate) > n) {
+            yyerror("too few parameters passed to predicate `"
+                + domain->predicates().name(atom_predicate) + "'");
+        }
     }
-  }
-  parsing_atom = false;
-  return &Atom::make_atom(atom_predicate, term_parameters);
+    parsing_atom = false;
+    // 创建atom
+    return &Atom::make_atom(atom_predicate, term_parameters);
 }
 
 
 /* Creates the function application just parsed. */
 static const Application* make_application() {
-  size_t n = term_parameters.size();
-  if (domain->functions().arity(appl_function) < n) {
-    yyerror("too many parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
-  } else if (domain->functions().arity(appl_function) > n) {
-    yyerror("too few parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
-  }
-  parsing_application = false;
-  return &Application::make_application(appl_function, term_parameters);
+
+    size_t n = term_parameters.size();
+    if (domain->functions().arity(appl_function) < n) {
+        yyerror("too many parameters passed to function `"
+            + domain->functions().name(appl_function) + "'");
+    } else if (domain->functions().arity(appl_function) > n) {
+        yyerror("too few parameters passed to function `"
+            + domain->functions().name(appl_function) + "'");
+    }
+    parsing_application = false;
+    return &Application::make_application(appl_function, term_parameters);
 }
 
 
-/* Creates a subtraction. */
+/* Creates a subtraction.  term - opt_term */
 static const Expression* make_subtraction(const Expression& term,
 					  const Expression* opt_term) {
-  if (opt_term != NULL) {
-    return new Subtraction(term, *opt_term);
-  } else {
-    return new Subtraction(*new Value(0.0), term);
-  }
+    if (opt_term != NULL) {// 两个数实现减法
+        return new Subtraction(term, *opt_term);
+    } else {// 一个数实现负数
+        return new Subtraction(*new Value(0.0), term);
+    }
 }
 
 
 /* Creates an atom or fluent for the given name to be used in an
    equality formula. */
 static void make_eq_name(const std::string* name) {
-  std::pair<Function, bool> f = domain->functions().find_function(*name);
-  if (f.second) {
-    prepare_application(name);
-    eq_expr = make_application();
-  } else {
-    /* Assume this is a term. */
-    eq_term = make_term(name);
-    eq_expr = NULL;
-  }
+    std::pair<Function, bool> f = domain->functions().find_function(*name);
+    if (f.second) {// domain中定义的function
+        prepare_application(name);
+        eq_expr = make_application();
+    } else {
+        /* Assume this is a term. */
+        eq_term = make_term(name);
+        eq_expr = NULL;
+    }
 }
 
 
-/* Creates an equality formula. */
+/* Creates an equality formula. 使用到了 =的前提条件 */
 static const StateFormula* make_equality() {
-  if (!requirements->equality) {
-    yywarning("assuming `:equality' requirement");
-    requirements->equality = true;
-  }
-  if (first_eq_expr != NULL && eq_expr != NULL) {
-    return new Comparison(Comparison::EQ_CMP, *first_eq_expr, *eq_expr);
-  } else if (first_eq_expr == NULL && eq_expr == NULL) {
-    const TermTable& terms =
-      (problem != NULL) ? problem->terms() : domain->terms();
-    if (domain->types().subtype(terms.type(first_eq_term), terms.type(eq_term))
-	|| domain->types().subtype(terms.type(eq_term),
-				   terms.type(first_eq_term))) {
-      return new Equality(first_eq_term, eq_term);
-    } else {
-      return 0;//&StateFormula::FALSE;
+    if (!requirements->equality) {
+        yywarning("assuming `:equality' requirement");
+        requirements->equality = true;
     }
-  } else {
-    yyerror("comparison of term and numeric expression");
-    return 0;//&StateFormula::FALSE;
-  }
+    // 等号两侧表达式不为空
+    if (first_eq_expr != NULL && eq_expr != NULL) {
+        return new Comparison(Comparison::EQ_CMP, *first_eq_expr, *eq_expr);
+    } else if (first_eq_expr == NULL && eq_expr == NULL) {// 两者均为空
+        // 获取term表格
+        const TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+        // 判断类型是否相同
+        if (domain->types().subtype(terms.type(first_eq_term), terms.type(eq_term))
+            || domain->types().subtype(terms.type(eq_term),  terms.type(first_eq_term)))
+        {
+            return new Equality(first_eq_term, eq_term);
+        } else {
+            return 0;//&StateFormula::FALSE;
+        }
+    } else {
+        yyerror("comparison of term and numeric expression");
+        return 0;//&StateFormula::FALSE;
+    }
 }
 
 
 /* Creates a negated formula. */
 static const StateFormula* make_negation(const StateFormula& negand) {
-  if (typeid(negand) == typeid(Atom)) {
-    if (!requirements->negative_preconditions) {
-      yywarning("assuming `:negative-preconditions' requirement");
-      requirements->negative_preconditions = true;
-    }
-  } else if (typeid(negand) != typeid(Equality)
-	     && typeid(negand) != typeid(Comparison)) {
-    require_disjunction();
-  }
-  return &Negation::make_negation(negand);
+    if (typeid(negand) == typeid(Atom)) {
+        if (!requirements->negative_preconditions) {
+            yywarning("assuming `:negative-preconditions' requirement");
+            requirements->negative_preconditions = true;
+        }
+        // 需要否定的formual不是赋值或者比较，则需要支持析取式
+        } else if (typeid(negand) != typeid(Equality) && typeid(negand) != typeid(Comparison)) {
+            require_disjunction();
+        }
+    //创建并返回指针
+    return &Negation::make_negation(negand);
 }
 
 
-/* Creates an implication. */
-static const StateFormula* make_implication(const StateFormula& f1,
-					    const StateFormula& f2) {
-  require_disjunction();
-  Disjunction* disj = new Disjunction();
-  disj->add_disjunct(Negation::make_negation(f1));
-  disj->add_disjunct(f2);
-  return disj;
+/* Creates an implication. f1 -> f2 */
+static const StateFormula* make_implication(const StateFormula& f1, const StateFormula& f2) {
+    require_disjunction();// 判断是否有disjunction，没有则warning并开启
+    Disjunction* disj = new Disjunction();//创建析取式
+    disj->add_disjunct(Negation::make_negation(f1));//创建 !f1 \/ f2 
+    disj->add_disjunct(f2);
+    return disj;
 }
 
 
 /* Prepares for the parsing of an existentially quantified formula. */
 static void prepare_exists() {
-  if (!requirements->existential_preconditions) {
-    yywarning("assuming `:existential-preconditions' requirement");
-    requirements->existential_preconditions = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->existential_preconditions) {
+		yywarning("assuming `:existential-preconditions' requirement");
+		requirements->existential_preconditions = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Prepares for the parsing of a universally quantified formula. */
 static void prepare_forall() {
-  if (!requirements->universal_preconditions) {
-    yywarning("assuming `:universal-preconditions' requirement");
-    requirements->universal_preconditions = true;
-  }
-  context.push_frame();
-  quantified.push_back(NULL_TERM);
+	if (!requirements->universal_preconditions) {
+		yywarning("assuming `:universal-preconditions' requirement");
+		requirements->universal_preconditions = true;
+	}
+	context.push_frame();
+	quantified.push_back(NULL_TERM);
 }
 
 
 /* Creates an existentially quantified formula. */
 static const StateFormula* make_exists(const StateFormula& body) {
-  context.pop_frame();
-  size_t m = quantified.size() - 1;
-  size_t n = m;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  if (n < m) {
-    Exists* exists = new Exists();
-    for (size_t i = n + 1; i <= m; i++) {
-      exists->add_parameter(quantified[i]);
-    }
-    exists->set_body(body);
-    quantified.resize(n);
-    return exists;
-  } else {
-    quantified.pop_back();
-    return &body;
-  }
+	context.pop_frame();
+	size_t m = quantified.size() - 1;
+	size_t n = m;
+	
+	while (is_variable(quantified[n])) n--;
+
+	if (n < m) {
+		Exists* exists = new Exists();
+		
+		for (size_t i = n + 1; i <= m; i++) {
+			exists->add_parameter(quantified[i]);
+		}
+
+		exists->set_body(body);
+		quantified.resize(n);
+		return exists;
+	} else {
+		quantified.pop_back();
+		return &body;
+	}
 }
 
 
 /* Creates a universally quantified formula. */
 static const StateFormula* make_forall(const StateFormula& body) {
-  context.pop_frame();
-  size_t m = quantified.size() - 1;
-  size_t n = m;
-  while (is_variable(quantified[n])) {
-    n--;
-  }
-  if (n < m) {
-    Forall* forall = new Forall();
-    for (size_t i = n + 1; i <= m; i++) {
-      forall->add_parameter(quantified[i]);
-    }
-    forall->set_body(body);
-    quantified.resize(n);
-    return forall;
-  } else {
-    quantified.pop_back();
-    return &body;
-  }
+	context.pop_frame();
+	size_t m = quantified.size() - 1;
+	size_t n = m;
+	while (is_variable(quantified[n])) {
+		n--;
+	}
+	if (n < m) {
+		Forall* forall = new Forall();
+		for (size_t i = n + 1; i <= m; i++) {
+			forall->add_parameter(quantified[i]);
+		}
+		forall->set_body(body);
+		quantified.resize(n);
+		return forall;
+	} else {
+		quantified.pop_back();
+		return &body;
+	}
 }
 
 void set_discount(const Rational& discount){
-  problem->set_discount(discount);
+	problem->set_discount(discount);
 }
 
 
 /* Sets the goal reward for the current problem. */
 void set_goal_reward(const Expression& goal_reward) {
-  if (!requirements->rewards) {
-    yyerror("goal reward only allowed with the `:rewards' requirement");
-  } else {
-    const Application& reward_appl =
-      Application::make_application(reward_function, TermList());
-    const Assignment* reward_assignment =
-      new Assignment(Assignment::INCREASE_OP, reward_appl, goal_reward);
-    problem->set_goal_reward(*reward_assignment);
-  }
+    if (!requirements->rewards) {// goal中含有reward判断是否使用reward关键字
+        yyerror("goal reward only allowed with the `:rewards' requirement");
+    } else {
+        const Application& reward_appl =
+            Application::make_application(reward_function, TermList());// 创建一个application存储reward的操作
+        const Assignment* reward_assignment =
+            new Assignment(Assignment::INCREASE_OP, reward_appl, goal_reward);// 对该aplication赋值
+        problem->set_goal_reward(*reward_assignment);//设置reward目标
+    }
 }
 
 
 /* Sets the default metric for the current problem. */
 static void set_default_metric() {
-  if (requirements->rewards) {
-    const Application& reward_appl =
-      Application::make_application(reward_function, TermList());
-    problem->set_metric(reward_appl);
-  }
+    if (requirements->rewards) {
+        const Application& reward_appl =
+            Application::make_application(reward_function, TermList());
+        problem->set_metric(reward_appl);//设置评估函数
+    }
 }
 
 /* make all atoms in formula or subformula dynamic */
@@ -2153,25 +2150,23 @@ void make_all_dynamic(const StateFormula &formula){
    purposes*/
 static void get_init_elts(){
   
-  const StateFormula &init = problem->init_formula();
-  if(!&init)
-    return;
-
-  const Conjunction *c = dynamic_cast<const Conjunction*>(&init);
-  if(c != NULL){
-    for (size_t i = 0; i < c->size(); i++) {
-      const Atom *a = dynamic_cast<const Atom*>(&c->conjunct(i));
-      if(a != NULL){
-	problem->add_init_atom(*a);	
-      }
-      else{
-	make_all_dynamic(c->conjunct(i));
-      }      
+    const StateFormula &init = problem->init_formula();// 得到初始状态公式
+    if(!&init)
+        return;
+    // 判断是否为和取式
+    const Conjunction *c = dynamic_cast<const Conjunction*>(&init);
+    if(c != NULL){
+        // 将初始状态的每一个atom添加
+        for (size_t i = 0; i < c->size(); i++) {
+            const Atom *a = dynamic_cast<const Atom*>(&c->conjunct(i));
+            if(a != NULL){// 普通atom直接添加
+                problem->add_init_atom(*a);	
+            }
+            else{// oneof等形式的atom，递归处理
+                make_all_dynamic(c->conjunct(i));
+            }      
+        }
     }
-  }
-  else
-    make_all_dynamic(init);
-
-  
-
+    else
+        make_all_dynamic(init);
 }
