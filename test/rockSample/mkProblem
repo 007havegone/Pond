@@ -1,0 +1,42 @@
+#!/bin/bash
+size=$1
+rocks=$2;
+
+echo "(define (problem rs$size)";
+echo " (:domain rockSample)";
+echo " (:objects"
+echo -n "    ";
+for ((i=0; i<$size; i++)) do {
+	echo -n "x$i ";
+}; done
+echo "- pos";
+echo -n "    ";
+for ((i=0; i<$size; i++)) do {
+	echo -n "y$i ";
+}; done
+echo "- pos";
+echo -n "    ";
+for ((i=0; i<$rocks; i++)) do {
+	echo -n "r$i ";
+}; done
+echo "- rock";
+echo " )";
+echo " (:init";
+for((i=0; i<$rocks; i++)) do {
+	echo "";
+	echo "    (probabilistic 0.5 (good r$i))";
+	echo "    (rpos_x r$i x0)";
+	echo "    (rpos_y r$i y0)";
+}; done
+echo "    (pos_x x0)";
+echo "    (pos_y y0)";
+echo "";
+echo "    (exitBoundary x0)";
+./genDist $size
+./genSucc $size
+echo " )";
+echo " (:goal (exit))";
+echo " (:discount .9)";
+echo " (:goal-reward 2)";
+echo ")";
+

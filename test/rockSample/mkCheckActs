@@ -1,0 +1,28 @@
+#!/bin/bash
+
+SIZE=$1
+dbase=20
+
+for((i=0;i<$SIZE;i++)); do {
+ for((j=0;j<$SIZE;j++)); do {
+
+  dist=$(echo "sqrt($i^2 + $j^2)" | bc -l) # "sqrt(i^2 + j^2)"
+ #echo $dist
+  exp=$(echo "(-1*($dist/$dbase))" | bc -l)
+#echo $exp
+  express="'BEGIN{print 2^$exp}'"
+  pr=`echo $express | xargs awk`
+ #echo $pr
+  echo "(:action check_"$i"_"$j
+  echo " :parameters (?x ?y ?rx ?ry - pos ?r - rock)"
+  echo " :precondition (and (pos_x ?x) (pos_y ?y) "
+  echo "		    (rpos_x ?r ?x) (rpos_y ?r ?y) "
+  echo "                    (distance ?x ?rx d$i)"
+  echo "                    (distance ?y ?ry d$j)"
+  echo "		)"
+  echo " :observation (((good ?r) $pr $pr))"
+  echo " )"
+  echo ""
+
+ }; done
+}; done
