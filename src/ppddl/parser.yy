@@ -274,7 +274,7 @@ static void set_default_metric();
 
 
 %}
-
+// 声明 terminal symbol
 %token DEFINE DOMAIN_TOKEN PROBLEM
 %token REQUIREMENTS TYPES CONSTANTS PREDICATES FUNCTIONS OBSERVABLES
 %token STRIPS TYPING NEGATIVE_PRECONDITIONS DISJUNCTIVE_PRECONDITIONS EQUALITY
@@ -291,7 +291,7 @@ static void set_default_metric();
 %token LE GE NAME VARIABLE NUMBER HORIZON DISC
 %token ILLEGAL_TOKEN PLANTIME PLAN FORPROBLEM IF THEN ELSE CASE GOTO DONE
 %token ANTI_COMMENT
-
+// data types that semantic value may have
 %union {
     Assignment::AssignOp setop;
     const pEffect* effect;
@@ -319,7 +319,7 @@ static void set_default_metric();
     label_symbol* t_label_symbol;
     //NAD
 }
-
+// types of semantic value for nonterminal symbol
 %type <setop> assign_op
 %type <effect> eff_formula p_effect simple_init one_init
 %type <ceffect> eff_formulas one_inits
@@ -351,12 +351,12 @@ static void set_default_metric();
 %type <observation> observation
 %type <observation_defs> observation_defs
 %%
-
+/* 文件类型 */
 file : { success = true; line_number = 1; } domains_and_problems {}
 //{ if (!success) YYERROR; }
 |  { success = true; line_number = 1; } c_plan {}// {if (!success) YYERROR;  }
 | { success = true; line_number = 1; } observation {} //{if (!success) YYERROR; }  
-     ;
+;
 
 //====DAN============OBSERVATION FROM ENVIRONMENT=========//
 
@@ -506,8 +506,8 @@ c_label : name
 ;
 
 domains_and_problems : /* empty */
-                     |  domains_and_problems domain_def 
-                     |  domains_and_problems problem_def 
+                     |  domains_and_problems domain_def {std::cout << "finish definition of domain" << std::endl;}
+                     |  domains_and_problems problem_def {std::cout << "finish definition of problem" << std::endl;}
                      ;
 
 
@@ -517,21 +517,24 @@ domains_and_problems : /* empty */
 domain_def : '(' define '(' domain name ')' { make_domain($5); }
                domain_body ')'
            ;
-
+// requirement define
 domain_body : /* empty */
             | require_def
             | require_def domain_body2
             | domain_body2
             ;
-
+// type define
 domain_body2 : types_def
              | types_def domain_body3
              | domain_body3
              ;
-
+/*
+ from body3 to body 9 show that constant, predicate, function order is arbitary
+  but the last one must be structure_defs
+*/
 domain_body3 : constants_def
              | predicates_def
-   | predicates_def observables_def
+			 | predicates_def observables_def
              | functions_def
              | constants_def domain_body4
              | predicates_def domain_body5
@@ -541,7 +544,7 @@ domain_body3 : constants_def
              ;
 
 domain_body4 : predicates_def
-    | predicates_def observables_def
+			 | predicates_def observables_def
              | functions_def
              | predicates_def domain_body7
              | predicates_def observables_def domain_body7
@@ -570,7 +573,7 @@ domain_body7 : functions_def
              ;
 
 domain_body8 : predicates_def
-  | predicates_def observables_def
+			 | predicates_def observables_def
              | predicates_def structure_defs
              | predicates_def observables_def structure_defs
              | structure_defs
@@ -581,31 +584,35 @@ domain_body9 : constants_def
              | structure_defs
              ;
 
+/**
+  * here show that using { c++ language } to print message
+  */
 observables_def : '('  OBSERVABLES {// cout << "ob tokens"<<endl;
 }  observable_decls ')'{// cout << "done ob tokens"<<endl;
 }
                 ;
-
+// 结构递归定义
 structure_defs : structure_def
                | structure_defs structure_def
                ;
-
+// 结构即action
 structure_def : action_def
               ;
 
+// requirement定义即 (requirent k1 k2 k3 k4)
 require_def : '(' REQUIREMENTS require_keys ')'
             ;
 
 require_keys : require_key
              | require_keys require_key
              ;
-
+// 这块的大写用到了tokenizer.ll的定义的正则表达式，随后用{调用c++操作}
 require_key : STRIPS { requirements->strips = true; }
             | TYPING { requirements->typing = true; }
             | NEGATIVE_PRECONDITIONS
-                { requirements->negative_preconditions = true; }
+                { requirements->negative_preconditions = true; }// 否定条件 :negative-preconditions
             | DISJUNCTIVE_PRECONDITIONS
-                { requirements->disjunctive_preconditions = true; }
+                { requirements->disjunctive_preconditions = true; }// 析取条件 :disjunctive-preconditions
             | EQUALITY { requirements->equality = true; }
             | EXISTENTIAL_PRECONDITIONS
                 { requirements->existential_preconditions = true; }
@@ -613,52 +620,60 @@ require_key : STRIPS { requirements->strips = true; }
                 { requirements->universal_preconditions = true; }
             | QUANTIFIED_PRECONDITIONS
                 { requirements->quantified_preconditions(); }
-            | CONDITIONAL_EFFECTS { requirements->conditional_effects = true; }
+            | CONDITIONAL_EFFECTS { requirements->conditional_effects = true; }//条件Effect :conditional-effects
             | PROBABILISTIC_DYNAMICS { requirements->probabilistic = true; }
-            | NON_DETERMINISTIC_DYNAMICS { requirements->non_deterministic = true; 
-	    requirements->probabilistic_effects = true; 	    requirements->probabilistic = false;}
-            | FLUENTS { requirements->fluents = true; }
-            | ADL { requirements->adl(); }
-            | DURATIVE_ACTIONS
+            | NON_DETERMINISTIC_DYNAMICS { // 开启不确定性 :non-deterministic
+				requirements->non_deterministic = true;
+				requirements->probabilistic_effects = true;// 这里还是开启了概率Effect
+				requirements->probabilistic = false;
+				}
+            | FLUENTS { requirements->fluents = true; }// :fluents
+            | ADL { requirements->adl(); } // :adl
+            | DURATIVE_ACTIONS // 这块是不支持的动作，遇到直接跑出异常
                 { throw Exception("`:durative-actions' not supported"); }
             | DURATION_INEQUALITIES
                 { throw Exception("`:duration-inequalities' not supported"); }
             | CONTINUOUS_EFFECTS
                 { throw Exception("`:continuous-effects' not supported"); }
-            | PROBABILISTIC_EFFECTS
+            | PROBABILISTIC_EFFECTS // 使用概率效果 :probabilistic-effects
                 {
-		  requirements->probabilistic_effects = true;
-		  requirements->probabilistic = true;
-		  requirements->non_deterministic = false;
-		  goal_prob_function =
-		    domain->functions().add_function("goal-probability");
-		}
-            | REWARDS
+					requirements->probabilistic_effects = true;
+					requirements->probabilistic = true;
+					requirements->non_deterministic = false;// 关闭不确定性
+					goal_prob_function = domain->functions().add_function("goal-probability");
+				}
+            | REWARDS// 开启reward
                 {
-		  requirements->rewards = true;
-		  reward_function = domain->functions().add_function("reward");
-		}
-            | MDP
+					requirements->rewards = true;
+					reward_function = domain->functions().add_function("reward");
+				}
+            | MDP // 支持Markov
                 {
-		  requirements->probabilistic_effects = true;
-		  requirements->rewards = true;
-		  goal_prob_function =
-		    domain->functions().add_function("goal-probability");
-		  reward_function = domain->functions().add_function("reward");
-		}
+					requirements->probabilistic_effects = true;
+					requirements->rewards = true;
+					goal_prob_function = domain->functions().add_function("goal-probability");
+					reward_function = domain->functions().add_function("reward");
+				}
             ;
 
+/* 类型定义： 
+	遇到头部 :types 
+		1. 调用require_typing()判断是否有requiremnt
+		2. 设置名字类型
+		3. typed_names可以识别多个类型名
+		4. 类型至空
+*/
 types_def : '(' TYPES { require_typing(); name_kind = TYPE_KIND; }
               typed_names ')' { name_kind = VOID_KIND; }
           ;
-
+/* 常量头部 :constants*/
 constants_def : '(' CONSTANTS { name_kind = CONSTANT_KIND; } typed_names ')'
                   { name_kind = VOID_KIND; }
               ;
-
+/* 谓词头部 :predicates 随后读取谓词*/
 predicates_def : '(' PREDICATES predicate_decls ')'
                ;
-
+/* Function头部 :function 随后读取函数*/
 functions_def : '(' FUNCTIONS { require_fluents(); } function_decls ')'
               ;
 
@@ -669,7 +684,7 @@ functions_def : '(' FUNCTIONS { require_fluents(); } function_decls ')'
 predicate_decls : /* empty */
                 | predicate_decls predicate_decl
                 ;
-
+/* 单个谓词定义 识别谓词和相应的参数*/
 predicate_decl : '(' predicate { make_predicate($2); } variables ')'
                    { parsing_predicate = false; }
                ;
@@ -691,18 +706,22 @@ function_decl : '(' function { make_function($2); } variables ')'
               ;
 
 observable_decls : 
-| observable_decls observable_decl 
-                  ;
+				 | observable_decls observable_decl 
+                 ;
 
-observable_decl : '(' predicate  {make_predicate($2);// make_observable($2); parsing_obs_token = false;
-}  variables ')' { //parsing_obs_token = false;
- parsing_predicate = false; }
+observable_decl : '(' predicate  
+					{ make_predicate($2);
+					// make_observable($2); parsing_obs_token = false;
+					}  variables ')' 
+					{ //parsing_obs_token = false;
+ 					  parsing_predicate = false; 
+					}
                 ;
 
 
 /* ====================================================================== */
-/* Action definitions. */
-
+/* Action definitions. 
+*/
 action_def : '(' ACTION name {// cout << *$3<<endl;
                make_action($3);  }
                parameters action_body ')' { add_action(); }
@@ -710,11 +729,13 @@ action_def : '(' ACTION name {// cout << *$3<<endl;
                make_action($3);  }
                parameters action_body ')' { add_event(); }
            ;
-
+/*
+  设置动作参数类型 :paremeter()
+*/
 parameters : /* empty */
            | PARAMETERS '(' variables ')'
            ;
-
+/* 即一个action可以没有前提条件，如果为空*/
 action_body : precondition action_body2
             | action_body2
             ;
@@ -734,7 +755,10 @@ precondition : PRECONDITION formula { action->set_precondition(*$2); }
 
 effect : EFFECT eff_formula { action->set_effect(*$2); }
        ;
-
+/* :observation(
+	and 
+	) 
+*/
 observations : OBSERVATION '(' and  observation_defs ')' {action->set_observation(*$4);}
              | OBSERVATION  '(' observation_defs ')' {action->set_observation(*$3); // cout << "parse ob"<<endl;
 };
@@ -787,7 +811,7 @@ oneof_effs : oneof_effs eff_formula
 or_effs : or_effs eff_formula
              { $$ = $1; add_effect_outcome(*$$, new Rational(-3.0), *$2); }
            | eff_formula
-{ $$ = new ProbabilisticEffect(); add_effect_outcome(*$$, new Rational(-3.0), *$1); }
+			 { $$ = new ProbabilisticEffect(); add_effect_outcome(*$$, new Rational(-3.0), *$1); }
 ;
 
 unknown_effs : p_effect
@@ -800,8 +824,8 @@ unknown_effs : p_effect
 probability : NUMBER 
             ;
 
-p_effect : atomic_term_formula { $$ = make_add_effect(*$1); }
-         | '(' not atomic_term_formula ')' { $$ = make_delete_effect(*$3); }
+p_effect : atomic_term_formula {std::cout << "make_add_effect" << std::endl; $$ = make_add_effect(*$1); }
+         | '(' not atomic_term_formula ')' {std::cout << "make_delete_effect" << std::endl; $$ = make_delete_effect(*$3); }
          | '(' assign_op { effect_fluent = true; } f_head f_exp ')'
              { $$ = make_assignment_effect($2, *$4, *$5); }
          ;
@@ -852,19 +876,21 @@ problem_body     : require_def problem_body_r
                  | problem_body_r
                  ;
 
-/* init and goal/metric are mandatory */
-problem_body_r   : init goal_spec problem_body_ig
+/* init and goal/metric are mandatory 
+	先定义object 随后定义 init 和 goal
+*/
+problem_body_r   : init  goal_spec  problem_body_ig ;
 
 /* 1st: horizon, object, or discount */
 problem_body_ig  : /* empty */
                  | horizon_decl problem_body_h
-                 | object_decl problem_body_o
+                 | object_decl {std::cout << "finish object 1" << std::endl;} problem_body_o
                  | discount problem_body_d
                  ;
 
 /* 2nd: horizon, followed by object or discount */
 problem_body_h   : /* empty */
-                 | object_decl problem_body_ho
+                 | object_decl {std::cout << "finish object 2" << std::endl;} problem_body_ho
                  | discount problem_body_hd
                  ;
 
@@ -873,16 +899,16 @@ problem_body_ho  : /* empty */
                  ;
 
 problem_body_hd  : /* empty */
-                 | object_decl
+                 | object_decl {std::cout << "finish object 3" << std::endl;}
                  ;
 
 /* 2nd: object, followed by horizon or discount */
-problem_body_o   : /* empty */
+problem_body_o   : /* empty */{std::cout << "empty problem_body_o" << std::endl;}
                  | horizon_decl problem_body_oh
                  | discount problem_body_od
                  ;
 
-problem_body_oh  : /* empty */
+problem_body_oh  : /* empty */{std::cout << "empty problem_body_oh" << std::endl;}
                  | discount
                  ;
 
@@ -893,20 +919,20 @@ problem_body_od  : /* empty */
 /* 2nd: discount, followed by object or horizon */
 problem_body_d   : /* empty */
                  | horizon_decl problem_body_dh
-                 | object_decl problem_body_do
+                 | object_decl {std::cout << "finish object" << std::endl;} problem_body_do
                  ;
 
 problem_body_dh  : /* empty */
-                 | object_decl
+                 | object_decl{std::cout << "finish object" << std::endl;}
                  ;
 
 problem_body_do  : /* empty */
                  | horizon_decl
                  ;
 
-
-object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; } typed_names ')'
-                { name_kind = VOID_KIND; }
+// :objects
+object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; std::cout << "start object" << std::endl;} typed_names ')'
+                { name_kind = VOID_KIND; std::cout << "end object" << std::endl;}
             ;
 
 horizon_decl : '(' HORIZON NUMBER ')' {problem->set_plan_horizon(*$3);}
@@ -914,23 +940,27 @@ horizon_decl : '(' HORIZON NUMBER ')' {problem->set_plan_horizon(*$3);}
              ;
 
 
-init : '(' INIT init_element init_elements ')' 
+init : '(' INIT init_element {std::cout << "init_element " << std::endl;} init_elements ')' 
      | '(' INIT '(' and conjuncts ')' 
        { problem->set_init_formula(*$5); get_init_elts();}  ')'
      ;
 
 
 
-init_elements : /* empty */
-              | init_elements init_element
+init_elements : /* empty */ {std::cout << "empty init" << std::endl;}
+              | init_elements init_element {std::cout << "init element" << std::endl;}
               ;
 
-init_element : atomic_name_formula { problem->add_init_atom(*$1);  problem->add_init_effect(*(new AddEffect(*$1)));}
+init_element :	atomic_name_formula 
+				{
+					std::cout << "atom formula" << std::endl; 
+					problem->add_init_atom(*$1);  problem->add_init_effect(*(new AddEffect(*$1)));}
              | '(' '=' ground_f_head NUMBER ')'
                  { problem->add_init_value(*$3, *$4); delete $4; }
              | '(' probabilistic prob_inits ')'
                  { problem->add_init_effect(*$3); }
-            | '(' ONEOF oneof_inits ')' { problem->add_init_effect(*$3); }
+            | '(' ONEOF oneof_inits ')'
+				{ std::cout << "oneof_init" << std::endl; problem->add_init_effect(*$3); }
             | '(' UNKNOWN unknown_inits ')' { problem->add_init_effect(*$3); }
 | /* none */
              ;
@@ -977,7 +1007,7 @@ one_init : atomic_name_formula { $$ = make_add_effect(*$1); }
 
 value : NUMBER { $$ = new Value(*$1); delete $1; }
       ;
-
+/*这块设置goal formula,还有可选的goal reward */
 goal_spec : '(' GOAL formula ')' goal_reward { problem->set_goal(*$3, true); }
           | '(' GOAL formula NUMBER ')' goal_reward { problem->set_goal(*$3, *$4); delete $4; }
           | '(' GOAL formula ')' discount goal_reward { problem->set_goal(*$3, true); }
@@ -993,7 +1023,7 @@ goal_reward : metric_spec
                 { set_goal_reward(*$3); }
             ;
 
-metric_spec : /* empty */ { set_default_metric(); }
+metric_spec : /* empty */ { std::cout << "Set default metric()" << std::endl; set_default_metric(); }
             | '(' METRIC maximize { metric_fluent = true; } ground_f_exp ')'
                 { problem->set_metric(*$5); metric_fluent = false; }
             | '(' METRIC minimize { metric_fluent = true; } ground_f_exp ')'
@@ -1004,7 +1034,9 @@ metric_spec : /* empty */ { set_default_metric(); }
 /* Formulas. */
 
 
-formula : atomic_term_formula { $$ = $1; }
+formula : // empty 
+		 '(' ')'{std::cout << "empty formula: line " << line_number << std::endl;}
+		| atomic_term_formula { $$ = $1; }
         | '(' '=' term_or_f_exp
             { first_eq_term = eq_term; first_eq_expr = eq_expr; }
             term_or_f_exp ')' { $$ = make_equality(); }
@@ -1131,7 +1163,7 @@ variable_seq : variable { $$ = new std::vector<const std::string*>(1, $1); }
              | variable_seq variable { $$ = $1; $$->push_back($2); }
              ;
 
-typed_names : /* empty */
+typed_names : /* empty */{std::cout << "empty types line " << line_number << std::endl;}
             | name_seq { add_names($1, OBJECT_TYPE); }
             | name_seq type_spec { add_names($1, $2); } typed_names
             ;
@@ -1140,7 +1172,7 @@ name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
          | name_seq name { $$ = $1; $$->push_back($2); }
          ;
 
-type_spec : '-' { require_typing(); } type { $$ = $3; }
+type_spec : '-' { std::cout << "--" << std::endl; require_typing(); } type { $$ = $3; }
           ;
 
 type : object { $$ = OBJECT_TYPE; }
@@ -1291,7 +1323,7 @@ static void make_problem(const std::string* name, const std::string* domain_name
 	if (di != domains.end()) {
 		domain = (*di).second;
 	}
-	// domain不存在直接结束 
+	// domain不存在直接结束
 	else {
 		domain = new Domain(*domain_name);
 		domains[*domain_name] = domain;
@@ -1589,16 +1621,18 @@ static const pEffect* make_forall_effect(const pEffect& effect) {
 /* Adds an outcome to the given probabilistic effect.*/
 static void add_effect_outcome(ProbabilisticEffect& peffect,
 			        const Rational* p, const pEffect& effect) {
+    // oneof涉及到non-deterministic效果
 	if((*p == -1.0 || *p == -2.0 || *p == -3.0) && !requirements->non_deterministic){
 		yywarning("assuming `:non-deterministic' requirement");
 		requirements->non_deterministic = true;    
 		/* requirements->probabilistic_effects = true; */
 	}
+    // 一般的probability effect
 	else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) && !requirements->probabilistic_effects) {
     	yywarning("assuming `:probabilistic-effects' requirement");
 		requirements->probabilistic_effects = true;
 	} 
-
+    
 	if(*p == -1.0){ // okay, its an oneof nd-effect
 	}
 	else if(*p == -2.0){ // okay, its an unknown nd-effect
