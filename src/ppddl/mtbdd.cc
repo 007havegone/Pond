@@ -3933,7 +3933,7 @@ DdNode* solve_problem(const Problem& problem,
 		double gamma, double epsilon) {
 
 	gDiscount = (*my_problem).discount();
-	//       std::cout << "DISCOUNT = " << gDiscount << std::endl;
+	std::cout << "DISCOUNT = " << gDiscount << std::endl;
 
 	/*
 	 * Extract the reward function.
@@ -3946,12 +3946,14 @@ DdNode* solve_problem(const Problem& problem,
 		reward_function = problem.domain().functions().last_function() + 1;
 	}
 	valid_reward_function = rf.second;
-
-
+	
+	// momo007
+	std::cout << "current domain if define the reward function: " << valid_reward_function << std::endl;
 
 	/*
 	 * Collect state variables and assign indices to them.
 	 */
+	std::cout << "start collect action state variales" << std::endl;
 	for (ActionList::const_iterator ai = problem.actions().begin();
 			ai != problem.actions().end(); ai++) {
 
@@ -3972,14 +3974,14 @@ DdNode* solve_problem(const Problem& problem,
 			ObservationEntry *e;
 			for(ObservationVector::iterator i = ob.begin();i != ob.end(); i++){
 				e = ((ObservationEntry*)(*i));
-				//cout << "collect"<<endl;
+				std::cout << "observation action collect "<< std::endl;
 				collect_state_variables(e->formula(), false);
 				if(&(e->symbol()) != NULL)
 					collect_state_variables(e->symbol(), false);
 			}
 		}
 	}
-
+	std::cout << "start collect event state variales" << std::endl;
 	for (ActionList::const_iterator ai = problem.events().begin();
 			ai != problem.events().end(); ai++) {
 		const Action& action = **ai;
@@ -3998,7 +4000,7 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
-
+	std::cout << "start collect init state variales" << std::endl;
 	for (EffectList::const_iterator ei = problem.init_effects().begin();
 			ei != problem.init_effects().end(); ei++) {
 		//std::cout << "collect init eff" << std::endl;
@@ -4007,7 +4009,7 @@ DdNode* solve_problem(const Problem& problem,
 
 	}
 	if(&problem.init_formula()){
-		//   std::cout << "collect Init" << std::endl;
+		  std::cout << "collect Init" << std::endl;
 		collect_state_variables(problem.init_formula(), true);
 	}
 	//nvars = state_variables.size(); //dan
@@ -4022,7 +4024,8 @@ DdNode* solve_problem(const Problem& problem,
 
 
 	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
-		nvars += 2; //for goal and terminal states
+		std::cout << "add extract state variable for reward and terminal states" << std::endl;
+		nvars += 2; // for goal and terminal states
 	}
 
 
@@ -4086,7 +4089,8 @@ DdNode* solve_problem(const Problem& problem,
 	/*
 	 * Iniiatlize CUDD.
 	 */
-	int num = (2*nvars)+max_num_aux_vars+(2*rbpf_bits);
+	std::cout << "start to initialize the cudd" << std::endl;
+	int num = (2 * nvars) + max_num_aux_vars + (2 * rbpf_bits);
 	dd_man = Cudd_Init(num, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
 	num_alt_facts = nvars;
 	manager = dd_man;
@@ -4145,13 +4149,18 @@ DdNode* solve_problem(const Problem& problem,
 	 */
 	DdNode* ddg;
 	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
-		ddg = Cudd_bddIthVar(manager, 2*(num_alt_facts-2));
+		std::cout << "construct the bdd for reward goal" << std::endl;
+		ddg = Cudd_bddIthVar(manager, 2 * (num_alt_facts - 2));
 		Cudd_Ref(ddg);
 	}
 	else{
-		ddg= formula_bdd(problem.goal());
+		std::cout << "construct the bdd for formula goal" << std::endl;
+		ddg = formula_bdd(problem.goal());
 	}
-	//  cout << "done with goal"<<endl;
+	std::cout << "done with goal"<< std::endl;
+	/**
+	 * 设置goal BDD to b_goal_state
+	 */
 	b_goal_state = ddg;
 	Cudd_Ref(b_goal_state);
 
@@ -4171,14 +4180,14 @@ DdNode* solve_problem(const Problem& problem,
 
 
 
-//Set up variable mappings
+	//Set up variable mappings
 	varmap = new int[2*nvars];
 	for(int i = 0; i < nvars; i++){
 		varmap[2*i] = 2*i+1;
 		varmap[2*i+1] = 2*i;
 	}
 
-	//   std::cout << "setting action preconds" <<std::endl;
+	std::cout << "setting action preconds" <<std::endl;
 
 	/*
 	 * Construct transition probability and reward MTBDDs for actions.
@@ -4200,23 +4209,25 @@ DdNode* solve_problem(const Problem& problem,
 		if(LUGTOTEXT)
 			groundActionDD(action);//, problem, ddgp, ddng, col_cube);
 
-
-
-
 	}
+
+	std::cout << "done constructing action preconditon BDD" << std::endl;
+
 	for (ActionList::const_iterator ai = problem.events().begin();
-			ai != problem.events().end(); ai++) {
+		 ai != problem.events().end(); ai++)
+	{
 		const Action& action = **ai;
 		event_preconds.insert(std::make_pair<const Action*, DdNode*>(&action,
 				formula_bdd(action.precondition())));
 		//groundActionDD(action);//, problem, ddgp, ddng, col_cube);
 	}
-
+	
+	std::cout << "done constructing event preconditon BDD" << std::endl;
 
 	set_cubes();
 	//std::cout << "done setting action preconds" <<std::endl;
 	collectInit(&problem);
-	//std::cout << "done setting action preconds" <<std::endl;
+	std::cout << "done constructing the init state BDD" << std::endl;
 
 	Cudd_RecursiveDeref(dd_man, ddgp);
 
