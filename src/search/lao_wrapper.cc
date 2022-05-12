@@ -331,7 +331,11 @@ DdNode* normalize(DdNode* dd){
 	Cudd_RecursiveDeref(manager, fr);
 	return fr1;
 }
-
+/**
+ * momo007 2022.05.12 Compute Successors
+ * the core code of update the belief state
+ * 
+ */
 void computeSuccessors(pair<const Action* const, DdNode*>* action,
 struct StateNode* parent,
 	list<DdNode*>* successors,   // state set distributions
