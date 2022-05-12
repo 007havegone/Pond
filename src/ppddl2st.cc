@@ -441,7 +441,8 @@ int main(int argc, char *argv[])
 					}
 				}
 			}
-
+			std::cout << "=====================================\n";
+			std::cout << "start to solve the problem.\n";
 			solve_problem(*my_problem, 1.0, 0.0);
 
 			cout << "Grounding/Instantiation Time: " << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
@@ -1228,7 +1229,7 @@ void ppddlObs2stObs(std::ostream *o)
 	}
 }
 /**
- * 原始版本
+ * original version only probability problem support 
  */
 // void ppddlInit2stInit(std::ostream *o)
 // {
@@ -1251,7 +1252,8 @@ void ppddlObs2stObs(std::ostream *o)
 // 	(*o) << endl;
 // }
 /**
- * momo007 新增一个输出初始状态命题的情况，原始仅支持概率的初始状态会报错
+ * momo007 2022.05.12 
+ * 新增一个输出初始状态命题的情况，原始仅支持概率的初始状态会报错
  */
 void ppddlInit2stInit(std::ostream *o)
 {
@@ -1313,6 +1315,9 @@ void ppddlGoal2stGoal(std::ostream *o)
 	(*o) << endl;
 }
 
+/**
+ * original version, only DBN version support
+ */
 void ppddlActs2stActs(std::ostream *o)
 {
 	int onum = 0;
@@ -1329,11 +1334,9 @@ void ppddlActs2stActs(std::ostream *o)
 		(*a).first->print(s, (*my_problem).terms());
 		s << " causes";
 
-		list<pair<pair<DdNode *, int> *, bool> *>::iterator i2 =
-			negActSTs->begin();
-		for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i =
-				 posActSTs->begin();
-			 i != posActSTs->end(); i++, i2++)
+		list<pair<pair<DdNode *, int> *, bool> *>::iterator i2 = negActSTs->begin();
+		for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i = posActSTs->begin();
+			i != posActSTs->end(); i++, i2++)
 		{
 			printST(o, (char *)(s.str().c_str()), *i, *i2, (*a).second);
 			printST(o, (char *)(s.str().c_str()), *i2, *i, (*a).second);
@@ -1401,11 +1404,11 @@ void ppddl2st(std::ostream *o)
 		 << endl;
 
 	(*o) << "ACTION_EFFECTS:" << endl;
-	(*o) << "part 1 initial situation[rewrite]\n";
+	(*o) << "part 1 initial situation[done rewrite]\n";
 	ppddlInit2stInit(o);
 	(*o) << "part 2 goal situation\n";
 	ppddlGoal2stGoal(o);
-	(*o) << "part 3 Action transition[rewrite]\n";
-	ppddlActs2stActs(o);
+	(*o) << "part 3 Action transition[need rewrite]\n";
+	// ppddlActs2stActs(o);
 	(*o) << "END" << endl;
 }
