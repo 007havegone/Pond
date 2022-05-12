@@ -471,7 +471,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * The formula is either TRUE or FALSE, so the BDD is either
 		 * constant 1 or 0.
 		 */
-		// cout << "const " << endl;
+		std::cout << "const 1 or 0" << std::endl;
 		DdNode* ddf = (formula.tautology() ?
 				Cudd_ReadOne(dd_man) : Cudd_ReadLogicZero(dd_man));//here we use the logic zero
 		Cudd_Ref(ddf);
@@ -486,7 +486,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * by the atom.
 		 * primed代表状态变量加了'，即后即状态变量。
 		 */
-		//cout << "atom = " << state_variables[af] << endl;
+		std::cout << "atom = " << state_variables[af] << std::endl;
 		if(dynamic_atoms.find((state_variables[af])) == dynamic_atoms.end())
 			return Cudd_ReadOne(manager);// 不是atom，返回1，为和？
 
@@ -506,6 +506,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * negand.
 		 *	递归对否定的内层处理，随后在对内层取否
 		 */
+		std::cout << "negation(#) ";
 		DdNode* ddn = formula_bdd(nf->negand(), primed);
 		DdNode* ddf = Cudd_Not(ddn);
 		Cudd_Ref(ddf);
@@ -640,7 +641,7 @@ void bdd_goal_cnf(std::list<DdNode*>* goal_cnf){
 	const Conjunction* cf = dynamic_cast<const Conjunction*>(&(my_problem->goal()));
 	if (cf != NULL) {
 		for (size_t i = 0; i < cf->size(); i++) {
-			//cout << i << endl;
+			std::cout << i << " ";
 			const Atom* af1 = dynamic_cast<const Atom*>(&(cf->conjunct(i)));
 			if(af1 != NULL){
 				tmp = formula_bdd(*af1);
@@ -671,6 +672,7 @@ void bdd_goal_cnf(std::list<DdNode*>* goal_cnf){
 			}
 		}
 	}
+	// 没有则查找，添加到goal_cnt中，外层调用该函数进行添加
 	else{
 		tmp = formula_bdd((my_problem->goal()));
 		Cudd_Ref(tmp);
