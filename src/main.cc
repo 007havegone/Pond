@@ -708,7 +708,7 @@ int main(int argc,char* argv[]){
 
 
       cout << "Grounding/Instantiation Time: "  << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
-      //      printBDD(b_initial_state);
+      printBDD(b_initial_state);
       if((*my_problem).goal_cnf())
         bdd_goal_cnf(&goal_cnf);
       // 非确定性
