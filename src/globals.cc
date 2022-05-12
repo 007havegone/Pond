@@ -54,8 +54,7 @@ bool ENUMERATE_SPACE = false;
 
 
 /* DBN parameters */
-bool DBN_PROGRESSION = //false;//
-true;
+bool DBN_PROGRESSION = false;//true;
 bool RBPF_PROGRESSION = false;
 int RBPF_SAMPLES=0;
 DdNode* RBPF_SAMPLE_CUBE = NULL;
