@@ -449,20 +449,22 @@ int main(int argc, char *argv[])
 			
 			if ((*my_problem).goal_cnf())
 			{
-				cout << "goal is cnf" << endl;
+				cout << "goal is cnf:" << endl;
 
 				bdd_goal_cnf(&goal_cnf);
 			}
 
 			if (my_problem->domain().requirements.non_deterministic)
 			{
+				std::cout << "nondeterministic goal threshold = 1.0\n";
 				goal_threshold = 1.0;
 			}
 			else if (my_problem->domain().requirements.probabilistic)
 			{
+				std::cout << "probabilistic goal threshold = tau\n";
 				goal_threshold = (*my_problem).tau();
 			}
-
+			std::cout << "start to set up the discount and horizon\n";
 			gDiscount = (*my_problem).discount();
 
 			max_horizon = (*my_problem).horizon();
@@ -477,6 +479,7 @@ int main(int argc, char *argv[])
 
 			if (my_problem->domain().requirements.rewards)
 			{
+				std::cout << "start to set up the rewards\n";
 				if (my_problem->goal_reward())
 					total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
 				else
@@ -501,7 +504,9 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
+				std::cout << "goal threshold = 0.0[without goal reward]\n";
 				total_goal_reward = 0.0;
+
 			}
 		}
 		catch (const Exception &e)
@@ -628,8 +633,8 @@ int main(int argc, char *argv[])
 				else
 					K_GRAPH_MAX = (int)get_sum(b_initial_state);
 
-				//          printBDD(b_initial_state);
-				//          cout <<"HI " << K_GRAPH_MAX << " " << NUMBER_OF_MGS << endl;
+				// printBDD(b_initial_state);
+				// cout <<"HI " << K_GRAPH_MAX << " " << NUMBER_OF_MGS << endl;
 				k_graphs = new kGraphInfo *[K_GRAPH_MAX];
 			}
 			gnum_cond_effects = 0;
@@ -880,11 +885,15 @@ void ppddlExecPrec2stExecPrec(std::ostream *o)
 void ppddlInvariants2stInvariants(std::ostream *o)
 {
 }
-
+/**
+ * momo007 segment fault location 
+ */
 void getSTs(DdNode *d, bool actDD, list<pair<pair<DdNode *, int> *, bool> *> *pos, list<pair<pair<DdNode *, int> *, bool> *> *neg)
 {
+	std::cout << "getSTs\n";
 	for (int i = 0; i < num_alt_facts; i++)
 	{
+		std::cout << i << "\n";
 		DdNode *p = Cudd_bddIthVar(manager, (actDD ? 2 * i + 1 : 2 * i));
 		Cudd_Ref(p);
 		DdNode *n = Cudd_Not(p);
@@ -894,9 +903,9 @@ void getSTs(DdNode *d, bool actDD, list<pair<pair<DdNode *, int> *, bool> *> *po
 		Cudd_Ref(pa);
 		DdNode *na = Cudd_BddToAdd(manager, n);
 		Cudd_Ref(na);
-
+		std::cout << "in getSTs: only support probability[else segment fault]\n";
 		DdNode *pd = Cudd_addApply(manager, Cudd_addTimes,
-								   pa, d);
+								   pa, d);// 将 pa 和 d进行乘法操作segment error
 		Cudd_Ref(pd);
 
 		pair<DdNode *, int> *ppd = new pair<DdNode *, int>(pd, i);
@@ -1218,31 +1227,71 @@ void ppddlObs2stObs(std::ostream *o)
 			(*o) << "obs" << obsNum++ << endl;
 	}
 }
+/**
+ * 原始版本
+ */
+// void ppddlInit2stInit(std::ostream *o)
+// {
+// 	list<pair<pair<DdNode *, int> *, bool> *> *posInitSTs = new list<pair<pair<DdNode *, int> *, bool> *>();
+// 	list<pair<pair<DdNode *, int> *, bool> *> *negInitSTs = new list<pair<pair<DdNode *, int> *, bool> *>();
+// 	getSTs(b_initial_state, false, posInitSTs, negInitSTs);
 
+// 	for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i =
+// 			 posInitSTs->begin();
+// 		 i != posInitSTs->end(); i++)
+// 	{
+// 		printST(o, "initially", *i, NULL, b_initial_state);
+// 	}
+// 	for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i =
+// 			 negInitSTs->begin();
+// 		 i != negInitSTs->end(); i++)
+// 	{
+// 		printST(o, "initially", *i, NULL, b_initial_state);
+// 	}
+// 	(*o) << endl;
+// }
+/**
+ * momo007 新增一个输出初始状态命题的情况，原始仅支持概率的初始状态会报错
+ */
 void ppddlInit2stInit(std::ostream *o)
-{
-	list<pair<pair<DdNode *, int> *, bool> *> *posInitSTs = new list<pair<pair<DdNode *, int> *, bool> *>();
-	list<pair<pair<DdNode *, int> *, bool> *> *negInitSTs = new list<pair<pair<DdNode *, int> *, bool> *>();
-	getSTs(b_initial_state, false, posInitSTs, negInitSTs);
-
-	for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i =
-			 posInitSTs->begin();
-		 i != posInitSTs->end(); i++)
-	{
-		printST(o, "initially", *i, NULL, b_initial_state);
-	}
-	for (list<pair<pair<DdNode *, int> *, bool> *>::iterator i =
-			 negInitSTs->begin();
-		 i != negInitSTs->end(); i++)
-	{
-		printST(o, "initially", *i, NULL, b_initial_state);
-	}
-	(*o) << endl;
-}
-void ppddlGoal2stGoal(std::ostream *o)
 {
 	for (int i = 0; i < num_alt_facts; i++)
 	{
+		(*o) << i << endl;
+		if (bdd_entailed(manager, b_initial_state, Cudd_bddIthVar(manager, 2 * i)))
+		{
+			(*o) << "initialy ";
+			dynamic_atoms[i]->print((*o), my_problem->domain().predicates(),
+									my_problem->domain().functions(),
+									my_problem->terms());
+			(*o) << endl;
+		}
+		else if (bdd_entailed(manager, b_initial_state, Cudd_Not(Cudd_bddIthVar(manager, 2 * i))))
+		{
+			(*o) << "initially -";
+			dynamic_atoms[i]->print((*o), my_problem->domain().predicates(),
+									my_problem->domain().functions(),
+									my_problem->terms());
+			(*o) << endl;
+		}
+		else
+		{
+			 (*o) << "initially unk";
+			dynamic_atoms[i]->print((*o), my_problem->domain().predicates(),
+									my_problem->domain().functions(),
+									my_problem->terms());
+			(*o) << endl;
+		}
+	}
+	(*o) << endl;
+
+}
+void ppddlGoal2stGoal(std::ostream *o)
+{
+	// 输出全部的状态变量
+	for (int i = 0; i < num_alt_facts; i++)
+	{
+		// 满足为true
 		if (bdd_entailed(manager, b_goal_state, Cudd_bddIthVar(manager, 2 * i)))
 		{
 			(*o) << "finally ";
@@ -1251,6 +1300,7 @@ void ppddlGoal2stGoal(std::ostream *o)
 									my_problem->terms());
 			(*o) << endl;
 		}
+		// 满足为false
 		if (bdd_entailed(manager, b_goal_state, Cudd_Not(Cudd_bddIthVar(manager, 2 * i))))
 		{
 			(*o) << "finally -";
@@ -1313,6 +1363,8 @@ void ppddlActs2stActs(std::ostream *o)
  */
 void ppddl2st(std::ostream *o)
 {
+	(*o) << "===========================\nstart print the info about the domain\n";
+
 	(*o) << "ACTIONS:" << endl;
 	for (std::map<const Action *, DdNode *>::iterator a = action_preconds.begin();
 		 a != action_preconds.end(); a++)
@@ -1349,8 +1401,11 @@ void ppddl2st(std::ostream *o)
 		 << endl;
 
 	(*o) << "ACTION_EFFECTS:" << endl;
+	(*o) << "part 1 initial situation[rewrite]\n";
 	ppddlInit2stInit(o);
+	(*o) << "part 2 goal situation\n";
 	ppddlGoal2stGoal(o);
+	(*o) << "part 3 Action transition[rewrite]\n";
 	ppddlActs2stActs(o);
 	(*o) << "END" << endl;
 }
