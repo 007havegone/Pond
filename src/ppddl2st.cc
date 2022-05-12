@@ -445,6 +445,8 @@ int main(int argc, char *argv[])
 			solve_problem(*my_problem, 1.0, 0.0);
 
 			cout << "Grounding/Instantiation Time: " << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
+      		printBDD(b_initial_state);
+			
 			if ((*my_problem).goal_cnf())
 			{
 				cout << "goal is cnf" << endl;
