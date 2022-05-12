@@ -3021,7 +3021,7 @@ void make_mutex(std::list<DdNode*>* preffect){
 
 /**
  *  momo007 013 2022.04.27
- * 这个函数实现了初始状态公式到obdd的转换
+ * 这个函数实现了初始状态公式到obdd的转换,如果初始状态不是公式即概率类型还会计算一些DBN
  * 1. collect_init_state_variable，查找所有状态变量个数
  * 2. formula_bdd，将初始状态formula转化为obdd，其中one-of disjunction没太理解
  * 3. 随后将每个状态变量的否定和区上第二部的obdd，为什么需要这一步操作？
@@ -3037,9 +3037,10 @@ void collectInit(const Problem* problem){
 	//   cout <<endl;
 
 	if(&problem->init_formula()){
-		collect_init_state_variables(problem->init_formula());// 公式中涉及到的状态变量即atom
+		std::cout << "start to collect the init formula\n";
+		collect_init_state_variables(problem->init_formula()); // 公式中涉及到的状态变量即atom
 		DdNode* tmp = formula_bdd(problem->init_formula());// 根据初始状态公式创建BDD
-		Cudd_Ref(tmp);//增加引用
+		Cudd_Ref(tmp);
 		
 		for(int i = 0; i < num_alt_facts; i++){//考虑每个状态变量
 			const Atom *a = (*(dynamic_atoms.find(i))).second;
@@ -3060,8 +3061,8 @@ void collectInit(const Problem* problem){
 		return;
 	}
 
-
-
+	std::cout << "执行了深度信念网络的相关构造\n";
+	// 这部分对于Conformant planning不会执行
 	const Atom *a;
 	if(0)  {
 		//     ConjunctiveEffect* ce = new ConjunctiveEffect();
@@ -3600,7 +3601,7 @@ void collectInit(const Problem* problem){
 		}
 
 		// init_effect->print(std::cout, problem->domain().predicates(), problem->domain().functions(), problem->terms());
-		// 建立Effect和 dbn_nodes的映射关系
+		// 建立Effect和 dbn_nodes的映射关系，即每个Effect相应的深度信念网路节点
 		std::map<const pEffect*, dbn_node*> *pr_nodes = dbn::generate_probabilistic_nodes(init_effect);
 		dbn* init_dbn = effect_dbn((const pEffect&)*init_effect, pr_nodes);
 		//		init_dbn->add_noops(num_alt_facts);
@@ -4023,7 +4024,8 @@ DdNode* solve_problem(const Problem& problem,
 
 
 	nvars = dynamic_atoms.size();
-
+	std::cout << "check the dynamic_atoms and state vairables\n";
+	assert(dynamic_atoms.size() == state_variables.size());
 
 	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
 		std::cout << "add extract state variable for reward and terminal states" << std::endl;
@@ -4036,14 +4038,17 @@ DdNode* solve_problem(const Problem& problem,
 		std::cout << std::endl << "Number of state variables: " << nvars
 				<< std::endl;
 		if (true || verbosity >= 3) {
-			for (std::map<int, const Atom*>::const_iterator vi =
-					dynamic_atoms.begin();
-					vi != dynamic_atoms.end(); vi++) {
+			std::cout << "show dynamic_atoms\n";
+			for (std::map<int, const Atom *>::const_iterator vi =
+					 dynamic_atoms.begin();
+				 vi != dynamic_atoms.end(); vi++)
+			{
 				std::cout << (*vi).first <<  '\t';
 				(*vi).second->print(std::cout, problem.domain().predicates(),
 						problem.domain().functions(), problem.terms());
 				std::cout << std::endl;
 			}
+			std::cout << "show state_variables\n";
 			for (std::map<const Atom*, int>::const_iterator vi =
 					state_variables.begin();
 					vi != state_variables.end(); vi++) {
@@ -4054,27 +4059,28 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
+	std::cout << "DBN_PROGRESSION = " << DBN_PROGRESSION << std::endl;
+	if( /*my_problem->domain().requirements.rewards &&*/ DBN_PROGRESSION){
+		std::cout << "<<开启了DBN_PROGHRESSION>>\n";
+		for (ActionList::const_iterator ai = problem.actions().begin(); ai != problem.actions().end(); ai++)
+		{
+			const Action &action = **ai;
+			int num_aux = 0;
+			double a_min_reward = DBL_MAX;
+			double a_max_reward = -1 * DBL_MAX;
+			action.effect().getMinMaxRewards(&a_min_reward, &a_max_reward, &num_aux);
+			std::cout << " num_aux: " << num_aux << std::endl;
+			if (num_aux > max_num_aux_vars)
+			{
+				max_num_aux_vars = num_aux;
+			}
 
-	if(//my_problem->domain().requirements.rewards &&
-			DBN_PROGRESSION){
+			if (a_max_reward > max_reward)
+				max_reward = a_max_reward;
+			if (a_min_reward < min_reward)
+				min_reward = a_min_reward;
+		}
 
-	  for(ActionList::const_iterator ai = problem.actions().begin(); ai != problem.actions().end(); ai++) {
-	    const Action& action = **ai;
-	    int num_aux = 0;
-	    double a_min_reward = DBL_MAX;
-	    double a_max_reward = -1*DBL_MAX;
-	    action.effect().getMinMaxRewards(&a_min_reward, &a_max_reward, &num_aux);
-	    //std::cout << " num_aux: " << num_aux << std::endl;
-	    if(num_aux > max_num_aux_vars){
-	      max_num_aux_vars = num_aux;
-	    }
-	    
-	    if(a_max_reward > max_reward)
-	      max_reward = a_max_reward;
-	    if(a_min_reward < min_reward)
-	      min_reward = a_min_reward;
-	  }
-	  
 	  if(min_reward > 0)
 	    min_reward = 0;
 	  if(max_reward < 0)
@@ -4085,12 +4091,13 @@ DdNode* solve_problem(const Problem& problem,
 			<< " num_aux_vars: " << max_num_aux_vars
 			<< std::endl;
 		//std::cout << transform_reward_to_probability(0) << std::endl;
+	  std::cout << "<<DNB_PROGRESSION done>>\n";
 	}
-
 
 	/*
 	 * Iniiatlize CUDD.
 	 */
+	std::cout << "==================================\n";
 	std::cout << "start to initialize the cudd" << std::endl;
 	int num = (2 * nvars) + max_num_aux_vars + (2 * rbpf_bits);
 	dd_man = Cudd_Init(num, 0, CUDD_UNIQUE_SLOTS, CUDD_CACHE_SLOTS, 0);
