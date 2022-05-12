@@ -4311,7 +4311,7 @@ void printBDD(DdNode* bdd) {
 	else {
 		cout << "BDD is Formula, ref = " << bdd->ref <<endl;
 		//Cudd_PrintDebug(manager,bdd , bdd_size(manager, bdd), 4);
-
+		cout << "the Minterm of BDD is: \n";
 		Cudd_PrintMinterm(manager, bdd);
 
 		//        cout << "# PATHS = " << Cudd_CountPath(bdd) << endl;
