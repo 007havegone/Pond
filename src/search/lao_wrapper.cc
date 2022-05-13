@@ -47,7 +47,9 @@ void set_bit(BitVector* b, int index);
 
 int dummy = 0;
 extern int num_lugs;
-
+/**
+ * 更新叶子节点的启发值
+ */
 void update_leaf_h_values(){
 	list<StateNode*> nodes;
 	for(StateHash::iterator i = LeafStates->begin(); i != LeafStates->end(); i++){
@@ -75,7 +77,9 @@ void backup_graph(){
 	}
 	while(residual >= gEpsilon);
 }
-
+/**
+ * 判断初始状态和目标之间是否有loop
+ */
 int not_loop(StateNode* dest, BitVector* visited, StateNode* srcNo){
 	// want to know if connecting source to dest will create a loop
 	// it will create a loop if following any of dest's outgoing edges
@@ -101,10 +105,13 @@ int not_loop(StateNode* dest, BitVector* visited, StateNode* srcNo){
 int in_same_possible_solution(StateNode* node1, StateNode* node2, StateNode* curr, BitVector* visited);
 
 
-
-int goal_reachable(){
+/**
+ * momo007 2022.05.12
+ * ignore, not used in project
+ */
+/*int goal_reachable(){
 	return 0;
-}
+}*/
 
 int in_same_possible_solution(StateNode* node1, StateNode* node2, StateNode* curr, BitVector* visited){
 	// is node1 possibly in the same solution as node2
@@ -199,6 +206,9 @@ int in_same_possible_solution(StateNode* node1, StateNode* node2, StateNode* cur
 	return returnVal;
 }
 
+/**
+ * 判断是否只有一个后继状态
+ */
 bool single_successor(StateNode *src, StateNode *dest){
 	// checks paths of length 1 only, where an action with
 	// a single outcome leads back to its parent.
@@ -208,13 +218,13 @@ bool single_successor(StateNode *src, StateNode *dest){
 
 	for(ActionNodeList::iterator a = src->NextActions->begin(); a != src->NextActions->end(); a++){
 		ActionNode *action = *a;
-		if((src == dest ||
+		if((src == dest ||// 当前到达dest
 			(action != NULL &&
 			action->NextState != NULL &&
-			action->NextState->State == dest))  &&
+			action->NextState->State == dest))  &&// 下一个状态到达dest
 			action != NULL &&
 			action->NextState != NULL &&
-			action->NextState->Next == NULL){
+			action->NextState->Next == NULL){// 只有一个后继状态
 				return true;
 		}
 	}
@@ -222,6 +232,9 @@ bool single_successor(StateNode *src, StateNode *dest){
 	return false;
 }
 
+/**
+ * 
+ */
 int check_loop_conditions(StateNode* src, StateNode* dest, DdNode* state, int currHorizon){
 	int reach_goal; /* 0 == reach, 1 == no reach, 2 == don't know yet */
 
@@ -232,12 +245,12 @@ int check_loop_conditions(StateNode* src, StateNode* dest, DdNode* state, int cu
 		// finite horizon, full obs, or not loop okay to connect same nodes
 		((max_horizon == -1 &&
 		my_problem->domain().requirements.probabilistic &&
-		((OBSERVABILITY==OBS_PART && !single_successor(src, dest)
-		) ||
-		(OBSERVABILITY==OBS_FULL && !single_successor(src, dest)
-		) ||
-		(OBSERVABILITY==OBS_NONE && not_loop(dest, loop_visited, src)))) ||
-
+		((OBSERVABILITY==OBS_PART && !single_successor(src, dest)) 
+		||
+		(OBSERVABILITY==OBS_FULL && !single_successor(src, dest))
+		||
+		(OBSERVABILITY==OBS_NONE && not_loop(dest, loop_visited, src))))
+		||
 		(max_horizon == -1 &&
 		my_problem->domain().requirements.non_deterministic &&
 		(OBSERVABILITY==OBS_FULL || not_loop(dest, loop_visited, src))))
@@ -349,7 +362,6 @@ struct StateNode* parent,
 		DdNode *tmpdd, *tmpdd1, *tmpdd2, *fr;
 		int num_successors;
 
-		// check precondition
 		if(action && action->first && &(action->first->precondition()))
 			fr = action_preconds[action->first];
 		else
@@ -362,7 +374,8 @@ struct StateNode* parent,
 
 		//  printBDD(fr);
 		//  printBDD(parent->dd);
-
+		
+		// check precondition
 		if((my_problem->domain().requirements.probabilistic &&
 			!add_bdd_entailed(manager, parent->dd, fr)) ||
 			(my_problem->domain().requirements.non_deterministic &&
@@ -642,9 +655,7 @@ struct StateNode* parent,
 			}
 		}
 		successors->clear();
-		successors->insert(successors->end(),
-			(tmp.begin()),
-			tmp.end());
+		successors->insert(successors->end(), (tmp.begin()), tmp.end());
 
 		//				Cudd_CheckKeys(manager);
 		//				std::cout << "]" << std::endl;
@@ -1088,11 +1099,14 @@ DdNode* stateBackward(DdManager *m,DdNode *f)
 	return op1;
 }
 
-
+/**
+ * momo007 2022.05.11 动作节点进行更新
+ */
 DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 	DdNode* result,*fr = NULL, *fr1= NULL;
 	int i,j;
 
+	// case1: 深度信念网络更新
 	if(DBN_PROGRESSION){
 		//		std::cout << "(" << std::endl;
 		//		Cudd_CheckKeys(manager);
@@ -1104,12 +1118,14 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 		result = progress(d, parent);
 		return result;
 	}
-	else{
+	// case2:
+	else{  
+		// 获取action的BDD
 		DdNode *t = groundActionDD(*(a->first));
 		Cudd_Ref(t);
 
 
-
+		// 动作的BDD为空
 		if(t == Cudd_ReadZero(manager) || t == Cudd_ReadLogicZero(manager)){
 			if(my_problem->domain().requirements.probabilistic)
 				return Cudd_ReadZero(manager);
@@ -1117,12 +1133,12 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 				return Cudd_ReadLogicZero(manager);
 		}
 
-
+		// 使用action的BDD进行更新
 		result = progress(t, parent);
 		Cudd_RecursiveDeref(manager,t);
 
 
-
+		// 定义了event，进一步更新
 		DdNode *ex_result;
 		if(event_preconds.size() > 0){
 			ex_result = apply_events(result);
@@ -1850,7 +1866,7 @@ DdNode * progress(dbn* a, DdNode* parent){
 
 DdNode * progress(DdNode *image,DdNode *parent){
 	DdNode *tmp1,*tmp2,*result;
-
+	// 基于概率的progress
 	if(my_problem->domain().requirements.probabilistic){
 		DdNode* ddp = Cudd_addApply(manager, Cudd_addTimes, parent, image);
 		Cudd_Ref(ddp);
@@ -1863,11 +1879,12 @@ DdNode * progress(DdNode *image,DdNode *parent){
 		Cudd_Ref(result);
 		Cudd_RecursiveDeref(manager,tmp1);
 	}
+	// 非确定性更新
 	else if(my_problem->domain().requirements.non_deterministic){
-		tmp1 = Cudd_bddAndAbstract(manager,parent,
-			image,current_state_cube);
+		// 计算 parent /\ image，抽取ariable放到current_state_cube中
+		tmp1 = Cudd_bddAndAbstract(manager,parent, image,current_state_cube);
 		Cudd_Ref(tmp1);
-
+		// remaps the variable of a BDD using the default variable map
 		result = Cudd_bddVarMap(manager,tmp1);
 		Cudd_Ref(result);
 		Cudd_RecursiveDeref(manager,tmp1);
@@ -1968,11 +1985,11 @@ void outputPlan(){
 	cout << "NumStatesGenerated = " << state_count << endl;
 	//printStateList();
 
-	if( Start->ExtendedGoalSatisfaction < plan_success_threshold){
+	if( Start->ExtendedGoalSatisfaction < plan_success_threshold){// 失败
 		cout << "$$$$$$$$$$$$$$$No Plan :( $$$$$$$$$$$$$$$$$$$$$$$$"<< endl;
 		cout << "P(G) = " << Start->ExtendedGoalSatisfaction << endl;
 	}
-	else{
+	else{// 成功
 		cout << "$$$$$$$$$$$$$$$GOT PLAN$$$$$$$$$$$$$$$$$$$$$$$$"<<endl;
 		outputPlanR(Start, 0, 1, max, min, numPlans, solved_visited, 0, &costs, 1.0, &plan_prs);
 		cout << "$$$$$$$$$$$$$$$GOT PLAN$$$$$$$$$$$$$$$$$$$$$$$$"<<endl;
@@ -1997,157 +2014,157 @@ void outputPlan(){
 }
 
 void outputPlanR(StateNode* s, int indent, int step, int &max, int &min,
-								 int &numPlans, BitVector* solved_visited,
-								 double cost, list<double>* costs, double path_pr,
-								 list<double>* plan_prs ){
+		int &numPlans, BitVector* solved_visited,
+		double cost, list<double>* costs, double path_pr,
+		list<double>* plan_prs ){
 
-									 if (!s)    {
-										 numPlans++;
-										 if(step < min)
-											 min = step;
-										 if(step > max)
-											 max = step;
-										 pfout << "l" << actNum<<" (done " << actNum << " " <<-1<<")"<<endl;
-										 cout << "l" << actNum<< " (done " << actNum << " inf)" <<endl;
-										 return;
-									 }
-
-
-
-									 for(int i = 0; i < indent; i++){
-										 cout << " ";
-										 pfout << " ";
-									 }
-
-									 if(s->Terminal){
-										 costs->push_back(cost);
-										 numPlans++;
-										 if(step < min)
-											 min = step;
-										 if(step > max)
-											 max = step;
-										 double d = (path_pr*s->goalSatisfaction);
-										 plan_prs->push_back(d);
-										 pfout << "(done)" << endl;
-										 cout <<"(done) P(G) = " << s->goalSatisfaction
-											 << " P(branch) = " << s->prReached //path_pr
-											 <<  endl;
-
-										 return;
-									 }
+			if (!s)    {
+				numPlans++;
+				if(step < min)
+					min = step;
+				if(step > max)
+					max = step;
+				pfout << "l" << actNum<<" (done " << actNum << " " <<-1<<")"<<endl;
+				cout << "l" << actNum<< " (done " << actNum << " inf)" <<endl;
+				return;
+			}
 
 
-									 //printBDD(s->dd);
-									 //cout << "pr reach = " << s->prReached << endl;
-									 //    cout << "State = " << s->StateNo << " h = " << s->h <<endl;
-									 // cout << "E[R] " << s->expDiscRew << endl;
-									 //   cout << "E[Pr] " << s->ExtendedGoalSatisfaction << endl;
-									 //   if(s->BestAction)
-									 //     cout << "E[Ra] " << s->BestAction->expDiscRew << endl;
 
-									 if(s->BestAction &&
-										 s->Update == -10 &&
-										 s->BestAction->Solved != -1 ){
-											 pfout <<"(goto l"<< s->BestAction->Solved << ")"<< endl;
-											 cout << "(goto l" << s->BestAction->Solved << ")"<< endl;
-											 return;
-									 }
-									 else  if(s->BestAction){
-										 pfout << "l" << actNum << " " << getAction(s->BestAction) << " " << endl;
-										 cout << "l" << actNum << " ";
-										 printAction(s->BestAction);
-										 cout << flush;
+			for(int i = 0; i < indent; i++){
+				cout << " ";
+				pfout << " ";
+			}
 
-										 s->Update = -10;
-										 s->BestAction->Solved = actNum++;
-									 }
+			if(s->Terminal){
+				costs->push_back(cost);
+				numPlans++;
+				if(step < min)
+					min = step;
+				if(step > max)
+					max = step;
+				double d = (path_pr*s->goalSatisfaction);
+				plan_prs->push_back(d);
+				pfout << "(done)" << endl;
+				cout <<"(done) P(G) = " << s->goalSatisfaction
+					<< " P(branch) = " << s->prReached //path_pr
+					<<  endl;
 
-									 else {
-										 numPlans++;
-										 if(step < min)
-											 min = step;
-										 if(step > max)
-											 max = step;
-
-										 pfout << "l" << actNum<<" (done " << s->g << " " <<s->h<<")"<<endl;
-										 cout << "l" << actNum<< " (done " << s->g << " " <<s->h<<") "<<endl;
-										 return;
-									 }
+				return;
+			}
 
 
-									 struct StateDistribution* nextStates = s->BestAction->NextState;
+			//printBDD(s->dd);
+			//cout << "pr reach = " << s->prReached << endl;
+			//    cout << "State = " << s->StateNo << " h = " << s->h <<endl;
+			// cout << "E[R] " << s->expDiscRew << endl;
+			//   cout << "E[Pr] " << s->ExtendedGoalSatisfaction << endl;
+			//   if(s->BestAction)
+			//     cout << "E[Ra] " << s->BestAction->expDiscRew << endl;
 
-									 if (!nextStates)
-									 {
-										 outputPlanR(0,indent,step+1,max,min,numPlans,solved_visited,
-											 cost+s->BestAction->Cost,
-											 costs, path_pr,plan_prs);
-										 return;
-									 }
+			if(s->BestAction &&
+				s->Update == -10 &&
+				s->BestAction->Solved != -1 ){
+					pfout <<"(goto l"<< s->BestAction->Solved << ")"<< endl;
+					cout << "(goto l" << s->BestAction->Solved << ")"<< endl;
+					return;
+			}
+			else  if(s->BestAction){
+				pfout << "l" << actNum << " " << getAction(s->BestAction) << " " << endl;
+				cout << "l" << actNum << " ";
+				printAction(s->BestAction);
+				cout << flush;
 
-									 if(nextStates->Next)
-									 {
-										 // then we have more than one next state distinguished by reasons
-										 for(int i =0; i < indent; i++){
-											 cout << " ";
-											 pfout << " ";
-										 }
-										 pfout << "(case ";
-										 cout << "(case ";
-										 indent += 5;
+				s->Update = -10;
+				s->BestAction->Solved = actNum++;
+			}
 
-										 while(nextStates){
+			else {
+				numPlans++;
+				if(step < min)
+					min = step;
+				if(step > max)
+					max = step;
 
-											 pfout << endl;
-											 cout << endl;
-											 for(int i = 0; i < indent-1; i++){
-												 cout << " ";
-												 pfout <<  " ";
-											 }
-											 cout << "(" << nextStates->Prob ;
-											 pfout << "(";
-											 //    printBDD(nextStates->reason);
-
-											 if(OBS_TYPE==OBS_CPT){
-												 for(set<const pEffect*>::iterator i = nextStates->creason->begin();
-													 i !=  nextStates->creason->end(); i++){
-														 (*i)->print(cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
-														 cout << " " << flush;
-												 }
-												 cout << endl;
-											 }
-											 else{
-												 pfout << " " << BDDToITEString(nextStates->reason);
-												 cout << " " << BDDToITEString(nextStates->reason);
-
-												 pfout << endl;
-												 cout << endl;
-											 }
-
-											 outputPlanR(nextStates->State, indent, step+1, max, min,
-												 numPlans, solved_visited, cost+s->BestAction->Cost,
-												 costs, path_pr*nextStates->Prob,plan_prs);
+				pfout << "l" << actNum<<" (done " << s->g << " " <<s->h<<")"<<endl;
+				cout << "l" << actNum<< " (done " << s->g << " " <<s->h<<") "<<endl;
+				return;
+			}
 
 
-											 for(int i =0;  i < indent-1; i++){
-												 cout << " ";
-												 pfout << " ";
-											 }
-											 pfout << ")" << endl;
-											 cout << ")" << endl;
+			struct StateDistribution* nextStates = s->BestAction->NextState;
 
-											 nextStates = nextStates->Next;
+			if (!nextStates)
+			{
+				outputPlanR(0,indent,step+1,max,min,numPlans,solved_visited,
+					cost+s->BestAction->Cost,
+					costs, path_pr,plan_prs);
+				return;
+			}
 
-										 }
-										 indent -= 5;
-										 for(int i =0; i < indent; i++){
-											 pfout << " ";
-											 cout << " ";
-										 }
+			if(nextStates->Next)
+			{
+				// then we have more than one next state distinguished by reasons
+				for(int i =0; i < indent; i++){
+					cout << " ";
+					pfout << " ";
+				}
+				pfout << "(case ";
+				cout << "(case ";
+				indent += 5;
 
-										 pfout << ")" << endl;
-										 cout << ")" << endl;
-									 }
-									 else
-										 outputPlanR(nextStates->State,indent,step+1,max,min,numPlans,solved_visited, cost+s->BestAction->Cost, costs, path_pr,plan_prs);
+				while(nextStates){
+
+					pfout << endl;
+					cout << endl;
+					for(int i = 0; i < indent-1; i++){
+						cout << " ";
+						pfout <<  " ";
+					}
+					cout << "(" << nextStates->Prob ;
+					pfout << "(";
+					//    printBDD(nextStates->reason);
+
+					if(OBS_TYPE==OBS_CPT){
+						for(set<const pEffect*>::iterator i = nextStates->creason->begin();
+							i !=  nextStates->creason->end(); i++){
+								(*i)->print(cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+								cout << " " << flush;
+						}
+						cout << endl;
+					}
+					else{
+						pfout << " " << BDDToITEString(nextStates->reason);
+						cout << " " << BDDToITEString(nextStates->reason);
+
+						pfout << endl;
+						cout << endl;
+					}
+
+					outputPlanR(nextStates->State, indent, step+1, max, min,
+						numPlans, solved_visited, cost+s->BestAction->Cost,
+						costs, path_pr*nextStates->Prob,plan_prs);
+
+
+					for(int i =0;  i < indent-1; i++){
+						cout << " ";
+						pfout << " ";
+					}
+					pfout << ")" << endl;
+					cout << ")" << endl;
+
+					nextStates = nextStates->Next;
+
+				}
+				indent -= 5;
+				for(int i =0; i < indent; i++){
+					pfout << " ";
+					cout << " ";
+				}
+
+				pfout << ")" << endl;
+				cout << ")" << endl;
+			}
+			else
+				outputPlanR(nextStates->State,indent,step+1,max,min,numPlans,solved_visited, cost+s->BestAction->Cost, costs, path_pr,plan_prs);
 }

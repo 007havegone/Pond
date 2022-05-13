@@ -11,6 +11,7 @@ using namespace std;
 
 ALAOStar::ALAOStar()
 : StepSearch(ALAO_STAR){
+	std::cout << "new ALAOStart()\n";
 }
 
 ALAOStar::~ALAOStar(){

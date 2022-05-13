@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 
 	try
 	{
-		// Search是全部搜索算法的抽象基类，StepSearch基于Searc德抽象基类h
+		// Search是全部搜索算法的抽象基类，StepSearch基于Searc的抽象基类
 		Search *search = NULL;
 		StepSearch *step_search = NULL;
 		int seed = 1;
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
 			// Once we input some extra parameter, it will planner some special search.
 			for (int i = 3; i < argc; i++)
 			{
-				// 根据传递的参数选择具体的搜索算法类，具体赋值给那个类指针根据继承的类图决定
+				// 根据传递的参数选择具体的搜索算法类，具体赋值给那个类指针根据继承的类决定
 				if (strcmp(argv[i], "-s") == 0)
 				{
 					i++;
@@ -373,7 +373,7 @@ int main(int argc, char *argv[])
 						server_addr = addr;
 					if (port > -1)
 						server_port = port;
-					online_search = true;
+					online_search = true;//该参数开启online模式，默认false
 				}
 
 				if (strcmp(argv[i], "-R") == 0)
@@ -934,8 +934,11 @@ int main(int argc, char *argv[])
 			if (!USE_CARD_GRP)
 				initLUG(&action_preconds, b_goal_state);
 		}
-
-		if (online_search)
+		/**
+		 * momo007 2022.05.12
+		 * remove online search
+		 */
+		/*if (online_search)
 		{
 			search = new OnlineSearch(step_search, hLimit);
 			cout << "Performing online search with TCP/IP address " << server_addr << " on port " << server_port << endl;
@@ -970,9 +973,10 @@ int main(int argc, char *argv[])
 
 			search_goal_threshold = 0.0;
 		}
+
 		else
-		{
-			if (step_search != NULL)
+		{*/
+			if (step_search != NULL)//如果制定了参数，则step_search非空
 			{
 				if (search == NULL)
 					search = step_search;
@@ -980,8 +984,8 @@ int main(int argc, char *argv[])
 					delete step_search;
 				step_search = NULL;
 			}
-		}
-
+		/*}*/
+		// 查看是否有step search，没有则采用强制爬山算法
 		if (search == NULL)
 			search = new EHC();
 
@@ -993,11 +997,12 @@ int main(int argc, char *argv[])
 		else
 			search->search();
 
-		if (server_socket > 0)
+		// momo007 2022.05.12
+		/*if (server_socket > 0)
 		{
 			shutdown(server_socket, 2);
 			close(server_socket);
-		}
+		}*/
 
 		if (allowed_time > 0)
 		{
@@ -1009,7 +1014,9 @@ int main(int argc, char *argv[])
 			// before the receiver
 			signal(SIGALRM, SIG_DFL);
 		}
-
+		/**
+		 * momo007 2022.05.12 这里取消了垃圾回收应该是为了节约时间
+		 */
 		if (false)
 		{
 			/** clean up **/
@@ -1144,7 +1151,12 @@ void set_cubes()
 
 extern const char *getAction(struct ActionNode *a);
 
-void IPC_write_plan(StateNode *s, list<string> *plan)
+/**
+ * momo007 2022.05.12 
+ * 
+ * ignore following code in this project
+ */
+/*void IPC_write_plan(StateNode *s, list<string> *plan)
 {
 	if (s->Terminal || s->BestAction->act == terminalAction)
 		return;
@@ -1207,3 +1219,4 @@ void IPC_write()
 
 	fout.close();
 }
+*/

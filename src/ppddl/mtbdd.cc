@@ -2158,6 +2158,8 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 
 	OutcomeSet* outcomes = new OutcomeSet();
 	DdNode *ddc;
+
+	// 添加action和BDD的映射关系
 	if(!event)
 		ddc = action_preconds[&action];//formula_bdd(action.precondition());
 	else
@@ -3738,19 +3740,22 @@ dbn* action_dbn(const Action& action){
 
 }
 
-
+/**
+ * momo007 2022.05.12 获取动作的BDD
+ * 
+ */
 DdNode* groundActionDD(const Action& action){
 	//  const Problem& problem, DdNode* ddgp, DdNode* ddng,   DdNode* col_cube){
 
 	std::cout << "lookup: ";
 	action.print(std::cout, (*my_problem).terms()); std::cout << std::endl;
-
+	// 忽略该分支
 	if(0 && DBN_PROGRESSION){
 		action_dbn(action);
 		return Cudd_ReadLogicZero(manager);
 	}
 	else{
-
+		// 查找MTBDD表该动作是否有存在转换关系
 		if(action_transitions.count(&action) > 0){
 			return action_transitions[&action];
 		}
@@ -3767,14 +3772,14 @@ DdNode* groundActionDD(const Action& action){
 			DdNode *a = Cudd_ReadOne(manager), *b = Cudd_ReadOne(manager);
 			Cudd_Ref(a);
 			Cudd_Ref(b);
-
+			// 为该动作创建MTBDD表示转换矩阵
 			dds = action_mtbdds(action, *my_problem,
 					a, b, col_cube, false);
 			Cudd_RecursiveDeref(manager, a);
 			Cudd_RecursiveDeref(manager, b);
 
 
-
+			// 该动作存在observation
 			if(action.hasObservation()){
 				ddos = observation_mtbdds(action, *my_problem);
 			}
@@ -3785,8 +3790,9 @@ DdNode* groundActionDD(const Action& action){
 			//printBDD(dds.first);
 		}
 
-
+		// 处理成功
 		if(!err){
+			// 为转换关系添加reward ector
 			action_transitions.insert(std::make_pair(&action, dds.first));
 			action_rewards.insert(std::make_pair(&action, dds.second));
 
