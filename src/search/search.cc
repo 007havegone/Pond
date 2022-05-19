@@ -360,7 +360,7 @@ void Search::incremental_search()
 {
 	set<StateNode *> open;
 	set<StateNode *> closed;
-	StateNode *state;
+	StateNode *state;// search node in graph
 
 	double minGoalSat, maxGoalSat;
 
@@ -370,11 +370,11 @@ void Search::incremental_search()
 	{
 		cout << "*** Incremental Policy Creation, goal threshold = " << search_goal_threshold << endl;
 		resetPolicy();
-		search();
-
+		search();// do the forward search， using the inheriting class implementations
+		// check the threshold if sat
 		if (Start->ExtendedGoalSatisfaction >= plan_success_threshold)
 			return;
-
+		// if not sat, use the bfs search
 		minGoalSat = 1.0;
 		maxGoalSat = 0.0;
 
@@ -383,10 +383,10 @@ void Search::incremental_search()
 		open.insert(Start);
 		while (!open.empty())
 		{
-			state = *open.begin();
+			state = *open.begin();// pop one from open
 			open.erase(open.begin());
-			closed.insert(state);
-
+			closed.insert(state);// add to closed
+			// reach the terminal, use the node to update the interval
 			if (state->Terminal > 0)
 			{
 				if (minGoalSat > state->goalSatisfaction)
@@ -394,21 +394,23 @@ void Search::incremental_search()
 				if (maxGoalSat < state->goalSatisfaction)
 					maxGoalSat = state->goalSatisfaction;
 			}
-
+			// if contain successor state, use them to do new iteration
 			if (state->BestAction != NULL)
 			{
 				for (StateDistribution *dist = state->BestAction->NextState; dist != NULL; dist = dist->Next)
 				{
 					StateNode *successor = dist->State;
-					if (closed.count(successor) <= 0)
+					if (closed.count(successor) <= 0)// if not travel, add to open
 						open.insert(successor);
 				}
 			}
 		}
-
+		// check if sat the goal threshold
 		if (maxGoalSat < search_goal_threshold)
 			return;
-
+		/**
+		 * momo007 这里后续可能需要调整，返回最大还是最小。
+		 */
 		search_goal_threshold = numeric_limits<double>::epsilon() + minGoalSat; // Alan- MIN? MAX?
 	}
 }
@@ -435,7 +437,7 @@ void Search::resetPolicy()
 					open.insert(next);
 			}
 		}
-
+		// reset to the defualt null and  zero
 		state->BestAction = NULL;
 		state->Solved = 0;
 	}

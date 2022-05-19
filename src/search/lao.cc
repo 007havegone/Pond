@@ -43,7 +43,7 @@ void LAOStar::search(){
   lastBackup = Start;
 
   dfs_limit = (int)Start->f;
-  for(Iteration = 1; ; Iteration++){
+  for(Iteration = 1; ; Iteration++){// iteration until reach the goal or Convergence
     printf("%3d ( %f secs.)", Iteration, (float)(clock()-gStartTime)/CLOCKS_PER_SEC);
     printf("  g: %f, h: %f, p: %f, exp: %d, expc: %d\n",
            lastBackup->g, lastBackup->h, 
@@ -53,13 +53,13 @@ void LAOStar::search(){
     /* Expand best partial solution */
     NumExpandedStatesIter = 0;
     ExpandedStateList = new StateList;
-
+    /* 利用lastBackup更新 */
     ExpandSolution(lastBackup, 0, 0, 1.0);  
 
     /* Call convergence test if solution graph has no unexpanded tip states */
     if(lastBackup->g == DBL_MAX)
       break;
-
+    /* 满足要求 */
     if(max_horizon == -1 && Start->ExtendedGoalSatisfaction >= goal_threshold && goal_threshold > 0.0)
       break;
 
@@ -89,7 +89,7 @@ void LAOStar::search(){
 
     delete ExpandedStateList;
     /* NumSolutionStates includes GOAL and WALL */
-  }
+  }// end-for 
 
   if(Start->ExtendedGoalSatisfaction >= goal_threshold){
     printf("\nf: %f", Start->f);
