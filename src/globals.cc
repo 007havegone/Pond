@@ -296,7 +296,7 @@ char* dname,*pname;
 //char* out_file = "my_plan.out";
 char* out_file = "/dev/null";
 int MUTEX_SCHEME = MS_NONE;//MS_CROSS;
-int MUTEX_SCHEME=TRUE;
+int SORTBYHASH=TRUE;
 int WORLD_CHECK = WC_ALL;
 
 /* RS End */
