@@ -58,7 +58,7 @@ extern double plan_success_threshold;
 extern int RANDOM_SUBSTRATE;
 extern int LUG_LEVEL_WORLDS;
 extern int max_horizon;
-// 随即生存器
+// 随机数生存器
 extern randomGenerator* randomGen;
 extern int LOOKAHEAD_FOR_STATES; //levels to lookahead for inc lug
 // 目标的CNF对应BDD的节点
@@ -151,7 +151,8 @@ public:
 
 
 
-// 一个plan包含的相关信息
+/* 一个plan包含的相关信息,
+  plan内使用了Instruction而不是plan_step */
 class plan //: public parse_category
 {
 public:
@@ -204,37 +205,50 @@ extern std::map<int, const Atom*> dynamic_atoms;
 extern int* varmap;
 
 
-// 当前状态和后继状态的BDD信息
+/* 当前状态和后继状态等价的BDD，即 x0=x0‘,x1=x1',...*/
 /* BDDs representing identity between the `current state' and `next
    state' versions of a variable. */
 extern std::vector<DdNode*> identity_bdds;
+/* 当前状态和后继状态等价的BDD，即 X=X‘ */
 /* BDD representing identity between the `current state' and `next
    state' versions of all state variables. */
 extern DdNode* identity_bdd;
-// 动作的相关定义
+/* 动作相关的BDD定义 */
 /*preconditions of actions*/
 extern std::map<const Action*, DdNode*> action_preconds;
 /* MTBDDs representing transition probability matrices for actions. */
+/* 表示action的Effect+Frame axioms BDD */
 extern std::map<const Action*, DdNode*> action_transitions;
+/* 深度信念网络DBN相关的结构 */
 extern std::map<const Action*, dbn*> action_dbns;
 extern std::map<const Action*, dbn*> action_obs_dbns;
-// 动作的effect
+/* 动作的effect，pair的first表示action，pair的second存储变换前后的atom的BDD */
 extern std::map<const Action*, std::pair<DdNode*, DdNode*>* > action_affects;
 /* MTBDDs representing reward vector for actions. */
 extern std::map<const Action*, DdNode*> action_rewards;
+/* 根据formula计算得到BDD，prime=true代表后继状态，false为当前状态 */
 extern DdNode* formula_bdd(const StateFormula& formula, bool primed);
  /* exhaustive conditional effects, ala SGP -- dan */
+ /* 每个action有一个outcomeSet,每个outcome代表一种更新结果 */
 extern std::map<const Action*, OutcomeSet*> action_outcomes;
+/* observation的formula */
 extern const StateFormula* the_observation;
+/**
+ * 这里注释的observation结构更像是conformant planning使用的
+ */
 //extern std::map<const Action*, std::map<const StateFormula*, DdNode*> > action_observations;
 //extern std::map<const Action*, std::map<DdNode*, DdNode*> > action_observations;
-// 感应动作得到的observation
+/**
+ * 下面使用的observation结构更像是DBN中使用的结构
+ */
 extern std::map<const Action*, std::list<DdNode*>* > action_observations;
 //extern std::map<const Action*, std::map<std::set<const pEffect*>*, DdNode*>* > action_observations_cpt;
 extern std::map<const Action*, std::list<std::map<const pEffect*, DdNode*>*>* > action_observations_cpt;
  extern plan* the_plan;
 
-
+/**
+ * 下面设计event的结构，这部分在conformant中可忽略
+ */
 /*preconditions of events*/
 extern std::map<const Action*, DdNode*> event_preconds;
 /* MTBDDs representing transition probability matrices for events. */
@@ -245,12 +259,13 @@ extern std::map<const Action*, DdNode*> event_rewards;
  /* exhaustive conditional effects, ala SGP -- dan */
 extern std::map<const Action*, OutcomeSet*> event_outcomes;
 
-/*
- * 重点查看
+/**
  * A set of state transitions.
+ * 一个transitionSet包括了con(e)的BDD和修改的atom
  */
- // 存储状态转换函数的集合
+ // 存储多个状态转换的集合
 struct TransitionSetList;
+// 记录转换关系，即前提条件和相应的相关
 struct TransitionSet {
   /* Fills the provided list with the conjunction of the given
      transition sets. */
@@ -287,8 +302,9 @@ struct TransitionSet {
   /* Returns the reward associated with this transition set. */
   const Rational& reward() const { return reward_; }
 
-  /* Returns the variables touched by the effect of this
-     transition set. */
+  /** Returns the variables touched by the effect of this
+   * transition set. 
+   */
   std::set<int>& touched_variables() { return touched_variables_; }
 
   /* Returns the variables touched by the effect of this
@@ -309,18 +325,20 @@ private:
   DdNode* effect_bdd_;
   /* Reward associated with this transition set. */
   Rational reward_;
-  /* Variables touched by the effect of this transition set. */
+  /** Variables touched by the effect of this transition set. 
+   * 这里存储int使用前面定义的dynamic_atoms结构可以知道是修改那些atom
+   */
   std::set<int> touched_variables_;
   int index_;
 };
 
-// 转换集合列表
+// 转换集合的列表
 struct TransitionSetList : public std::vector<const TransitionSet*> {
 };
-// 输出集合
+// 输出集合，每个输出集合是一组转换关系
 struct OutcomeSet {
   OutcomeSet(){}
-  std::vector<Rational> probabilities;
+  std::vector<Rational> probabilities;// 每个outcome即transitionSet的概率
   std::vector<TransitionSetList> transitions;
 };
 #endif
@@ -376,7 +394,7 @@ struct StateHash : public hash_multimap<DdNode*, StateNode*, hash<DdNode*>, eqst
   // 哈希表中是否包含该state
   bool contains(StateNode* p){
     pair<StateHash::iterator, StateHash::iterator> q = this->equal_range(p->dd);
-	return (q.first != q.second);
+    return (q.first != q.second);
   }
 };
 
@@ -396,14 +414,22 @@ extern  DdNode* b_initial_state;
 extern  DdNode* b_goal_state;
 extern char *HOST;
 extern int PORT;
+/**
+ * caltclat中采用的CNF来保存状态，但这里的clausalState没有使用到，可忽略
+ */
 class clausalState;
 extern clausalState* goal_state;
 extern clausalState* initial_state;
+/**
+ * 选择observability的类型full完全可观察，part部分可观察(Contingent)，none不可观察(conformant)
+ */
 extern int OBSERVABILITY;
 #define OBS_FULL 0
 #define OBS_PART 1
 #define OBS_NONE 2
-
+/**
+ * 这块功能不清楚
+ */
 #define CPT_NEW_WORLDS_ONLY 0
 #define CPT_FIXED_GROUPING_NEW_WORLDS 1
 #define CPT_ALL_SUPPORTERS 2
@@ -452,14 +478,14 @@ extern int COST_REPROP;
 extern int TAKEMINRP;
 extern int SENSORS;
 extern int NDACTIONS;
-extern int EXEFS;
+// extern int EXEFS;
 extern int STATE_TYPE;
 extern int num_alt_facts;
 extern int MAX_GRAPHS;
-extern int CARD_TYPE;
-extern int REACH_TYPE;
+// extern int CARD_TYPE;
+// extern int REACH_TYPE;
 extern int GRAPH_SUBSET_SELECTION_STRATEGY;
-extern int PRINT_PLAN_TRACE;
+// extern int PRINT_PLAN_TRACE;
 extern int REGRESS_DIRECT_ADJUST;
 extern int SUM_STATES_IMPL_CARD;
 
@@ -487,12 +513,16 @@ extern int LUG_FOR;
 
 
 
-
+/**
+ * problem name, domain name, outfile name
+ */
 extern  char * pname,*dname, *out_file;
 
 
 
-
+/**
+ * some configuration about the problem 
+ */
 #define MAX_HASH 1024 //from 50 Increase to 100 //DAN 1024 from 100
 #define MAX_FACTS 10244 //from 5122 to 10244 For some domains this constant needs to be increased
 #define MAX_GOALS 200
@@ -506,10 +536,15 @@ extern  char * pname,*dname, *out_file;
 
 
 
-
+/**
+ * planner使用CNF还是BDD类型进行存储
+ */
 #define CLAUSAL_BELIEF 100
 #define BDD_BELIEF 101
 
+/**
+ * 启发式函数的类型
+ */
 /* RS Added */
 #define MAX_PROPS 100 //It was 50 //It should be more...
 #define HSPBASED 100
@@ -544,7 +579,9 @@ extern int DO_INDUCED;
 
 extern int CWA;
 
-
+/**
+ * LUG中标签的类型
+ */
 #define ATMS_LABELS 400
 #define STANDARD_LABELS 401
 
@@ -553,7 +590,10 @@ extern bool MOLAORand;
 //proportion of graphs to compute, if 1 then compute all
 extern double NUMBER_OF_MGS;
 
-extern long cutoff_time;
+// extern long cutoff_time;
+/**
+ * 用于统计各种计算的时间
+ */
 extern struct timeval pg_tstart, pg_tend, hsp_tstart, hsp_tend, h_start, h_end,
 act_tstart, act_tend, rp_tstart, rp_tend, level_tstart, level_tend, dnf_tstart,
 dnf_tend;
@@ -593,7 +633,7 @@ extern int SORTBYHASH;
 
 extern int BRANCH_SCHEME;
 extern int KACMBP_OUT;
-extern int FILTER_TRANSLATION;
+// extern int FILTER_TRANSLATION;
 extern int USESENSORS;
 
 

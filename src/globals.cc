@@ -12,13 +12,13 @@ globals.cc -- All the main global definitions. */
 int allowed_time =-1;//10000000;
 
 // using node to represente the state variable 
-DdNode ** current_state_vars;
-DdNode ** next_state_vars;
-DdNode ** aux_state_vars;
+DdNode ** current_state_vars;// 当前状态变量列表
+DdNode ** next_state_vars;// 后继状态变量列表
+DdNode ** aux_state_vars;// 辅助状态变量
 DdNode ** particle_vars;
-DdNode * current_state_cube;
+DdNode * current_state_cube;// 当前状态变量的cube，用于forget选取那些变量进行遗忘
 DdNode * aux_var_cube;
-DdNode * next_state_cube;
+DdNode * next_state_cube;// 后继状态变量的cube
 DdNode * particle_cube;
 DdNode * all_but_sample_cube = NULL;
 
@@ -54,7 +54,9 @@ bool ENUMERATE_SPACE = false;
 
 
 /* DBN parameters */
+/* DBN_PROGRESSION值为false，关闭所有DBN prgession的功能*/
 bool DBN_PROGRESSION = false;//true;
+/* Rao-Blacckwellised Particle Filtering，默认关系，需要用参数开启*/
 bool RBPF_PROGRESSION = false;
 int RBPF_SAMPLES=0;
 DdNode* RBPF_SAMPLE_CUBE = NULL;
@@ -110,14 +112,14 @@ yyFlexLexer *yfl;
 bool OPTIMIZE_REWARDS = true;
 bool OPTIMIZE_PROBABILITY = true;
 const Action* terminalAction;
-double goal_threshold = 0.0001;
+double goal_threshold = 0.0001;// 在main中根据domain类型设置
 double search_goal_threshold = 1.0;
 double plan_success_threshold = 1.0;
 const Problem* my_problem;
 std::list<DdNode*> goal_cnf;
 int* varmap;
 int warning_level = 1;
-int verbosity = 2;
+int verbosity = 3;// default 2
 DdNode* goal_reward;
 double total_goal_reward = DBL_MAX;
 int beam_search_size = 0;
@@ -201,7 +203,7 @@ __gnu_cxx::StateHash* LeafStates;
 /* start and goal states */
 struct StateNode*   Start=0;
 struct StateNode*   Goal=0;
-
+/* Conformant planning类型*/
 int OBSERVABILITY = OBS_NONE;//PART;
 
 
@@ -212,7 +214,7 @@ int K_GRAPH_MAX;
 char *HOST="localhost";
 int PORT = 1500;
 double* alt_act_costs;
-
+/* 采用BDD表示信念状态*/
 int STATE_TYPE = BDD_BELIEF;
 bool MOLAORand = false;
 int RP_EFFECT_SELECTION = RP_E_S_COVERAGE;//RP_E_S_RATIO;
@@ -223,12 +225,14 @@ int initial_length;
 #endif
 DdNode* balt_facts[MAX_RELEVANT_FACTS];
 int initDONE=FALSE;
+/* 在mtbdd.c中如果创建action有observation action则会置为true*/
 int SENSORS=FALSE;
+/* 在graph_wrapper.cc的generate_BitOperatorEffects中判断outcome的个数是否>1 */
 int NDACTIONS=FALSE;
-int EXEFS = FALSE;
+// int EXEFS = FALSE;
 int RP_COUNT=RPEFFS;
-int CARD_TYPE=NONE;
-int REACH_TYPE=NONE;
+// int CARD_TYPE=NONE;
+// int REACH_TYPE=NONE;
 int SRP_INSERT_METHOD = SRP_REDUCE_MUTEX_INSERT;
 
 int COST_PR_INDIV = 0;
@@ -254,70 +258,70 @@ int COST_PROP_TECH = CPT_FIXED_GROUPING_NEW_WORLDS;//CPT_NEW_WORLDS_ONLY
 
 int COST_REPROP=FALSE;
 int TAKEMINRP=FALSE;
-int graphbuilt=0;
-int level_out = 0;
-int WHICHSEARCH=STANBASED;
+// int graphbuilt=0;
+// int level_out = 0;
+// int WHICHSEARCH=STANBASED;
 
-int SERIAL=FALSE;
-int PACTION=FALSE;
-int NOLEVOFF=TRUE;
-int REVCHECK=FALSE;
+// int SERIAL=FALSE;
+// int PACTION=FALSE;
+// int NOLEVOFF=TRUE;
+// int REVCHECK=FALSE;
 int HELPFUL_ACTS=FALSE;
-int PARALLEL=FALSE; //Parallel: Global decision variable
-int PARALLEL1=FALSE;
-int PARALLEL2=FALSE;
-int EXPAND_STATES = TRUE;
+// int PARALLEL=FALSE; //Parallel: Global decision variable
+// int PARALLEL1=FALSE;
+// int PARALLEL2=FALSE;
+// int EXPAND_STATES = TRUE;
 int USESENSORS = TRUE;
 int GWEIGHT=5;
 
-int GLEVEL=0; 
-long cutoff_time=1200;
-int PRINT_PLAN_TRACE = FALSE;
+// int GLEVEL=0; 
+// long cutoff_time=1200;
+// int PRINT_PLAN_TRACE = FALSE;
 int REGRESS_DIRECT_ADJUST = RDA_SET_DIFF_INIT;
 int ALLOW_LEVEL_OFF = TRUE;
 int LABEL_TYPE = ATMS_LABELS;//STANDARD_LABELS;
 int BRANCH_SCHEME = BRANCH_ON_ACTS;
 int KACMBP_OUT = FALSE;
-int FILTER_TRANSLATION= FALSE;
+// int FILTER_TRANSLATION= FALSE;
 int DO_INDUCED = INDUCED;
 struct timeval pg_tstart, pg_tend, hsp_tstart, hsp_tend, h_start, h_end, act_tstart, act_tend, rp_tstart, rp_tend, level_tstart, level_tend, dnf_tstart, dnf_tend;
 long totalgp = 0, totalhsp = 0, h_total = 0, rp_total = 0, level_total = 0, dnf_total = 0;
 int numRPs = 0;
-int numDNFs = 0;
-int expandedNodes=0;
-int generatedNodes=0;
-int numberActions=0;
-int numberSteps=0;
+// int numDNFs = 0;
+// int expandedNodes=0;
+// int generatedNodes=0;
+// int numberActions=0;
+// int numberSteps=0;
 char* dname,*pname;
 //char* out_file = "my_plan.out";
 char* out_file = "/dev/null";
 int MUTEX_SCHEME = MS_NONE;//MS_CROSS;
-int SORTBYHASH=TRUE;
+int MUTEX_SCHEME=TRUE;
 int WORLD_CHECK = WC_ALL;
 
 /* RS End */
 
 
-int exvecsizea;
-int exvecsizef;
-int no_facts;
-int no_acts;
-int hits;
-int oldhits;
+// int exvecsizea;
+// int exvecsizef;
+// int no_facts;
+// int no_acts;
+// int hits;
+// int oldhits;
 
-int * fixedreslim;
-int * fixedres;
-int * apprate;
-int * appres;
-char * * resnms;
-int frCount;
-int rCount;
-int rStart;
+// int * fixedreslim;
+// int * fixedres;
+// int * apprate;
+// int * appres;
+// char * * resnms;
+// int frCount;
+// int rCount;
+// int rStart;
 
-char buff[20];
+// char buff[20];
 
 ///alt_action * finalAcTable[MAX_ACTIONS];
-int finacts_at[MAX_PLAN];
+// int finacts_at[MAX_PLAN];
 
 //int facts_at[MAX_PLAN];
 //int acts_at[MAX_PLAN];
@@ -328,26 +332,26 @@ int finacts_at[MAX_PLAN];
 //token_list goals_at[MAX_PLAN];
 //action_list committed_acts_at[MAX_PLAN];
 
-#ifdef BADSTATS
-int calls_at[MAX_PLAN];
-int fail2s_at[MAX_PLAN];
-#endif
+// #ifdef BADSTATS
+// int calls_at[MAX_PLAN];
+// int fail2s_at[MAX_PLAN];
+// #endif
 
-#ifdef CHECKSTATS
-int checks[MAX_PLAN][MAX_ACTIONS];
-#endif
+// #ifdef CHECKSTATS
+// int checks[MAX_PLAN][MAX_ACTIONS];
+// #endif
 
-int acnt;
+// int acnt;
 
-int stcs = 100;
+// int stcs = 100;
 
-#ifdef COUNTCANDS
-int numCs = 0;
-#endif
+// #ifdef COUNTCANDS
+// int numCs = 0;
+// #endif
 
-int top_level;
+// int top_level;
 
-int checked = 0;
+// int checked = 0;
 
 //#ifdef BADSTATS
 //int badstats[MAX_PLAN];
