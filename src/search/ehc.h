@@ -23,7 +23,7 @@ protected:
   __gnu_cxx::StateHash NodesExpanded;
   int ExpandedStates;
   bool reEvaluateChildren;
-  bool INITLUG;
+  bool INITLUG;// 是否使用LUG
   double MOMENTUM;
 };
 

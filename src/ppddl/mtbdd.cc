@@ -784,15 +784,17 @@ TransitionSet::TransitionSet(DdNode* condition_bdd,
 : condition_bdd_(condition_bdd), reward_(0.0) {
 	Cudd_Ref(condition_bdd_);
 	int i = state_variables[&atom];
+	// 获取该状态变量的BDD
 	DdNode* ddv = Cudd_bddIthVar(dd_man, 2*i + 1);
 	Cudd_Ref(ddv);
-	if (is_true) {
+	if (is_true) {// 判断命题是true还是false
 		effect_bdd_ = ddv;
 	} else {
 		effect_bdd_ = Cudd_Not(ddv);
 		Cudd_Ref(effect_bdd_);
 		Cudd_RecursiveDeref(dd_man, ddv);
 	}
+	// 设计的effect增加
 	touched_variables_.insert(i);
 	set_index(gnum_cond_effects++);
 }
@@ -961,6 +963,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * The condition is false, so no new outcomes are added.
 		 */
 		//    cout << "FALSE"<<endl;
+		std::cout << "empty effect\n";
 		return;
 	}
 
@@ -971,6 +974,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * probability 1 for the reward assigned by this effect.
 		 */
 		//      cout << "HI AE"<<endl;
+		std::cout << "Assignment Effect outcome sta\n";
 		const Application& application = fe->assignment().application();
 		if (application.function() != reward_function) {
 			throw std::logic_error("numeric state variables not supported");
@@ -984,6 +988,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 				values[&application]);
 		outcomes.transitions.back().push_back(t);
 		//      cout << "BYE AE"<<endl;
+		std::cout << "Assignment Effect outcome done\n";
 		return;
 	}
 
@@ -994,6 +999,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * the simple effect.
 		 */
 		//    cout << "HI SE"<<endl;
+		std::cout << "simple Effect outcome sta\n";
 		bool is_true = typeid(*se) == typeid(AddEffect);
 		outcomes.probabilities.push_back(1);
 		outcomes.transitions.push_back(TransitionSetList());
@@ -1001,6 +1007,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 				se->atom(), is_true);
 		outcomes.transitions.back().push_back(t);
 		//     cout << "BYE SE"<<endl;
+		std::cout << "simple Effect outcome done\n";
 		return;
 	}
 
@@ -1012,6 +1019,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * these outcomes are the outcomes for the conjunctive effect.
 		 */
 		//    cout << "HI CJE"<<endl;
+		std::cout << "conjunction Effect outcome sta\n";
 		size_t n = ce->size();
 		if (n > 0) {
 			effect_outcomes(outcomes, condition_bdd, ce->conjunct(0));
@@ -1068,6 +1076,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 			outcomes.transitions.back().push_back(t);
 		}
 		//      cout << "BYE CJE"<<endl;
+		std::cout << "conjunction Effect outcome done\n";
 		return;
 	}
 
@@ -1080,13 +1089,15 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * the outcomes of the effect.
 		 */
 		//     cout << "HI CE"<<endl;
-		DdNode* ddf = formula_bdd(we->condition());
+		std::cout << "conditional Effect outcome sta\n";
+		DdNode *ddf = formula_bdd(we->condition());
 		DdNode* ddc = Cudd_bddAnd(dd_man, condition_bdd, ddf);
 		Cudd_Ref(ddc);
 		Cudd_RecursiveDeref(dd_man, ddf);
 		effect_outcomes(outcomes, ddc, we->effect());
 		Cudd_RecursiveDeref(dd_man, ddc);
 		//     cout << "BYE CE"<<endl;
+		std::cout << "conditional Effect outcome done\n";
 		return;
 	}
 
@@ -1097,6 +1108,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * Add the outcomes of this probabilistic effect.
 		 */
 		//    cout << "HI PE"<<endl;
+		std::cout << "probability effect outcome[warning!!!]\n";
 		Rational p_rest = 1;
 		size_t n = pe->size();
 		//cout << "n = " << n << " pr0 = " << (pe->probability(0).double_value()) <<endl;
@@ -1350,24 +1362,27 @@ static dbn* effect_dbn(const pEffect& effect, std::map<const pEffect*, dbn_node*
 /*
  * Ensures that all transition set conditions are mutually exclusive
  * for each probabilistic outcome.
+ * 考虑每个outcome,对每个outcome的transitionSet进行处理，保证同一个outcome内的effect肯定是两两互斥的。
+ * 通过不互斥进行合并，最后仅包含互斥的transition
  */
 static void ensure_mutex(OutcomeSet& outcomes) {
-	size_t n = outcomes.probabilities.size();
-	for (size_t i = 0; i < n; i++) {
+	size_t n = outcomes.probabilities.size();// 获取outcome个数
+	for (size_t i = 0; i < n; i++) {// 考虑每个outcome
 		size_t m = outcomes.transitions[i].size();
 		for (size_t j = 0; j < m - 1; j++) {
 			for (size_t k = j + 1; k < m; k++) {
 				const TransitionSet* t1 = outcomes.transitions[i][j];
 				const TransitionSet* t2 = outcomes.transitions[i][k];
 				DdNode* dda = Cudd_bddAnd(dd_man, t1->condition_bdd(),
-						t2->condition_bdd());
+						t2->condition_bdd());// 前提条件合取
 				Cudd_Ref(dda);
-				if (dda != Cudd_ReadLogicZero(dd_man)) {
+				if (dda != Cudd_ReadLogicZero(dd_man)) {// 没有互斥
 					/*
 					 * Transition sets j and k do not have mutually exclusive
 					 * conditions, so split them into transition sets that have.
 					 *
 					 * Case 1: both transition set conditions are enabled.
+					 *  同时满足，进行合并
 					 */
 					DdNode* dde = Cudd_bddAnd(dd_man, t1->effect_bdd(),
 							t2->effect_bdd());
@@ -1377,7 +1392,9 @@ static void ensure_mutex(OutcomeSet& outcomes) {
 							t1->touched_variables());
 					t->touched_variables().insert(t2->touched_variables().begin(),
 							t2->touched_variables().end());
-					/* Replace transition set j with the new transition set. */
+					/* Replace transition set j with the new transition set.
+						这里没有消去k，在后续消除。
+					*/
 					outcomes.transitions[i][j] = t;
 
 					/*
@@ -2140,18 +2157,18 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		DdNode* col_cube,
 		bool event) {
 	/*
+	 * 前面以及分配好了每一种effect的概率，接下来收集这些信息构建转换矩阵，同时需要保证每一种outcome是互斥的
 	 * Collect probabilistic outcomes for the action, and make sure that
 	 * all transition sets for each outcome have mutually exclusive
 	 * conditions.
 	 */
-	//       action.print(cout, problem.terms());     cout <<endl;
-	//      action.precondition().print(cout, problem.domain().predicates(),
-	// 				 problem.domain().functions(),
-	// 				 problem.terms());
-	//    action.effect().print(std::cout, problem.domain().predicates(),
-	//    		problem.domain().functions(),
-	//    		      problem.terms());
-	//    std::cout << std::endl;
+	std::cout << "####### start action mtbdds######\n";
+	action.print(std::cout, problem.terms());
+	std::cout << std::endl;
+	action.precondition().print(std::cout, problem.domain().predicates(), problem.domain().functions(), problem.terms());
+	std::cout << std::endl;
+	action.effect().print(std::cout, problem.domain().predicates(), problem.domain().functions(), problem.terms());
+	std::cout << std::endl;
 
 	//printBDD(ddng);
 
@@ -2159,28 +2176,34 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	OutcomeSet* outcomes = new OutcomeSet();
 	DdNode *ddc;
 
-	// 添加action和BDD的映射关系
+	// 根据action获取BDD
 	if(!event)
 		ddc = action_preconds[&action];//formula_bdd(action.precondition());
 	else
 		ddc = event_preconds[&action];//formula_bdd(action.precondition());
 	Cudd_Ref(ddc);
 
-	//  cout << "getting outcomes" <<endl;
+	 std::cout << "getting outcomes" << std::endl;
 	effect_outcomes(*outcomes, ddc, action.effect());
-	//  std::cout << "got outcomes" <<std::endl;
+	 std::cout << "got outcomes" <<std::endl;
 
 	if(!LUGTOTEXT)
-		ensure_mutex(*outcomes);
+	{
+		std::cout << "!LUG TO TEXT\n";
+		ensure_mutex(*outcomes); // 进行outcome转换的互斥优化
+	}
 	else{
+		std::cout << "for unconditional\n";
+		// 这里仅有一个outcome，记录其effect的个数
 		for (TransitionSetList::const_iterator ti =
-				outcomes->transitions[0].begin();
-				ti != outcomes->transitions[0].end(); ti++) {
+				 outcomes->transitions[0].begin();
+			 ti != outcomes->transitions[0].end(); ti++)
+		{
 			num_alt_effs++;
 		}
 		num_alt_effs++;//for unconditional
 	}
-	std::cout << "got mutex" << std::endl;
+	std::cout << "done mutex" << std::endl;
 
 	if(!event)
 		action_outcomes.insert(std::pair<const Action*, OutcomeSet*>(&action, outcomes));
@@ -2232,7 +2255,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 
 	// Cudd_CheckKeys(manager);
 
-	for (size_t i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++) {// 考虑每个outcome
 
 		/*
 		 * Construct MTBDD representations of the transition probability
@@ -2286,7 +2309,8 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				err = 1;
 
 
-			/*
+			/**
+			 * 单独的一个transitionSet通过 condition /\ effect /\ identity(whhich is untouched)
 			 * The BDD representation of the transition matrix for a single
 			 * transition set is computed as the conjunction of the
 			 * condition BDD, the effect BDD, and the identity BDDs for each
@@ -2302,8 +2326,11 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			//     cout << "[" << endl;
 			//      Cudd_CheckKeys(manager);
 			if(!event){
+				// 将没有修改的状态变量BDD合取保存在ddt中
 				for (int vi = nvars - 1; vi >= 0; vi--) {
+					// 前后状态一样
 					if (t.touched_variables().find(vi) == t.touched_variables().end()) {
+						// 直接和取原始BDD x==x'
 						DdNode* ddi = Cudd_bddAnd(dd_man, identity_bdds[vi], ddt);
 						Cudd_Ref(ddi);
 						Cudd_RecursiveDeref(dd_man, ddt);
@@ -2320,7 +2347,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			DdNode *dda;
 			if(!err){
 				/*
-				 * Next, the effect.
+				 * Next, the effect. 和区effect的BDD
 				 */
 				//       cout << "anding effect"<<endl;
 				dda = Cudd_bddAnd(dd_man, t.effect_bdd(), ddt);
@@ -2328,7 +2355,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				Cudd_RecursiveDeref(dd_man, ddt);
 				ddt = dda;
 				/*
-				 * Finally, the condition.
+				 * Finally, the condition.和区action的BDD
 				 */
 				dda = Cudd_bddAnd(dd_man, t.condition_bdd(), ddt);
 				Cudd_Ref(dda);
@@ -2339,15 +2366,16 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				/*
 				 * Add the transition matrix for the current transition set to
 				 * the transition matrix for the outcome.
+				 * 将该transitionSet析取到outcome中
 				 */
 				//      cout << "Oring effect"<<endl;
 				DdNode* ddo = Cudd_bddOr(dd_man, ddt, ddT);
 				Cudd_Ref(ddo);
 				Cudd_RecursiveDeref(dd_man, ddT);
-				ddT = ddo;
+				ddT = ddo;// ddT存储了一个outcome的所有的转换关系
 
 				//      printBDD(ddt);
-
+				// 包含rewards，使用ADD得表示转换的reward
 				if(my_problem->domain().requirements.rewards){
 					/*
 					 * Add the reward for this transition set to the transition
@@ -2378,6 +2406,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				/*
 				 * Finally, the condition.
 				 */
+				std::cout << "inconsistent effect\n";
 				dda = Cudd_bddAnd(dd_man, Cudd_Not(t.condition_bdd()), ddt);
 				Cudd_Ref(dda);
 				Cudd_RecursiveDeref(dd_man, ddt);
@@ -2388,6 +2417,8 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			/*
 			 * Remove the condition for the current transition set from the
 			 * condition representing uncovered states.
+			 * (用于构造frame axioms)
+			 * ddN存储所有transitionSet的否定con的合取，等价于所有con的析取。
 			 */
 			DdNode* ddn = Cudd_Not(t.condition_bdd());
 
@@ -2398,26 +2429,28 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			Cudd_RecursiveDeref(dd_man, ddN);
 			ddN = dda;
 
-		}
+		}// end-for transitionSet
 
-		/*
+		/**
 		 * Add self-loops for all states not covered by any transition set
 		 * conditions.
+		 * 为该outcome的转换集合没有覆盖到的状态添加自循环。
 		 */
 		bool PPDDLTOST=false;
 		DdNode* dda;
 		if(!PPDDLTOST){
 
-			dda = Cudd_bddAnd(dd_man, ddc, ddN);
+			dda = Cudd_bddAnd(dd_man, ddc, ddN);// action的precondition合取ddN，Effect‘ axioms完整
 			Cudd_Ref(dda);
 			Cudd_RecursiveDeref(dd_man, ddN);
-			if (dda != Cudd_ReadLogicZero(dd_man)) {
+			if (dda != Cudd_ReadLogicZero(dd_man)) {// 非空说明Effect存在转换
 				ddN = dda;
-				dda = Cudd_bddAnd(dd_man, ddN, identity_bdd);
+				// 考虑Frame axioms
+				dda = Cudd_bddAnd(dd_man, ddN, identity_bdd);// 合取x=x'等价的BDD 
 				Cudd_Ref(dda);
 				Cudd_RecursiveDeref(dd_man, ddN);
 				ddN = dda;
-				DdNode* ddo = Cudd_bddOr(dd_man, ddN, ddT);
+				DdNode* ddo = Cudd_bddOr(dd_man, ddN, ddT);// 析取到outcome上
 				Cudd_Ref(ddo);
 				Cudd_RecursiveDeref(dd_man, ddN);
 				Cudd_RecursiveDeref(dd_man, ddT);
@@ -2433,15 +2466,17 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		 */
 		//    cout << "pr = " << outcomes->probabilities[i].double_value() << endl;
 		//    printBDD(ddT);
-		DdNode* ddp = Cudd_BddToAdd(dd_man, ddT);
+		DdNode* ddp = Cudd_BddToAdd(dd_man, ddT);// ddp当前outcome的BDD转ADD
 		Cudd_Ref(ddp);
-		DdNode* ddk = Cudd_addConst(dd_man,
+		DdNode* ddk = Cudd_addConst(dd_man,// ddk当前outcome的执行概率值
 				outcomes->probabilities[i].double_value());
 		Cudd_Ref(ddk);
+		// 更新当前outcome每种情况的概率
 		DdNode* ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddp, ddk);
 		Cudd_Ref(ddt);
 		Cudd_RecursiveDeref(dd_man, ddp);
 		Cudd_RecursiveDeref(dd_man, ddk);
+		// 将当前outcome添加到所有的outcome的ADD中
 		ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddt, ddP);
 		Cudd_Ref(ddp);
 		Cudd_RecursiveDeref(dd_man, ddt);
@@ -2485,6 +2520,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			 * outcomes.  The rewards are not allowed to be different for the
 			 * same transition in different outcomes.
 			 */
+			std::cout << "reward requirements[warning!!!]\n";
 			dda = Cudd_bddAnd(dd_man, ddT, ddD);
 			Cudd_Ref(dda);
 			DdNode* ddn = Cudd_Not(dda);
@@ -2535,13 +2571,14 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		/*
 		 * Add the transitions of this outcome to the BDD representing all
 		 * transitions.
+		 * ddT \/ ddD 将当前outcome的BDD合取outcomeSet
 		 */
 		DdNode* ddo = Cudd_bddOr(dd_man, ddT, ddD);
 		Cudd_Ref(ddo);
 		Cudd_RecursiveDeref(dd_man, ddD);
 		ddD = ddo;
 		Cudd_RecursiveDeref(dd_man, ddT);
-	}
+	}// end-for outcome
 
 
 
@@ -2580,7 +2617,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		Cudd_Ref(ddP);
 		Cudd_RecursiveDeref(manager, nd);
 	}
-
+	std::cout << "####### end action mtbdds######\n";
 	return std::make_pair(ddP, ddR);
 }
 
@@ -3755,7 +3792,7 @@ DdNode* groundActionDD(const Action& action){
 		return Cudd_ReadLogicZero(manager);
 	}
 	else{
-		// 查找MTBDD表该动作是否有存在转换关系
+		// 查找该action是否处理过，存在直接返回
 		if(action_transitions.count(&action) > 0){
 			return action_transitions[&action];
 		}
@@ -3764,10 +3801,11 @@ DdNode* groundActionDD(const Action& action){
 		//    action.print(cout, (*my_problem).terms()); cout <<endl;
 
 		int err = 0;
+		// 设置每种effect发生的概率
 		action.setProbabilityFromExpressions(my_problem); //dan
 
-		std::pair<DdNode*, DdNode*> dds;
-		std::list<DdNode*>* ddos = NULL;
+		std::pair<DdNode*, DdNode*> dds;// 当前状态BDD和后继状态BDD pair
+		std::list<DdNode*>* ddos = NULL; // observation的BDD list
 		try{
 			DdNode *a = Cudd_ReadOne(manager), *b = Cudd_ReadOne(manager);
 			Cudd_Ref(a);
@@ -3792,10 +3830,11 @@ DdNode* groundActionDD(const Action& action){
 
 		// 处理成功
 		if(!err){
-			// 为转换关系添加reward ector
+			// 添加action和BDD的对应关系。
 			action_transitions.insert(std::make_pair(&action, dds.first));
+			// 添加动作和reward对应关系
 			action_rewards.insert(std::make_pair(&action, dds.second));
-
+			// 如果是observation，添加observation的转换关系BDD
 			if(ddos && ddos->size() > 0){//&((Action)action).observation()){
 				OBSERVABILITY = OBS_PART;
 				action_observations.insert(std::make_pair(&action, ddos));
@@ -3806,7 +3845,7 @@ DdNode* groundActionDD(const Action& action){
 			// 	 << endl;
 		}
 		else{
-			//   cout << "ERROR, pruning: ";
+			  std::cout << "ERROR, pruning: ";
 			//action.print(cout, (*my_problem).terms()); cout <<endl;
 			action_transitions.insert(std::make_pair(&action, Cudd_ReadZero(manager)));
 			action_rewards.insert(std::make_pair(&action, Cudd_ReadZero(manager)));
@@ -4012,7 +4051,7 @@ DdNode* solve_problem(const Problem& problem,
 	std::cout << "start collect init state variales" << std::endl;
 	for (EffectList::const_iterator ei = problem.init_effects().begin();
 			ei != problem.init_effects().end(); ei++) {
-		//std::cout << "collect init eff" << std::endl;
+		std::cout << "collect init eff" << std::endl;
 		collect_state_variables(**ei);
 
 
@@ -4049,7 +4088,7 @@ DdNode* solve_problem(const Problem& problem,
 					 dynamic_atoms.begin();
 				 vi != dynamic_atoms.end(); vi++)
 			{
-				std::cout << (*vi).first <<  '\t';
+				std::cout << (*vi).first <<  '\t';                          
 				(*vi).second->print(std::cout, problem.domain().predicates(),
 						problem.domain().functions(), problem.terms());
 				std::cout << std::endl;
@@ -4142,17 +4181,19 @@ DdNode* solve_problem(const Problem& problem,
 
 	/*
 	 * Construct identity BDDs for state variables.
+	 * 构造 x == x'的BDD，用于frame axioms
 	 */
 	DdNode** row_vars = new DdNode*[nvars];
 	DdNode** col_vars = new DdNode*[nvars];
 	for (int i = 0; i < nvars; i++) {
 		DdNode* x = Cudd_bddIthVar(dd_man, 2*i);
 		DdNode* y = Cudd_bddIthVar(dd_man, 2*i + 1);
-		identity_bdds.push_back(Cudd_Xeqy(dd_man, 1, &x, &y));
-		Cudd_Ref(identity_bdds.back());
+		identity_bdds.push_back(Cudd_Xeqy(dd_man, 1, &x, &y));// x==x'
+		Cudd_Ref(identity_bdds.back());// 存储等价pair
 		row_vars[i] = x;
 		col_vars[i] = y;
 	}
+	// 构造当前和后继状态变量等价 x[1,2,...] == x[1,2,3,...]'
 	identity_bdd = Cudd_Xeqy(dd_man, nvars, row_vars, col_vars);
 	Cudd_Ref(identity_bdd);
 	delete row_vars;
@@ -4239,8 +4280,8 @@ DdNode* solve_problem(const Problem& problem,
 	
 	std::cout << "done constructing event preconditon BDD" << std::endl;
 
-	set_cubes();
 	//std::cout << "done setting action preconds" <<std::endl;
+	set_cubes();
 	collectInit(&problem);
 	std::cout << "done constructing the init state BDD" << std::endl;
 

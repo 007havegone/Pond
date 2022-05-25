@@ -16,7 +16,7 @@ public:
 	bool step();
 	double getQuality();
 	/**
-	 * 更新当前节点及前驱节点都搜索完成，但没有被调用，应该是无关痛痒的函数
+	 * 更新当前节点及前驱节点都搜索完成，not used
 	 */
 	void commit();
 	void cleanup();

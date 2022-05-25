@@ -17,6 +17,7 @@ class RelaxedPlanLite;
 class RelaxedPlan;
 class StateNode;
 class ActionNode;
+/* Conformant planning不使用*/
 class PolicyState;
 struct StateDistribution;
 struct DdNode;
@@ -50,13 +51,20 @@ public:
 	ActionNode* getAction(const std::string name, bool addIfNeeded = true);
 
   void expand();
-
-  void getAncestery(std::vector<StateNode*>& ancestery);
+/**
+ * momo007 2022.05.25 not use comment 
+ */
+/* void getAncestery(std::vector<StateNode*>& ancestery);
   static void getAncestery(std::vector<StateNode*>& states, std::vector<StateNode*>& ancestery);
+*/
 
-  double forwardUpdate();
+  double forwardUpdate();// 状态节点前向更新
   double backwardUpdate(bool setBestAct = false);
-  double valueUpdate(bool setBestAct = false);
+/**
+ * valueUpdate调用 forwardUpdate和 backwardUpdate进行更新，涉及涉及概率，忽略
+ * momo007 2022.05.25 not use comment
+ */
+  // double valueUpdate(bool setBestAct = false);
 
   void valueIteration();
   static void valueIteration(std::vector<StateNode*>& states);
@@ -82,7 +90,7 @@ public:
   double                    ExtendedGoalSatisfaction;
   double                    meanFirstPassage;   // upper bound on steps to goal
   double                    goalSatisfaction;
-  double                    prReached;
+  double                    prReached;  // probability reached 到达当前节点的概率
   double                    bestActF;
   int                       num_supporters;
   int                       Terminal;
@@ -149,7 +157,9 @@ protected:
 	StateNode* addState(const std::set<std::string>& trueObs, bool reuseIfExists = true);
 	StateNode* newSample(std::list<std::map<const pEffect*, DdNode*>*>* observations);
 };
-
+/**
+ * 状态分布，包括状态、reason、creason、概率、reward、下一个状态分布
+ */
 class StateDistribution{
 public:
   struct StateNode*         State;
@@ -166,7 +176,7 @@ enum CompareMode{
   F_VAL,                  // F value
   PR_REACH,               // Probability of being reached
   EXP_EGS,                // Expected extended goal satisfaction
-  HEUR                    // Heuristic value
+  HEUR                    // Heuristic value，默认模式
 };
 
   StateComparator();

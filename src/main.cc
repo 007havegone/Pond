@@ -783,13 +783,14 @@ int main(int argc, char *argv[])
 			//          }
 			//        }
 			//      }
-			// 开始求解该规划问题
+			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
 
 			if (RBPF_PROGRESSION)
 			{
 
 				// int num = (int)ceil(log2(RBPF_SAMPLES));
+				std::cout << "RBPF_PROGRESSION\n";
 				DdNode **variables = new DdNode *[rbpf_bits];
 				rbpf_index_map = new int[(2 * num_alt_facts) + max_num_aux_vars + 2 * rbpf_bits];
 				for (int k = 0; k < rbpf_bits; k++)
@@ -817,6 +818,7 @@ int main(int argc, char *argv[])
 			// 非确定性
 			if (my_problem->domain().requirements.non_deterministic)
 			{
+				std::cout << "nondet\n";
 				goal_threshold = 1.0;
 				if (SENSORS)
 				{
@@ -829,6 +831,7 @@ int main(int argc, char *argv[])
 			// 概率不确定性
 			else if (my_problem->domain().requirements.probabilistic)
 			{
+				std::cout << "probability\n";
 				if (goal_pr_in > 0.0)
 					goal_threshold = goal_pr_in;
 				else
@@ -976,7 +979,7 @@ int main(int argc, char *argv[])
 
 		else
 		{*/
-			if (step_search != NULL)//如果制定了参数，则step_search非空
+			if (step_search != NULL)//如果参数使用了step_search的子类
 			{
 				if (search == NULL)
 					search = step_search;
@@ -985,7 +988,7 @@ int main(int argc, char *argv[])
 				step_search = NULL;
 			}
 		/*}*/
-		// 查看是否有step search，没有则采用强制爬山算法
+		// 没有指定搜索算法，默认强制爬山算法
 		if (search == NULL)
 			search = new EHC();
 
@@ -1057,7 +1060,9 @@ int main(int argc, char *argv[])
 		cout << "caught something: " << e.what() << endl;
 	}
 }
-
+/**
+ * 创建当前和后继状态变量的Cube，设置映射关系，没有被调用到。
+ */
 void set_cubes()
 {
 	// 非确定
@@ -1080,12 +1085,13 @@ void set_cubes()
 				Cudd_Ref(next_state_vars[i]);
 				Cudd_bddSetPairIndex(manager, 2 * i, 2 * i + 1);
 			}
-			// 计算Cube作用
+			// 分别为当前状态变量和后继状态变量创建Cude
 			current_state_cube = Cudd_bddComputeCube(manager, current_state_vars, 0, num_alt_facts);
 			Cudd_Ref(current_state_cube);
 
 			next_state_cube = Cudd_bddComputeCube(manager, next_state_vars, 0, num_alt_facts);
 			Cudd_Ref(next_state_cube);
+			// 创建状态变量对应关系
 			Cudd_SetVarMap(manager, current_state_vars, next_state_vars, num_alt_facts);
 		}
 

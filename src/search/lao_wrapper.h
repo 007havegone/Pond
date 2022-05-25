@@ -8,13 +8,17 @@
 #include <map>
 #include <utility>
 #include "dbn.h"
-
+// 该文件应该封装了lao实现了 AO*算法
+// 搜索类
 class Search;
 
 #ifdef PPDDL_PARSER
 int not_loop(StateNode* dest, BitVector* visited, StateNode* srcNo);
 void increment_heuristic(StateNode*);
-DdNode * apply_events(DdNode*);
+/**
+ * momo007 2022.05.25 not need in conformant
+ */
+// DdNode * apply_events(DdNode*);
 DdNode* normalize(DdNode*);
 double computeGoalSatisfaction(DdNode*);
 struct StateFormula;

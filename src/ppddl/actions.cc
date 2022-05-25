@@ -490,8 +490,9 @@ void recurse_effects(const Problem *problem, const pEffect *effect)
   {
     // cout << "Messing with effect PR"<<endl;
     double sum = 0.0;
+    // 调用probability effect的实现，设置effect的每个Expression的概率值和该effect总的概率
     ((ProbabilisticEffect *)pe)->setProbabilityFromExpressions(problem);
-    size_t n = pe->size();
+    size_t n = pe->size();// 表达式的个数
     for (size_t i = 0; i < n; i++)
     {
       recurse_effects(problem, &pe->effect(i));

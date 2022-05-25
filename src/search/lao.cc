@@ -22,26 +22,26 @@ using namespace std;
 
 LAOStar::LAOStar()
 : Search(LAO){
-  NumExpandedStates = 0;
+  NumExpandedStates = 0;// 拓展节点
 
-  Iteration = 0;
+  Iteration = 0;// 迭代轮次
   NumExpandedStatesIter = 0;
   NumAncestorStatesIter = 0;
   NumSolutionStates = 0;
   ExpandedStateList = NULL;
   CountBackups = 0;
   Residual = 0.0;
-  ExitFlag = 0;
-  converged_to_goal = 0;
+  ExitFlag = 0;// 是否结束
+  converged_to_goal = 0;// 是否到达目标
   dfs_limit = 0;
-  lastBackup = NULL;
+  lastBackup = NULL;// 最后备份节点
 }
 
 void LAOStar::search(){
   StateList *AncestorList;
   struct StateNode *node;
   lastBackup = Start;
-
+  // 获取f= h+g
   dfs_limit = (int)Start->f;
   for(Iteration = 1; ; Iteration++){// iteration until reach the goal or Convergence
     printf("%3d ( %f secs.)", Iteration, (float)(clock()-gStartTime)/CLOCKS_PER_SEC);

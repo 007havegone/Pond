@@ -78,7 +78,7 @@ void backup_graph(){
 	while(residual >= gEpsilon);
 }
 /**
- * 判断初始状态和目标之间是否有loop
+ * 判断初始和目标状态两者之间是否形成loop，如果目标存在出边到达初始状态则形成
  */
 int not_loop(StateNode* dest, BitVector* visited, StateNode* srcNo){
 	// want to know if connecting source to dest will create a loop
@@ -350,7 +350,7 @@ DdNode* normalize(DdNode* dd){
  * 
  */
 void computeSuccessors(pair<const Action* const, DdNode*>* action,
-struct StateNode* parent,
+	struct StateNode* parent,
 	list<DdNode*>* successors,   // state set distributions
 	list<DdNode*>* reasons,      // observations that gave state sets
 	list<set<const pEffect*>*>* creasons,      // observations that gave state sets
@@ -361,7 +361,7 @@ struct StateNode* parent,
 	){
 		DdNode *tmpdd, *tmpdd1, *tmpdd2, *fr;
 		int num_successors;
-
+		// get the precond fr
 		if(action && action->first && &(action->first->precondition()))
 			fr = action_preconds[action->first];
 		else
@@ -377,9 +377,9 @@ struct StateNode* parent,
 		
 		// check precondition
 		if((my_problem->domain().requirements.probabilistic &&
-			!add_bdd_entailed(manager, parent->dd, fr)) ||
+			!add_bdd_entailed(manager, parent->dd, fr)) ||// parent |= fr
 			(my_problem->domain().requirements.non_deterministic &&
-			!bdd_entailed(manager, parent->dd, fr))){
+			!bdd_entailed(manager, parent->dd, fr))){ // parent |= fr
 				return;
 		}
 
@@ -393,7 +393,7 @@ struct StateNode* parent,
 
 		DdNode* causativeSuccessor = NULL;
 
-
+		// use the action to progres the parent(current state bdd)
 		//	for(int i = 0; i < reps; i++){
 		causativeSuccessor = progress(&(*action),
 			//&(*tmp_successor)
@@ -1108,6 +1108,7 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 
 	// case1: 深度信念网络更新
 	if(DBN_PROGRESSION){
+		std::cout << "progress mode: dbn[waring!!!]\n";
 		//		std::cout << "(" << std::endl;
 		//		Cudd_CheckKeys(manager);
 		//		std::cout << "|" << std::endl;
@@ -1119,11 +1120,13 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 		return result;
 	}
 	// case2:
-	else{  
-		// 获取action的BDD
+	else{
+		std::cout << "progres mode: bdd\n";
+		// 获取action的BDD，核心实现，涉及到axioms
 		DdNode *t = groundActionDD(*(a->first));
 		Cudd_Ref(t);
-
+		std::cout << "print action BDD\n";
+		printBDD(t);
 
 		// 动作的BDD为空
 		if(t == Cudd_ReadZero(manager) || t == Cudd_ReadLogicZero(manager)){
@@ -1133,24 +1136,25 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 				return Cudd_ReadLogicZero(manager);
 		}
 
-		// 使用action的BDD进行更新
+		// 使用action的BDD进行遗忘更新
 		result = progress(t, parent);
 		Cudd_RecursiveDeref(manager,t);
 
 
 		// 定义了event，进一步更新
-		DdNode *ex_result;
-		if(event_preconds.size() > 0){
-			ex_result = apply_events(result);
-			Cudd_Ref(ex_result);
-			return ex_result;
-		}
-		else{
-			return result;
-		}
+		// DdNode *ex_result;
+		// if(event_preconds.size() > 0){
+		// 	ex_result = apply_events(result);
+		// 	Cudd_Ref(ex_result);
+		// 	return ex_result;
+		// }
+		// else{
+		// 	return result;
+		// }
+		return result;
 	}
 }
-
+/** momo007
 DdNode * apply_events(DdNode *belief){
 	list<DdNode*> b;
 	DdNode *out = Cudd_ReadOne(manager), *disj= Cudd_ReadLogicZero(manager);
@@ -1229,6 +1233,7 @@ DdNode * apply_events(DdNode *belief){
 
 	return disj;
 }
+*/
 
 
 //DdNode * sample_transitions(dbn* a, DdNode* parent){
@@ -1868,7 +1873,8 @@ DdNode * progress(DdNode *image,DdNode *parent){
 	DdNode *tmp1,*tmp2,*result;
 	// 基于概率的progress
 	if(my_problem->domain().requirements.probabilistic){
-		DdNode* ddp = Cudd_addApply(manager, Cudd_addTimes, parent, image);
+		std::cout << "probabilitis progres[waring!!!]\n";
+		DdNode *ddp = Cudd_addApply(manager, Cudd_addTimes, parent, image);
 		Cudd_Ref(ddp);
 
 		tmp1 = Cudd_addExistAbstract(manager, ddp, current_state_cube);
@@ -1881,10 +1887,11 @@ DdNode * progress(DdNode *image,DdNode *parent){
 	}
 	// 非确定性更新
 	else if(my_problem->domain().requirements.non_deterministic){
-		// 计算 parent /\ image，抽取ariable放到current_state_cube中
+		std::cout << "bdd progress\n";
+		// 计算 parent /\ image，随后对 current state variable进行遗忘
 		tmp1 = Cudd_bddAndAbstract(manager,parent, image,current_state_cube);
 		Cudd_Ref(tmp1);
-		// remaps the variable of a BDD using the default variable map
+		// 将后继状态变量替换为当前状态变量，使用Cudd_SetVarMap的映射（set_cube进行了封装）进行替换
 		result = Cudd_bddVarMap(manager,tmp1);
 		Cudd_Ref(result);
 		Cudd_RecursiveDeref(manager,tmp1);

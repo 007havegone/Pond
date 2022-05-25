@@ -168,9 +168,9 @@ private:
   //DAN plan time
   double allowed_time_;
 
-  double horizon_;
+  double horizon_;//初始化为-1.0,在yyparse中根据pddl解析配置
   double discount_;
-  double tau_;
+  double tau_;// 初始化为0，在yyparse中根据目标配置,0-1的实数
 
   /* Name of problem. */
   std::string name_;

@@ -7,7 +7,7 @@
 
 class AStarAdvance{
 protected:
-  AStarAdvance(bool determinized = false);
+  AStarAdvance(bool determinized = false);// 默认非确定
 
   StateNode* advance(StateNode* start);
   StateNode* advance(std::set<StateNode*>& states);
@@ -16,7 +16,7 @@ protected:
 
   void setBestAct(StateNode* state);
 
-	std::set<StateNode*, StateComparator> open;
+	std::set<StateNode*, StateComparator> open;// 待查找的状态节点，采用启发值比较的方式
 
   bool determinized;
 

@@ -699,12 +699,12 @@ bool ProbabilisticEffect::add_outcome(const Rational& p,
 }
 
 void ProbabilisticEffect::setProbabilityFromExpressions(const Problem* problem) {
-	size_t n = fweights_.size();
-	// cout << "|fweights_|= " << n <<endl;
+	size_t n = fweights_.size();// 获取表达式的个数
+	std::cout << "|fweights_|= " << n << std::endl;
 	for (size_t i = 0; i < n; i++) {
 		const Expression* e = fweights_[i];
-		Rational p = e->value(problem->init_values());
-		// cout << "p = " << p.double_value() << endl;
+		Rational p = e->value(problem->init_values());// 获取值
+		std::cout << "p = " << p.double_value() << std::endl;
 #ifdef FRACT_RATIONALS  
 		if (weight_sum_ == 0) {
 			weights_.push_back(p.numerator());
@@ -724,8 +724,8 @@ void ProbabilisticEffect::setProbabilityFromExpressions(const Problem* problem) 
 			//	cout << "ws = " << weight_sum_ <<endl;
 		}
 #else
-		weights_.push_back(p.double_value());
-		weight_sum_+= p.double_value();
+		weights_.push_back(p.double_value());//加入到值列表中
+		weight_sum_+= p.double_value();// 类加总的值
 #endif
 	}
 }

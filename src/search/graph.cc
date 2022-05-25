@@ -650,7 +650,10 @@ ActionNode* StateNode::addAction(const string name, bool reuseIfExists, bool dis
 
 	return action;
 }
-
+/**
+ * momo007 not use comment
+ */
+/*
 void StateNode::getAncestery(vector<StateNode*>& ancestery){
 	vector<StateNode*> states;
 	states.push_back(this);
@@ -684,11 +687,15 @@ void StateNode::getAncestery(vector<StateNode*>& states, vector<StateNode*>& anc
 		}
 	}
 }
+*/
 
+/**
+ * 计算更新后继状态的probability Reached和value
+ */
 double StateNode::forwardUpdate(){
 	double biggestChange = 0;
 
-	if(this == Start){
+	if(this == Start){ // 开始节点，到达概率为1
 		prReached = 1.0;
 		g = 0;
 	}
@@ -697,17 +704,18 @@ double StateNode::forwardUpdate(){
 
 		double newGValue = 0;
 		double newPrReached = 0;
-
+		// 迭代每一个previous action
 		for(ActionNodeList::iterator act_it = PrevActions->begin(); act_it != PrevActions->end(); act_it++){
 			ActionNode* action = *act_it;
-			StateNode* state = action->PrevState;
-
+			StateNode* state = action->PrevState;// 根据action得到state
+			// 该state的best action不是到达当前状态，忽略
 			if(state->BestAction != action) //skip parents that are not set to move to this state.
 				continue;
-
+			// 否则，迭代该action的后继状态分布
 			for(StateDistribution *dist = action->NextState; dist != NULL; dist = dist->Next){
-				if(dist->State == this){
-					newPrReached += state->prReached * dist->Prob;
+				if(dist->State == this){// 到达该action的情况
+					newPrReached += state->prReached * dist->Prob;// 更新到达概率
+					// 更新value
 					newGValue += state->prReached * dist->Prob * (state->g + action->Cost);
 					break;
 				}
@@ -731,8 +739,8 @@ double StateNode::forwardUpdate(){
 
 double StateNode::backwardUpdate(bool setBestAct){
 	double biggestChange = 0;
-
-	if(Expanded <= 0){
+	// 当前节点还未拓展
+	if(Expanded <= 0){// 初始化
 		BestAction = NULL;
 		if(max_horizon > 0 || h > 0.0 || goalSatisfaction >= search_goal_threshold)
 			expH = h;
@@ -804,12 +812,15 @@ double StateNode::backwardUpdate(bool setBestAct){
 	return biggestChange;
 }
 
+// momo007 2022.05.25
+/*
 double StateNode::valueUpdate(bool setBestAct){
-	double biggestChange = backwardUpdate(setBestAct);
-	biggestChange = max(biggestChange, forwardUpdate());
+	double biggestChange = backwardUpdate(setBestAct);// 后向更新寻找最大change
+	biggestChange = max(biggestChange, forwardUpdate());// 前向更新寻找最大change
 
 	return biggestChange;
 }
+*/
 
 void StateNode::valueIteration(){
 	vector<StateNode*> states;
@@ -1144,16 +1155,16 @@ void StateComparator::init(CompareMode mode){
 }
 
 bool StateComparator::operator() (StateNode *lhs, StateNode *rhs) const{
-	if(mode == HEUR && lhs->h != rhs->h)
+	if(mode == HEUR && lhs->h != rhs->h)// 启发式值比较h
 		return (lhs->h < rhs->h);
 
-	if(mode == F_VAL && lhs->f != rhs->f)
+	if(mode == F_VAL && lhs->f != rhs->f)// F-value比较f
 		return (lhs->f < rhs->f);
 
-	if(mode == PR_REACH && lhs->prReached != rhs->prReached)
+	if(mode == PR_REACH && lhs->prReached != rhs->prReached)// PR_REACH比较达到该节点的概率
 		return (lhs->prReached > rhs->prReached);
 
-	if(mode == EXP_EGS)
+	if(mode == EXP_EGS)// EXP_EGS比较拓展到达目标的期望值
 	{
 		double lhs_exp_ps = lhs->prReached * (pow(0.99, lhs->h));
 		double rhs_exp_ps = rhs->prReached * (pow(0.99, rhs->h));
