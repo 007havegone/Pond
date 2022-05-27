@@ -2253,6 +2253,10 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	 * for the action is the reward defined by some probabilistic
 	 * outcome.
 	 */
+	/**
+	 * momo007 2022.05.27
+	 * 对于reward matrix直接返回0，内部创建相关的代码注释
+	 */
 	/* This is going to be the transition probability matrix. */
 	DdNode* ddP = Cudd_ReadZero(dd_man);
 	Cudd_Ref(ddP);
@@ -2282,11 +2286,11 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 
 		/* This is going to be an MTBDD representing the transition reward
        matrix for this outcome. */
-		DdNode* ddr;
-		if (valid_reward_function) {
-			ddr = Cudd_ReadZero(dd_man);
-			Cudd_Ref(ddr);
-		}
+		// DdNode* ddr;
+		// if (valid_reward_function) {
+		// 	ddr = Cudd_ReadZero(dd_man);
+		// 	Cudd_Ref(ddr);
+		// }
 		/* This is going to be a BDD representing the conjunction of the
        negations of each individual transition set condition.  We need
        to add self-loops for all states satisfying this formula (this
@@ -2388,29 +2392,29 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				ddT = ddo;// ddT存储了一个outcome的所有的转换关系
 
 				//      printBDD(ddt);
-				// 包含rewards，使用ADD得表示转换的reward
-				if(my_problem->domain().requirements.rewards){
-					/*
-					 * Add the reward for this transition set to the transition
-					 * reward matrix for the outcome.
-					 */
-					if (valid_reward_function && t.reward() != 0.0) {
-						DdNode* dds = Cudd_BddToAdd(dd_man, ddt);
+				// momo007 2022.05.27 not used 包含rewards，使用ADD得表示转换的reward
+				// if(my_problem->domain().requirements.rewards){
+				// 	/*
+				// 	 * Add the reward for this transition set to the transition
+				// 	 * reward matrix for the outcome.
+				// 	 */
+				// 	if (valid_reward_function && t.reward() != 0.0) {
+				// 		DdNode* dds = Cudd_BddToAdd(dd_man, ddt);
 
-						Cudd_Ref(dds);
-						DdNode* ddv = Cudd_addConst(dd_man, t.reward().double_value());
-						Cudd_Ref(ddv);
-						dda = Cudd_addApply(dd_man, Cudd_addTimes, dds, ddv);
-						Cudd_Ref(dda);
-						Cudd_RecursiveDeref(dd_man, dds);
-						Cudd_RecursiveDeref(dd_man, ddv);
-						ddo = Cudd_addApply(dd_man, Cudd_addPlus, dda, ddr);
-						Cudd_Ref(ddo);
-						Cudd_RecursiveDeref(dd_man, dda);
-						Cudd_RecursiveDeref(dd_man, ddr);
-						ddr = ddo;
-					}
-				}
+				// 		Cudd_Ref(dds);
+				// 		DdNode* ddv = Cudd_addConst(dd_man, t.reward().double_value());
+				// 		Cudd_Ref(ddv);
+				// 		dda = Cudd_addApply(dd_man, Cudd_addTimes, dds, ddv);
+				// 		Cudd_Ref(dda);
+				// 		Cudd_RecursiveDeref(dd_man, dds);
+				// 		Cudd_RecursiveDeref(dd_man, ddv);
+				// 		ddo = Cudd_addApply(dd_man, Cudd_addPlus, dda, ddr);
+				// 		Cudd_Ref(ddo);
+				// 		Cudd_RecursiveDeref(dd_man, dda);
+				// 		Cudd_RecursiveDeref(dd_man, ddr);
+				// 		ddr = ddo;
+				// 	}
+				// }
 				Cudd_RecursiveDeref(dd_man, ddt);
 
 
@@ -2431,7 +2435,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			 * Remove the condition for the current transition set from the
 			 * condition representing uncovered states.
 			 * (用于构造frame axioms)
-			 * ddN存储所有transitionSet的否定con的合取，等价于所有con的析取。
+			 * ddN存储所有transitionSet的否定con的合取。
 			 */
 			DdNode* ddn = Cudd_Not(t.condition_bdd());
 
@@ -2459,7 +2463,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			if (dda != Cudd_ReadLogicZero(dd_man)) {// 非空说明Effect存在转换
 				ddN = dda;
 				// 考虑Frame axioms
-				dda = Cudd_bddAnd(dd_man, ddN, identity_bdd);// 合取x=x'等价的BDD 
+				dda = Cudd_bddAnd(dd_man, ddN, identity_bdd);// 合取X=X'等价的BDD 
 				Cudd_Ref(dda);
 				Cudd_RecursiveDeref(dd_man, ddN);
 				ddN = dda;
@@ -2525,61 +2529,61 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		//       Cudd_RecursiveDeref(dd_man, ddr);
 		//       ddr = dda;
 		//     }
+		// momo007 2022.05.27 not used reward
+		// if(my_problem->domain().requirements.rewards){
+		// 	/*
+		// 	 * Find the transitions that are assigned reward by the current
+		// 	 * outcome, and have also been assigned reward by previous
+		// 	 * outcomes.  The rewards are not allowed to be different for the
+		// 	 * same transition in different outcomes.
+		// 	 */
+		// 	std::cout << "reward requirements[warning!!!]\n";
+		// 	dda = Cudd_bddAnd(dd_man, ddT, ddD);
+		// 	Cudd_Ref(dda);
+		// 	DdNode* ddn = Cudd_Not(dda);
+		// 	Cudd_Ref(ddn);
+		// 	ddt = Cudd_BddToAdd(dd_man, dda);
+		// 	Cudd_Ref(ddt);
+		// 	Cudd_RecursiveDeref(dd_man, dda);
+		// 	DdNode* new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+		// 	Cudd_Ref(new_r);
+		// 	DdNode* old_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddR);
+		// 	Cudd_Ref(old_r);
+		// 	Cudd_RecursiveDeref(dd_man, ddt);
+		// 	if (Cudd_EqualSupNorm(dd_man, new_r, old_r, 1e-10, 0) == 0) {
+		// 		/*
+		// 		 * The current outcome assigns rewards to transitions in
+		// 		 * conflict with reward assignments of previous outcomes.
+		// 		 */
+		// 		throw std::logic_error("action `" + action.name()
+		// 				+ "' has inconsistent transition rewards");
+		// 	}
+		// 	Cudd_RecursiveDeref(dd_man, new_r);
+		// 	Cudd_RecursiveDeref(dd_man, old_r);
 
-		if(my_problem->domain().requirements.rewards){
-			/*
-			 * Find the transitions that are assigned reward by the current
-			 * outcome, and have also been assigned reward by previous
-			 * outcomes.  The rewards are not allowed to be different for the
-			 * same transition in different outcomes.
-			 */
-			std::cout << "reward requirements[warning!!!]\n";
-			dda = Cudd_bddAnd(dd_man, ddT, ddD);
-			Cudd_Ref(dda);
-			DdNode* ddn = Cudd_Not(dda);
-			Cudd_Ref(ddn);
-			ddt = Cudd_BddToAdd(dd_man, dda);
-			Cudd_Ref(ddt);
-			Cudd_RecursiveDeref(dd_man, dda);
-			DdNode* new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
-			Cudd_Ref(new_r);
-			DdNode* old_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddR);
-			Cudd_Ref(old_r);
-			Cudd_RecursiveDeref(dd_man, ddt);
-			if (Cudd_EqualSupNorm(dd_man, new_r, old_r, 1e-10, 0) == 0) {
-				/*
-				 * The current outcome assigns rewards to transitions in
-				 * conflict with reward assignments of previous outcomes.
-				 */
-				throw std::logic_error("action `" + action.name()
-						+ "' has inconsistent transition rewards");
-			}
-			Cudd_RecursiveDeref(dd_man, new_r);
-			Cudd_RecursiveDeref(dd_man, old_r);
-
-
-			/*
-			 * Find the transitions that are assigned reward by the current
-			 * outcome, but have not previously been assigned any reward.  Add
-			 * the reward for these transitions to the transition reward
-			 * matrix for the action.
-			 */
-			dda = Cudd_bddAnd(dd_man, ddT, ddn);
-			Cudd_Ref(dda);
-			Cudd_RecursiveDeref(dd_man, ddn);
-			ddt = Cudd_BddToAdd(dd_man, dda);
-			Cudd_Ref(ddt);
-			Cudd_RecursiveDeref(dd_man, dda);
-			new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
-			Cudd_Ref(new_r);
-			Cudd_RecursiveDeref(dd_man, ddt);
-			Cudd_RecursiveDeref(dd_man, ddr);
-			ddr = Cudd_addApply(dd_man, Cudd_addPlus, new_r, ddR);
-			Cudd_Ref(ddr);
-			Cudd_RecursiveDeref(dd_man, new_r);
-			Cudd_RecursiveDeref(dd_man, ddR);
-			ddR = ddr;
-		}
+		// momo007 2022.05.27 not used reward
+		// 	/*
+		// 	 * Find the transitions that are assigned reward by the current
+		// 	 * outcome, but have not previously been assigned any reward.  Add
+		// 	 * the reward for these transitions to the transition reward
+		// 	 * matrix for the action.
+		// 	 */
+		// 	dda = Cudd_bddAnd(dd_man, ddT, ddn);
+		// 	Cudd_Ref(dda);
+		// 	Cudd_RecursiveDeref(dd_man, ddn);
+		// 	ddt = Cudd_BddToAdd(dd_man, dda);
+		// 	Cudd_Ref(ddt);
+		// 	Cudd_RecursiveDeref(dd_man, dda);
+		// 	new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
+		// 	Cudd_Ref(new_r);
+		// 	Cudd_RecursiveDeref(dd_man, ddt);
+		// 	Cudd_RecursiveDeref(dd_man, ddr);
+		// 	ddr = Cudd_addApply(dd_man, Cudd_addPlus, new_r, ddR);
+		// 	Cudd_Ref(ddr);
+		// 	Cudd_RecursiveDeref(dd_man, new_r);
+		// 	Cudd_RecursiveDeref(dd_man, ddR);
+		// 	ddR = ddr;
+		// }
 
 		/*
 		 * Add the transitions of this outcome to the BDD representing all
@@ -2604,23 +2608,23 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		Cudd_PrintDebug(dd_man, ddP, 2*nvars, 2);
 	}
 	Cudd_RecursiveDeref(dd_man, ddc);
-
-	if(my_problem->domain().requirements.rewards){
-		/*
-		 * Compute reward vector from the transition probability matrix
-		 * and transition reward matrix.
-		 */
-		DdNode* tmp = Cudd_addApply(dd_man, Cudd_addTimes, ddP, ddR);
-		Cudd_Ref(tmp);
-		Cudd_RecursiveDeref(dd_man, ddR);
-		ddR = Cudd_addExistAbstract(dd_man, tmp, col_cube);
-		Cudd_Ref(ddR);
-		Cudd_RecursiveDeref(dd_man, tmp);
-		if (verbosity >= 3) {
-			std::cout << std::endl << "Reward vector\n ";
-			Cudd_PrintDebug(dd_man, ddR, 2*nvars, 2);
-		}
-	}
+	// momo007 2022.05.27 not used reward
+	// if(my_problem->domain().requirements.rewards){
+	// 	/*
+	// 	 * Compute reward vector from the transition probability matrix
+	// 	 * and transition reward matrix.
+	// 	 */
+	// 	DdNode* tmp = Cudd_addApply(dd_man, Cudd_addTimes, ddP, ddR);
+	// 	Cudd_Ref(tmp);
+	// 	Cudd_RecursiveDeref(dd_man, ddR);
+	// 	ddR = Cudd_addExistAbstract(dd_man, tmp, col_cube);
+	// 	Cudd_Ref(ddR);
+	// 	Cudd_RecursiveDeref(dd_man, tmp);
+	// 	if (verbosity >= 3) {
+	// 		std::cout << std::endl << "Reward vector\n ";
+	// 		Cudd_PrintDebug(dd_man, ddR, 2*nvars, 2);
+	// 	}
+	// }
 
 	if(problem.domain().requirements.non_deterministic){
 		// Converts an ADD to a BDD.
