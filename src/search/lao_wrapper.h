@@ -14,13 +14,15 @@ class Search;
 
 #ifdef PPDDL_PARSER
 int not_loop(StateNode* dest, BitVector* visited, StateNode* srcNo);
-void increment_heuristic(StateNode*);
+void increment_heuristic(StateNode*);// use in expand node
 /**
  * momo007 2022.05.25 not need in conformant
  */
 // DdNode * apply_events(DdNode*);
 DdNode* normalize(DdNode*);
-double computeGoalSatisfaction(DdNode*);
+
+double computeGoalSatisfaction(DdNode*);// 判断是否蕴含goal，成立返回1.0，否则0
+
 struct StateFormula;
  DdNode* progress(std::pair<const Action* const, DdNode*>*, 
 		 DdNode* parent);
@@ -43,35 +45,38 @@ int validLifted(DdNode* state, StateNode* prevNode, alt_action *a);
 DdNode* regress(alt_action*, DdNode*);
 #endif
 
-DdNode* progress(DdNode*image, DdNode* parent);
-DdNode* progress(dbn*image, DdNode* parent);
-void update_leaf_h_values();
-void backup_graph();
+DdNode* progress(DdNode*image, DdNode* parent);// 将动作理论和状态的BDD进行合取，遗忘，替换
+DdNode* progress(dbn*image, DdNode* parent);// not used, main中solve_problem->collectInit->progress
+void update_leaf_h_values();// not used
+void backup_graph();// not used
 
 struct action_list_node;
 typedef action_list_node * action_list;
 class goal_list;
 
-void free_bit_vector(BitVector*);
 
-struct StateDistribution *CreateStateDistribution( void );
+struct StateDistribution *CreateStateDistribution( void );// 创建一个默认状态分布(概率为0等)
 void printAction(struct ActionNode* a);
-void CreateHeuristic();
-void DisplayStateList(StateList *list);
-StateList *CreateStateList();  
-BitVector *new_bit_vector(int length);
+void CreateHeuristic();// not used
+void DisplayStateList(StateList *list);// not used
+StateList *CreateStateList();  // not used
+
+BitVector *new_bit_vector(int length);// 创建一个指针长度为 length*int位
+void free_bit_vector(BitVector*);
 int get_bit(BitVector*, int, int);
-DdNode** extractDNFfromBDD(DdNode* node);
-DdNode** extractTermsFromMinterm(DdNode* node);
 void set_bit(BitVector* b, int index);
 
+DdNode** extractDNFfromBDD(DdNode* node);
+DdNode** extractTermsFromMinterm(DdNode* node);
+
+// call in StateNode::expand() -> StateNode::processSuccessors() -> check_loop_conditions()
 int check_loop_conditions(StateNode* src, StateNode* dest, DdNode* state, int currHorizon);
 
-DdNode * stateForward(DdNode*m,DdNode *f);
-DdNode * stateBackward(DdNode*m,DdNode *f);
+DdNode * stateForward(DdNode*m,DdNode *f);// not used
+DdNode * stateBackward(DdNode*m,DdNode *f);// not used
 
 extern action_list available_acts;
-
+// following does work well
 void outputPlan();
 void outputPlanR(StateNode* s, int indent, int, int&,int&, int&, BitVector*, double, std::list<double>*, double, std::list<double>*);
 

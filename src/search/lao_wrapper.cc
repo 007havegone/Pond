@@ -668,8 +668,10 @@ double computeGoalSatisfaction(DdNode* dd){
 	//	std::cout << "[" << std::endl;
 	//				Cudd_CheckKeys(manager);
 	//				std::cout << "|" << std::endl;
-
+	// not used
 	if(my_problem->domain().requirements.probabilistic){
+		std::cout << "assert probability in goal sat[assert]\n";
+		assert(0);
 		//	printBDD(dd);
 		DdNode *tmp1 = Cudd_BddToAdd(manager, Goal->dd);
 		Cudd_Ref(tmp1);
@@ -713,6 +715,7 @@ double computeGoalSatisfaction(DdNode* dd){
 		Cudd_RecursiveDeref(manager, tmp);
 		Cudd_RecursiveDeref(manager, tmp1);
 	}
+	// 判断当前状态是否蕴含目标命题
 	else if(my_problem->domain().requirements.non_deterministic){
 		if(bdd_entailed(manager, dd, Goal->dd))
 			retVal = 1.0;
@@ -1106,7 +1109,7 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 	DdNode* result,*fr = NULL, *fr1= NULL;
 	int i,j;
 
-	// case1: 深度信念网络更新
+	// case1: 深度信念网络更新（原始代码DBN_PROGRESSION置为true）
 	if(DBN_PROGRESSION){
 		std::cout << "progress mode: dbn[waring!!!]\n";
 		//		std::cout << "(" << std::endl;
@@ -1873,7 +1876,8 @@ DdNode * progress(DdNode *image,DdNode *parent){
 	DdNode *tmp1,*tmp2,*result;
 	// 基于概率的progress
 	if(my_problem->domain().requirements.probabilistic){
-		std::cout << "probabilitis progres[waring!!!]\n";
+		std::cout << "probabilitis progres[assert]\n";
+		assert(0);
 		DdNode *ddp = Cudd_addApply(manager, Cudd_addTimes, parent, image);
 		Cudd_Ref(ddp);
 
@@ -1917,7 +1921,9 @@ void printAction(struct ActionNode* a){
 	cout << os.str() <<endl;
 }
 
-
+/**
+ *  从goal出发，点为每个节点创建启发值
+ */
 void CreateHeuristic()
 /****** This doesn't yet work correctly for discounted MDPs ******/
 {
@@ -1943,7 +1949,7 @@ void CreateHeuristic()
 			for(prev = (*node)->PrevActions->begin(); prev != (*node)->PrevActions->end(); prev++){
 				/* If parent has not already been updated, update heuristic and add to list */
 				ActionNode* prevAct = *prev;
-				if(prevAct->PrevState->h == 0.0){
+				if(prevAct->PrevState->h == 0.0){//设置启发值
 					cout << "Updating State " << prevAct->PrevState->StateNo << endl;
 					printBDD(prevAct->PrevState->dd);
 					prevAct->PrevState->f =
@@ -1967,7 +1973,10 @@ void CreateHeuristic()
 ofstream pfout;
 extern int num_lugs;
 static int actNum = 1;
-
+/**
+ * momo007 2025.05.25 bug
+ * 输出plan这块有bug，没办法正确输出
+ */
 void outputPlan(){
 
 	gEndTime = clock();

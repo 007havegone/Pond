@@ -1008,15 +1008,15 @@ FactInfo *new_FactInfo( void )
 BitVector *
 new_bit_vector(int length)
 {
-  BitVector * result = (BitVector *) calloc(length, sizeof(int));
+  BitVector * result = (BitVector *) calloc(length, sizeof(int));// 分配一个初始化为0的指针
 
   num_bitvector++;
 
-  CHECK_PTR(result);
+  CHECK_PTR(result);// 检测是否null
 #ifdef MEMORY_INFO
   gmemory += length;
 #endif
-  memset(result, 0, length);
+  memset(result, 0, length);// 置为0
 
 
 

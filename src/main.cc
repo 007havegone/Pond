@@ -760,7 +760,7 @@ int main(int argc, char *argv[])
 
 		// 读取domain和instance文件进行解析
 		if ((read_file(argv[1]) && (Problem::begin()) != (Problem::end())) || read_file(argv[2]))
-			cout << "done Parsing" << endl;
+			cout << "done Parsing\n==================================" << endl;
 		else
 		{
 			cout << "Parse Error" << endl;
@@ -786,33 +786,36 @@ int main(int argc, char *argv[])
 			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
 
-			if (RBPF_PROGRESSION)
-			{
+			/** 
+			 * momo 007 2022.05.26 
+			 * not used */
+			// if (RBPF_PROGRESSION)
+			// {
+			// 	// int num = (int)ceil(log2(RBPF_SAMPLES));
+			// 	std::cout << "RBPF_PROGRESSION\n";
+			// 	DdNode **variables = new DdNode *[rbpf_bits];
+			// 	rbpf_index_map = new int[(2 * num_alt_facts) + max_num_aux_vars + 2 * rbpf_bits];
+			// 	for (int k = 0; k < rbpf_bits; k++)
+			// 	{
+			// 		variables[k] = Cudd_addIthVar(manager, (2 * num_alt_facts) + max_num_aux_vars + k);
+			// 		Cudd_Ref(variables[k]);
+			// 		rbpf_index_map[(2 * num_alt_facts) + max_num_aux_vars + k] = (2 * num_alt_facts) + max_num_aux_vars + k + rbpf_bits;
+			// 		rbpf_index_map[(2 * num_alt_facts) + max_num_aux_vars + k + rbpf_bits] = (2 * num_alt_facts) + max_num_aux_vars + k;
+			// 	}
+			// 	for (int k = 0; k < (2 * num_alt_facts) + max_num_aux_vars; k++)
+			// 	{
+			// 		rbpf_index_map[k] = k;
+			// 	}
+			// 	RBPF_SAMPLE_CUBE = Cudd_addComputeCube(manager, variables, NULL, rbpf_bits);
+			// 	Cudd_Ref(RBPF_SAMPLE_CUBE);
+			// 	// printBDD(RBPF_SAMPLE_CUBE);
+			// 	delete[] variables;
+			// }
 
-				// int num = (int)ceil(log2(RBPF_SAMPLES));
-				std::cout << "RBPF_PROGRESSION\n";
-				DdNode **variables = new DdNode *[rbpf_bits];
-				rbpf_index_map = new int[(2 * num_alt_facts) + max_num_aux_vars + 2 * rbpf_bits];
-				for (int k = 0; k < rbpf_bits; k++)
-				{
-					variables[k] = Cudd_addIthVar(manager, (2 * num_alt_facts) + max_num_aux_vars + k);
-					Cudd_Ref(variables[k]);
-					rbpf_index_map[(2 * num_alt_facts) + max_num_aux_vars + k] = (2 * num_alt_facts) + max_num_aux_vars + k + rbpf_bits;
-					rbpf_index_map[(2 * num_alt_facts) + max_num_aux_vars + k + rbpf_bits] = (2 * num_alt_facts) + max_num_aux_vars + k;
-				}
-				for (int k = 0; k < (2 * num_alt_facts) + max_num_aux_vars; k++)
-				{
-					rbpf_index_map[k] = k;
-				}
-
-				RBPF_SAMPLE_CUBE = Cudd_addComputeCube(manager, variables, NULL, rbpf_bits);
-				Cudd_Ref(RBPF_SAMPLE_CUBE);
-				// printBDD(RBPF_SAMPLE_CUBE);
-				delete[] variables;
-			}
-
-			cout << "Grounding/Instantiation Time: " << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
 			printBDD(b_initial_state);
+			cout << "Grounding/Instantiation Time: " << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
+			cout << "==================================\n";
+			
 			if ((*my_problem).goal_cnf())
 				bdd_goal_cnf(&goal_cnf);
 			// 非确定性
@@ -829,14 +832,15 @@ int main(int argc, char *argv[])
 				}
 			}
 			// 概率不确定性
-			else if (my_problem->domain().requirements.probabilistic)
-			{
-				std::cout << "probability\n";
-				if (goal_pr_in > 0.0)
-					goal_threshold = goal_pr_in;
-				else
-					goal_threshold = (*my_problem).tau();
-			}
+			/* momo007 2022.05.26 not use */ 
+			// else if (my_problem->domain().requirements.probabilistic)
+			// {
+			// 	std::cout << "probability\n";
+			// 	if (goal_pr_in > 0.0)
+			// 		goal_threshold = goal_pr_in;
+			// 	else
+			// 		goal_threshold = (*my_problem).tau();
+			// }
 
 			if (max_horizon < 0)
 				max_horizon = (int)(*my_problem).horizon();
@@ -855,33 +859,31 @@ int main(int argc, char *argv[])
 			dname = (char *)(new string(my_problem->domain().name()))->c_str();
 			pname = (char *)(new string(my_problem->name()))->c_str();
 
-			if (my_problem->domain().requirements.rewards)
-			{
-				if (total_goal_reward == DBL_MAX && my_problem->goal_reward())
-					total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
-				else if (total_goal_reward == DBL_MAX)
-					total_goal_reward = 0;
-
-				cout << "GOAL REWARD = " << total_goal_reward << endl;
-
-				DdNode *fr = Cudd_BddToAdd(manager, b_goal_state);
-				Cudd_Ref(fr);
-				DdNode *fr1 = Cudd_addConst(manager, total_goal_reward);
-				Cudd_Ref(fr1);
-
-				goal_reward = Cudd_addApply(manager, Cudd_addTimes, fr1, fr);
-				Cudd_Ref(goal_reward);
-				Cudd_RecursiveDeref(manager, fr);
-				Cudd_RecursiveDeref(manager, fr1);
-
-				if (verbosity >= 3)
-				{
-					cout << "goal reward" << endl;
-					printBDD(goal_reward);
-				}
-			}
-			else
-				total_goal_reward = 0.0;
+			/* momo007 2022.05.26 not used rewrite */
+			// if (my_problem->domain().requirements.rewards)
+			// {
+			// 	if (total_goal_reward == DBL_MAX && my_problem->goal_reward())
+			// 		total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
+			// 	else if (total_goal_reward == DBL_MAX)
+			// 		total_goal_reward = 0;
+			// 	cout << "GOAL REWARD = " << total_goal_reward << endl;
+			// 	DdNode *fr = Cudd_BddToAdd(manager, b_goal_state);
+			// 	Cudd_Ref(fr);
+			// 	DdNode *fr1 = Cudd_addConst(manager, total_goal_reward);
+			// 	Cudd_Ref(fr1);
+			// 	goal_reward = Cudd_addApply(manager, Cudd_addTimes, fr1, fr);
+			// 	Cudd_Ref(goal_reward);
+			// 	Cudd_RecursiveDeref(manager, fr);
+			// 	Cudd_RecursiveDeref(manager, fr1);
+			// 	if (verbosity >= 3)
+			// 	{
+			// 		cout << "goal reward" << endl;
+			// 		printBDD(goal_reward);
+			// 	}
+			// }
+			// else
+			// 	total_goal_reward = 0.0;
+			total_goal_reward = 0.0;
 		}
 		catch (const Exception &e)
 		{
@@ -992,6 +994,7 @@ int main(int argc, char *argv[])
 		if (search == NULL)
 			search = new EHC();
 
+		// 初始化动作个数，状态和目标状态
 		search->init(num_alt_acts, b_initial_state, b_goal_state);
 
 		cout << "starting search" << endl;

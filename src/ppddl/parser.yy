@@ -770,7 +770,7 @@ eff_formula : p_effect
             | '(' and eff_formulas ')' { $$ = $3; }
             | '(' forall { prepare_forall_effect(); } '(' variables ')'
                 eff_formula ')' { $$ = make_forall_effect(*$7); }
-| '(' when { require_conditional_effects(); } formula
+            | '(' when { require_conditional_effects(); } formula
                 eff_formula ')' { $$ = &ConditionalEffect::make(*$4, *$5); }
             | '(' probabilistic prob_effs ')' { if($3->size() ==1 && $3->probability(0) == 1.0){ $$=&$3->effect(0);} else $$ = $3; }
             | '(' ONEOF oneof_effs ')' { $$ = $3; }
@@ -942,7 +942,7 @@ horizon_decl : '(' HORIZON NUMBER ')' {problem->set_plan_horizon(*$3);}
 
 init : '(' INIT init_element {std::cout << "init_element " << std::endl;} init_elements ')' 
      | '(' INIT '(' and conjuncts ')' 
-       { problem->set_init_formula(*$5); get_init_elts();}  ')'
+       { std::cout << "init and conjuncts\n"; problem->set_init_formula(*$5); get_init_elts();}  ')'
      ;
 
 
@@ -1621,6 +1621,7 @@ static const pEffect* make_forall_effect(const pEffect& effect) {
 /* Adds an outcome to the given probabilistic effect.*/
 static void add_effect_outcome(ProbabilisticEffect& peffect,
 			        const Rational* p, const pEffect& effect) {
+    std::cout << "*p = " << *p << std::endl; 
     // oneof涉及到non-deterministic效果
 	if((*p == -1.0 || *p == -2.0 || *p == -3.0) && !requirements->non_deterministic){
 		yywarning("assuming `:non-deterministic' requirement");
@@ -1629,7 +1630,7 @@ static void add_effect_outcome(ProbabilisticEffect& peffect,
 	}
     // 一般的probability effect
 	else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) && !requirements->probabilistic_effects) {
-    	yywarning("assuming `:probabilistic-effects' requirement");
+    	yywarning("assuming `:probabilistic-effects' requirement1");
 		requirements->probabilistic_effects = true;
 	} 
     
@@ -1651,7 +1652,7 @@ static void add_feffect_outcome(ProbabilisticEffect& peffect,
 			        const Expression* p, const pEffect& effect) {
    
 	if (!requirements->probabilistic_effects) {
-		yywarning("assuming `:probabilistic-effects' requirement");
+		yywarning("assuming `:probabilistic-effects' requirement2");
 		requirements->probabilistic_effects = true;
 	}
 	/* if (*p < 0 || *p > 1) {

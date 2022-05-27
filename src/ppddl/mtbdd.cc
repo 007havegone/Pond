@@ -521,7 +521,8 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * the conjuncts.
 		 * 这里readone为了和下面的conjunct合取
 		 */
-		DdNode* ddf = Cudd_ReadOne(dd_man);
+		std::cout << "conjunction\n";
+		DdNode *ddf = Cudd_ReadOne(dd_man);
 		Cudd_Ref(ddf);
 
 		for (size_t i = 0; i < cf->size(); i++) {
@@ -535,6 +536,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 			Cudd_RecursiveDeref(dd_man, ddi);
 			ddf = dda;
 		}
+		std::cout << "done conjunction\n";
 		return ddf;
 	}
 	
@@ -545,6 +547,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * the disjuncts.
 		 * 类似前面的，这里clause所以是readzero随后析取
 		 */
+		std::cout << "disjunction\n";
 		DdNode* ddf = Cudd_ReadLogicZero(dd_man);
 		Cudd_Ref(ddf);
 		for (size_t i = 0; i < df->size(); i++) {
@@ -555,6 +558,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 			Cudd_RecursiveDeref(dd_man, ddi);
 			ddf = ddo;
 		}
+		std::cout << "done disjunction\n";
 		return ddf;
 	}
 
@@ -564,14 +568,13 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * The BDD for a one of disjunction
 		 */
 		DdNode* ddx, *ddn;
-
+		std::cout << "oneOfDisjunction\n";
 		if(odf->size() == 2){
 			ddx = formula_bdd(odf->disjunct(0), primed);
 			Cudd_Ref(ddx);
 			ddn = formula_bdd(odf->disjunct(1), primed);
 			Cudd_Ref(ddn);
-			// 上面两行加引用是为了下面的否定？
-			if(ddx == Cudd_Not(ddn)){// 两者对立,oneof(a,!a)= (a or !a) and !(a and !a) = true
+			if(ddx == Cudd_Not(ddn)){// 两者互斥，则等于1
 				Cudd_RecursiveDeref(manager, ddx);
 				Cudd_RecursiveDeref(manager, ddn);
 				ddx = Cudd_ReadOne(manager);
@@ -588,9 +591,10 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		Cudd_Ref(ddx);
 		ddn = Cudd_ReadOne(dd_man);
 		Cudd_Ref(ddn);
-		// 考虑公式的每一个disjunct
+		// 考虑公式的每一个disjunct,利用ITE实现互斥的关系，最后ddx存储oneof情况下的全部disjunct
 		for (size_t i = 0; i < odf->size(); i++) {
-			DdNode* ddi = formula_bdd(odf->disjunct(i), primed);
+			DdNode* ddi = formula_bdd(odf->disjunct(i), primed);// 考虑每个disjunct
+			// Cudd_bddIte实现If-then-else
 			DdNode* ddxp = Cudd_bddIte(dd_man, ddi, ddn, ddx);// (ddi and ddn) or (!ddi and ddx)
 			Cudd_Ref(ddxp);
 
@@ -615,6 +619,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 
 
 		}
+		std::cout << "done oneOfDisjunction\n";
 		return ddx;
 	}
 	const Forall* faf = dynamic_cast<const Forall*>(&formula);
@@ -3076,7 +3081,7 @@ void collectInit(const Problem* problem){
 	//   cout <<endl;
 
 	if(&problem->init_formula()){
-		std::cout << "start to collect the init formula\n";
+		std::cout << "construct the bdd for init formula\n";
 		collect_init_state_variables(problem->init_formula()); // 公式中涉及到的状态变量即atom
 		DdNode* tmp = formula_bdd(problem->init_formula());// 根据初始状态公式创建BDD
 		Cudd_Ref(tmp);
@@ -3097,10 +3102,12 @@ void collectInit(const Problem* problem){
 		b_initial_state = tmp;
 		Cudd_Ref(b_initial_state);
 		Cudd_RecursiveDeref(manager, tmp);
+		printBDD(b_initial_state);
 		return;
 	}
 
-	std::cout << "执行了深度信念网络的相关构造\n";
+	std::cout << "执行了深度信念网络的相关构造[Error]\n";
+	assert(false);
 	// 这部分对于Conformant planning不会执行
 	const Atom *a;
 	if(0)  {
@@ -3979,13 +3986,14 @@ double transform_probability_to_reward(double pr) {
 /* Solves the given problem. */
 DdNode* solve_problem(const Problem& problem,
 		double gamma, double epsilon) {
-
+	/** momo007 2022.05.26 not used
 	gDiscount = (*my_problem).discount();
 	std::cout << "DISCOUNT = " << gDiscount << std::endl;
-
+	*/
 	/*
 	 * Extract the reward function.
 	 */
+	/** momo007 2022.05.26 not used
 	std::pair<Function, bool> rf =
 			problem.domain().functions().find_function("reward");
 	if (rf.second) {
@@ -3994,7 +4002,7 @@ DdNode* solve_problem(const Problem& problem,
 		reward_function = problem.domain().functions().last_function() + 1;
 	}
 	valid_reward_function = rf.second;
-	
+	*/
 	// momo007
 	std::cout << "current domain if define the reward function: " << valid_reward_function << std::endl;
 
@@ -4029,6 +4037,7 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
+	/** momo007 2022.05.26 not used
 	std::cout << "start collect event state variales" << std::endl;
 	for (ActionList::const_iterator ai = problem.events().begin();
 			ai != problem.events().end(); ai++) {
@@ -4048,6 +4057,7 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
+	*/
 	std::cout << "start collect init state variales" << std::endl;
 	for (EffectList::const_iterator ei = problem.init_effects().begin();
 			ei != problem.init_effects().end(); ei++) {
@@ -4072,6 +4082,7 @@ DdNode* solve_problem(const Problem& problem,
 	std::cout << "check the dynamic_atoms and state vairables\n";
 	assert(dynamic_atoms.size() == state_variables.size());
 
+	// not used here
 	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
 		std::cout << "add extract state variable for reward and terminal states" << std::endl;
 		nvars += 2; // for goal and terminal states
@@ -4105,39 +4116,38 @@ DdNode* solve_problem(const Problem& problem,
 		}
 	}
 	std::cout << "DBN_PROGRESSION = " << DBN_PROGRESSION << std::endl;
-	if( /*my_problem->domain().requirements.rewards &&*/ DBN_PROGRESSION){
-		std::cout << "<<开启了DBN_PROGHRESSION>>\n";
-		for (ActionList::const_iterator ai = problem.actions().begin(); ai != problem.actions().end(); ai++)
-		{
-			const Action &action = **ai;
-			int num_aux = 0;
-			double a_min_reward = DBL_MAX;
-			double a_max_reward = -1 * DBL_MAX;
-			action.effect().getMinMaxRewards(&a_min_reward, &a_max_reward, &num_aux);
-			std::cout << " num_aux: " << num_aux << std::endl;
-			if (num_aux > max_num_aux_vars)
-			{
-				max_num_aux_vars = num_aux;
-			}
-
-			if (a_max_reward > max_reward)
-				max_reward = a_max_reward;
-			if (a_min_reward < min_reward)
-				min_reward = a_min_reward;
-		}
-
-	  if(min_reward > 0)
-	    min_reward = 0;
-	  if(max_reward < 0)
-	    max_reward = 0;
-
-	  std::cout 	<< "min: " << min_reward << " max: " << max_reward
-			<< " discount: " << gDiscount << " epsilon: " << gEpsilon
-			<< " num_aux_vars: " << max_num_aux_vars
-			<< std::endl;
-		//std::cout << transform_reward_to_probability(0) << std::endl;
-	  std::cout << "<<DNB_PROGRESSION done>>\n";
-	}
+	/** momo007 2022.05.26 not used */
+	// if( /*my_problem->domain().requirements.rewards &&*/ DBN_PROGRESSION){
+	// 	std::cout << "<<开启了DBN_PROGHRESSION>>\n";
+	// 	for (ActionList::const_iterator ai = problem.actions().begin(); ai != problem.actions().end(); ai++)
+	// 	{
+	// 		const Action &action = **ai;
+	// 		int num_aux = 0;
+	// 		double a_min_reward = DBL_MAX;
+	// 		double a_max_reward = -1 * DBL_MAX;
+	// 		action.effect().getMinMaxRewards(&a_min_reward, &a_max_reward, &num_aux);
+	// 		std::cout << " num_aux: " << num_aux << std::endl;
+	// 		if (num_aux > max_num_aux_vars)
+	// 		{
+	// 			max_num_aux_vars = num_aux;
+	// 		}
+	// 		if (a_max_reward > max_reward)
+	// 			max_reward = a_max_reward;
+	// 		if (a_min_reward < min_reward)
+	// 			min_reward = a_min_reward;
+	// 	}
+	//   if(min_reward > 0)
+	//     min_reward = 0;
+	//   if(max_reward < 0)
+	//     max_reward = 0;
+	//   std::cout 	<< "min: " << min_reward << " max: " << max_reward
+	// 		<< " discount: " << gDiscount << " epsilon: " << gEpsilon
+	// 		<< " num_aux_vars: " << max_num_aux_vars
+	// 		<< std::endl;
+	// 	//std::cout << transform_reward_to_probability(0) << std::endl;
+	//   std::cout << "<<DNB_PROGRESSION done>>\n";
+	// }
+	
 
 	/*
 	 * Iniiatlize CUDD.
@@ -4167,6 +4177,7 @@ DdNode* solve_problem(const Problem& problem,
 	/*
 	 * Collect column variables and compute their cube.
 	 */
+	std::cout << "start to create the cube and identity for state variables" << std::endl;
 	DdNode** col_variables = new DdNode*[nvars];
 	for (int i = 0; i < nvars; i++) {
 		col_variables[i] = Cudd_addIthVar(dd_man, 2*i + 1);
@@ -4198,22 +4209,25 @@ DdNode* solve_problem(const Problem& problem,
 	Cudd_Ref(identity_bdd);
 	delete row_vars;
 	delete col_vars;
+	std::cout << "done to create the cube and identity for state variables" << std::endl;
 
-
-	/*
+	/**
 	 * Construct a BDDs representing goal states.
+	 * momo007 2022.05.26 rewrite only support goal without reward
 	 */
 	DdNode* ddg;
-	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
-		std::cout << "construct the bdd for reward goal" << std::endl;
-		ddg = Cudd_bddIthVar(manager, 2 * (num_alt_facts - 2));
-		Cudd_Ref(ddg);
-	}
-	else{
-		std::cout << "construct the bdd for formula goal" << std::endl;
-		ddg = formula_bdd(problem.goal());
-	}
-	std::cout << "done with goal"<< std::endl;
+	// if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
+	// 	std::cout << "construct the bdd for reward goal" << std::endl;
+	// 	ddg = Cudd_bddIthVar(manager, 2 * (num_alt_facts - 2));
+	// 	Cudd_Ref(ddg);
+	// }
+	// else{
+	// 	ddg = formula_bdd(problem.goal());
+	// }
+
+	std::cout << "construct the bdd for goal formula" << std::endl;
+	ddg = formula_bdd(problem.goal());
+	std::cout << "done with goal" << std::endl;
 	/**
 	 * 设置goal BDD to b_goal_state
 	 */
@@ -4257,11 +4271,12 @@ DdNode* solve_problem(const Problem& problem,
 
 
 		const Action& action = **ai;
-
+		action.print(std::cout, problem.terms());
+		std::cout << "\n";
 
 		action_preconds.insert(std::make_pair<const Action*, DdNode*>(&action,
 				formula_bdd(action.precondition())));
-		// printBDD(action_preconds[&action]);
+		printBDD(action_preconds[&action]);
 		if(LUGTOTEXT)
 			groundActionDD(action);//, problem, ddgp, ddng, col_cube);
 
@@ -4269,6 +4284,7 @@ DdNode* solve_problem(const Problem& problem,
 
 	std::cout << "done constructing action preconditon BDD" << std::endl;
 
+	/** momo007 2022.05.26
 	for (ActionList::const_iterator ai = problem.events().begin();
 		 ai != problem.events().end(); ai++)
 	{
@@ -4280,14 +4296,14 @@ DdNode* solve_problem(const Problem& problem,
 	
 	std::cout << "done constructing event preconditon BDD" << std::endl;
 
-	//std::cout << "done setting action preconds" <<std::endl;
+	*/
 	set_cubes();
 	collectInit(&problem);
 	std::cout << "done constructing the init state BDD" << std::endl;
 
 	Cudd_RecursiveDeref(dd_man, ddgp);
-
-	if (verbosity >= 3) {
+	// verbosity >= 3
+	if (true) {
 
 		for (ActionList::const_iterator ai = problem.actions().begin();
 				ai != problem.actions().end(); ai++) {

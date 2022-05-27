@@ -3075,7 +3075,7 @@ yyreduce:
 
   case 155:
 #line 773 "parser.yy"
-           { require_conditional_effects(); }
+                       { require_conditional_effects(); }
 #line 3080 "parser.cc"
     break;
 
@@ -3368,7 +3368,7 @@ yyreduce:
 
   case 228:
 #line 945 "parser.yy"
-       { problem->set_init_formula(*(yyvsp[-1].conj)); get_init_elts();}
+       { std::cout << "init and conjuncts\n"; problem->set_init_formula(*(yyvsp[-1].conj)); get_init_elts();}
 #line 3373 "parser.cc"
     break;
 
@@ -4782,6 +4782,7 @@ static const pEffect* make_forall_effect(const pEffect& effect) {
 /* Adds an outcome to the given probabilistic effect.*/
 static void add_effect_outcome(ProbabilisticEffect& peffect,
 			        const Rational* p, const pEffect& effect) {
+    std::cout << "*p = " << *p << std::endl; 
     // oneof涉及到non-deterministic效果
 	if((*p == -1.0 || *p == -2.0 || *p == -3.0) && !requirements->non_deterministic){
 		yywarning("assuming `:non-deterministic' requirement");
@@ -4790,7 +4791,7 @@ static void add_effect_outcome(ProbabilisticEffect& peffect,
 	}
     // 一般的probability effect
 	else if ((*p != -1.0 && *p != -2.0 || *p != -3.0) && !requirements->probabilistic_effects) {
-    	yywarning("assuming `:probabilistic-effects' requirement");
+    	yywarning("assuming `:probabilistic-effects' requirement1");
 		requirements->probabilistic_effects = true;
 	} 
     
@@ -4812,7 +4813,7 @@ static void add_feffect_outcome(ProbabilisticEffect& peffect,
 			        const Expression* p, const pEffect& effect) {
    
 	if (!requirements->probabilistic_effects) {
-		yywarning("assuming `:probabilistic-effects' requirement");
+		yywarning("assuming `:probabilistic-effects' requirement2");
 		requirements->probabilistic_effects = true;
 	}
 	/* if (*p < 0 || *p > 1) {
