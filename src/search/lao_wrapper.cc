@@ -1133,17 +1133,20 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 
 		// 动作的BDD为空
 		if(t == Cudd_ReadZero(manager) || t == Cudd_ReadLogicZero(manager)){
-			if(my_problem->domain().requirements.probabilistic)
+			std::cout << "action " << a->first->name() << "BDD is zeor\n";
+			if (my_problem->domain().requirements.probabilistic)
 				return Cudd_ReadZero(manager);
 			else if(my_problem->domain().requirements.non_deterministic)
 				return Cudd_ReadLogicZero(manager);
 		}
-
+		std::cout << "before perform the action state bdd\n";
+		printBDD(parent);
 		// 使用action的BDD进行遗忘更新
 		result = progress(t, parent);
 		Cudd_RecursiveDeref(manager,t);
-
-
+		std::cout << "After perform the action\n";
+		printBDD(result);
+		std::cout << "@@@@@@@@@@@@@@@@@@@@@@\n";
 		// 定义了event，进一步更新
 		// DdNode *ex_result;
 		// if(event_preconds.size() > 0){

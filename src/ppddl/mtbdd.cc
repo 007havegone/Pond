@@ -2210,10 +2210,15 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	}
 	std::cout << "done mutex" << std::endl;
 
-	if(!event)
+	if(!event){
+		std::cout << "store the action outcome bdd into table\n";
 		action_outcomes.insert(std::pair<const Action*, OutcomeSet*>(&action, outcomes));
-	else
-		event_outcomes.insert(std::pair<const Action*, OutcomeSet*>(&action, outcomes));
+
+	}
+	else{
+		std::cout << "store the event outcome bdd into table\n";
+		event_outcomes.insert(std::pair<const Action *, OutcomeSet *>(&action, outcomes));
+	}
 
 
 	if (verbosity >= 3) {
@@ -2223,8 +2228,11 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		print_outcomes(std::cout, *outcomes);
 	}
 
-	if(LUGTOTEXT)
+	if(LUGTOTEXT){
+		std::cout << "Error mtbdd\n";
+		assert(0);
 		return std::make_pair(Cudd_ReadZero(manager), Cudd_ReadZero(manager));
+	}
 
 	/*
 	 * Construct MTBDD representations of the transition probability
@@ -2615,6 +2623,8 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	}
 
 	if(problem.domain().requirements.non_deterministic){
+		// Converts an ADD to a BDD.
+		// Replaces all discriminants STRICTLY greater than value with 1, and all other discriminants with 0.
 		DdNode *nd = Cudd_addBddStrictThreshold(manager,ddP,0.0);
 		Cudd_Ref(nd);
 		Cudd_RecursiveDeref(manager, ddP);
@@ -3075,10 +3085,10 @@ void collectInit(const Problem* problem){
 	 * Construct an ADD representing initial states.
 	 */
 
-	//   problem->init_formula().print(cout, problem->domain().predicates(),
-	//  				 problem->domain().functions(),
-	//  				 problem->terms());
-	//   cout <<endl;
+	problem->init_formula().print(std::cout, problem->domain().predicates(),
+			problem->domain().functions(),
+			problem->terms());
+	std::cout << std::endl;
 
 	if(&problem->init_formula()){
 		std::cout << "construct the bdd for init formula\n";
@@ -3087,9 +3097,9 @@ void collectInit(const Problem* problem){
 		Cudd_Ref(tmp);
 		
 		for(int i = 0; i < num_alt_facts; i++){//考虑每个状态变量
-			const Atom *a = (*(dynamic_atoms.find(i))).second;
-			if(init_variables.find(a) == init_variables.end()){
-				// 创建第i个状态变量的否定，将其与初始状态和取
+			const Atom *a = (*(dynamic_atoms.find(i))).second;// 查看该状态变量的atom
+			if(init_variables.find(a) == init_variables.end()){// 查找该公式是否涉及该状态变量
+				// clsoed word，没有涉及的值置为0
 				DdNode* tmp1 = Cudd_bddAnd(manager, tmp, Cudd_Not(Cudd_bddIthVar(manager, 2*i)));
 				Cudd_Ref(tmp1);
 				Cudd_RecursiveDeref(manager, tmp);
@@ -4302,8 +4312,7 @@ DdNode* solve_problem(const Problem& problem,
 	std::cout << "done constructing the init state BDD" << std::endl;
 
 	Cudd_RecursiveDeref(dd_man, ddgp);
-	// verbosity >= 3
-	if (true) {
+	if (verbosity >= 3) {
 
 		for (ActionList::const_iterator ai = problem.actions().begin();
 				ai != problem.actions().end(); ai++) {
