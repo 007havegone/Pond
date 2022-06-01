@@ -15,11 +15,11 @@ public:
 
 	virtual void search();
 
-	virtual void setup(StateNode* start);
-	virtual bool step() = 0;
+	virtual void setup(StateNode* start);// 初始化
+	virtual bool step() = 0;// 不同更新一个结点的方法
 	virtual double getQuality() = 0;
-	virtual void store();
-	virtual void recall();
+	virtual void store();// 存储当前sta的最佳action
+	virtual void recall();// 取出恢复sta的最佳action
 	// 应该表示某个状态完成了搜索
 	virtual void commit();
 	virtual void cleanup();

@@ -52,7 +52,7 @@ void LAOStar::search(){
 
     /* Expand best partial solution */
     NumExpandedStatesIter = 0;
-    ExpandedStateList = new StateList;
+    ExpandedStateList = new StateList;// 每轮迭代创建一个新的
     /* 利用lastBackup更新 */
     ExpandSolution(lastBackup, 0, 0, 1.0);  
 
@@ -96,7 +96,59 @@ void LAOStar::search(){
     printf("  NumSolutionStates: %d  NumExpandedStates: %d\n", NumSolutionStates, NumExpandedStates);
   }
 }
+// void LAOStar::search(){
+//   StateList *AncestorList;
+//   struct StateNode *front;
+//   std::set<StateNode*, StateComparator> open;
+//   std::set<StateNode*, StateComparator> closed;
+//   open.clear();
+//   open.key_comp().init(StateComparator::HEUR);
+//   closed.key_comp().init(StateComparator::HEUR);
+  
+//   StateNode *front = NULL;
+//   // 遍历每个节点
+//   assert(Start->Solved <= 0);
+//   Start->BestPrevAction = NULL;
+//   Start->h = 0;
+//   Start->g = 0;
+//   open.insert(Start);
 
+//   while(!open.empty())
+//   {
+//     front = *open.begin();
+//     if(front->isGoal() || front->Solved == 0)
+//     {
+// 			cout << "\t" << front->StateNo << "\t" << front->g << "\t" << front->h << "\t"
+// 					<< front->goalSatisfaction << "\t" << front->prReached << endl;
+//       break;
+//     }
+//     open.erase(open.begin());
+//     // 终端结点
+//     if(front->Terminal>0)
+//     {
+//       front->Solved = 0;
+//       front->BestAction = NULL;
+//       continue;
+//     }
+//     // 当前结点还未拓展
+//     if(front->Expanded <=0)
+//     {
+//       for (ActionNodeList::iterator act_it = front->NextActions->begin(); act_it != front->NextActions->end(); act_it++)
+//       {
+//         ActionNode *action = *act_it;
+//         double new_g = front->g + 1; //默认动作的cost = 1
+//         double new_h = 0;
+
+//         StateNode *successor = computeSuccessors(std::make_pair((action->act,action->act));
+//         successor->g = new_g;
+//         successor->h = new_h;
+//         if(closed.find(successor)!=open.end())
+//           continue;
+//         open.insert(successor);
+//       }
+//     }
+//   }
+// }
 /* Returns list of expanded states */
 /* if num expanded nodes exceeds limit, break */
 void LAOStar::ExpandSolution(struct StateNode *node, int currHorizon, int dfs_depth, double path_pr){

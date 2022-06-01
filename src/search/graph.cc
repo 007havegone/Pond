@@ -117,6 +117,10 @@ StateNode::~StateNode(){
 		delete PrevActions;
 }
 
+/**
+ * momo007 2022.06.01
+ * waring!!!, need rewrite
+ */
 bool StateNode::isGoal(){
 	return (max_horizon >  0 && horizon >= max_horizon)
 			|| (max_horizon <= 0 && goalSatisfaction >= search_goal_threshold);
@@ -589,6 +593,7 @@ void StateNode::addAllActions(){
 
 		ActionNode* action = addAction((*a).first->name(), true, false);
 		assert(action != NULL);
+		std::cout << "addAction\n";
 	}
 	if(wasNotExpanded)
 		cout << expandedStates << ":";
@@ -613,11 +618,14 @@ ActionNode* StateNode::getAction(const string name, bool addIfNeeded){
 }
 
 ActionNode* StateNode::addAction(const string name, bool reuseIfExists, bool displayState){
-	if(name.compare("noop_action") == 0)
+	if(name.compare("noop_action") == 0){
+		std::cout << "noop_action\n";
 		return NULL;
+	}
+		
 
 	ActionNode* action = NULL;
-	if(reuseIfExists){
+	if(reuseIfExists){// 该动作已经记录过
 		action = getAction(name, false);
 		if(action != NULL){
 			if(displayState)
@@ -630,21 +638,24 @@ ActionNode* StateNode::addAction(const string name, bool reuseIfExists, bool dis
 	for(a = action_preconds.begin(); a != action_preconds.end() && (*a).first->name().compare(name) != 0; a++);
 	if(a == action_preconds.end())
 		return NULL;
-
+	// 创建action结点
 	action = new ActionNode();
+	// 设置动作结点的前置状态和动作
 	action->PrevState = this;
 	action->act = (*a).first;
 
 	if(NextActions == NULL)
 		NextActions = new ActionNodeList();
 	NextActions->push_back(action);
-
-	if(Expanded == 0)
+	if (Expanded == 0)
 		expandedStates++;
-	if(displayState){
+	displayState = true;
+	if (displayState)
+	{
 		if(Expanded == 0)
 			cout << expandedStates << ":";
 		cout << "\t" << StateNo << "\t" << g << "\t" << h << "\t" << goalSatisfaction << "\t" << prReached << endl;
+
 	}
 	Expanded++;
 
@@ -994,21 +1005,27 @@ StateNode* ActionNode::newSample(){
 }
 
 StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observations){
-	if(observations == NULL){
-		action_dbn(*act);
-	  map<const Action*, list<map<const pEffect*, DdNode*>*>* >::iterator ob = action_observations_cpt.find(act);
-	  if(ob == action_observations_cpt.end() || (observations = ob->second) == NULL)
-			return NULL;
-	}
-
+	/**
+	 * momo007 not used dbn node
+	 */
+	// if(observations == NULL){
+	// 	std::cout << "action dbd new Sample[warring]\n";
+	// 	assert(0);
+	// 	action_dbn(*act);
+	// 	map<const Action *, list<map<const pEffect *, DdNode *> *> *>::iterator ob = action_observations_cpt.find(act);
+	// 	if (ob == action_observations_cpt.end() || (observations = ob->second) == NULL)
+	// 		return NULL;
+	// }
+	// 查找动作判断其满足情况
 	map<const Action*, DdNode*>::iterator fr = action_preconds.find(act);
 	assert(fr != action_preconds.end());
 	if(!add_bdd_entailed(manager, PrevState->dd, fr->second)){
 		return NULL;
 	}
-
-	pair<const Action* const, DdNode*> act_pair(act, fr->second);
-	DdNode* causativeSuccessor = progress(&act_pair, PrevState->dd);
+	std::cout << "current sat the action precondition" << act->name() << "\n";
+	pair<const Action *const, DdNode *> act_pair(act, fr->second);// 动作及其前提条件pair
+	std::cout << "start forggeting to get next successor states\n";
+	DdNode *causativeSuccessor = progress(&act_pair, PrevState->dd);
 	Cudd_Ref(causativeSuccessor);
 
 	int num_successors = 0;
@@ -1018,18 +1035,24 @@ StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observatio
 	list<double> probabilities;									// probabilities of making observations
 
 	if(causativeSuccessor == Cudd_ReadZero(manager))
+	{
+		std::cout << "split the zero bdd\n";
 		num_successors = split(observations, PrevState->dd, &successors, &creasons, &probabilities, 1);
-	else
+	}
+		
+	else{
+		std::cout << "split the bdd\n";
 		num_successors = split(observations, causativeSuccessor, &successors, &creasons, &probabilities, 1);
+	}
 
 //	Cudd_RecursiveDeref(manager, causativeSuccessor);		// Keep or Comment??
 
-	assert(num_successors == 1);
+	assert(num_successors == 1);// 这里为什么一定要保证为1?
 	assert(Cudd_ReadZero(manager) != *(successors.begin()));
 
-	list<DdNode*>::iterator o = successors.begin();
-	list<set<const pEffect*>*>::iterator cr = creasons.begin();
-	list<double>::iterator v = probabilities.begin();
+	list<DdNode*>::iterator o = successors.begin();// 考虑后继状态
+	list<set<const pEffect*>*>::iterator cr = creasons.begin();// 考虑observation
+	list<double>::iterator v = probabilities.begin();// 考虑observation的prob
 
 	StateNode* state = NULL;
 //	cout << "A" << ActionNo;
@@ -1154,6 +1177,10 @@ void StateComparator::init(CompareMode mode){
 	this->mode = mode;
 }
 
+/**
+ * 状态比较函数
+ * 根据comparator的类型进行比较
+ */
 bool StateComparator::operator() (StateNode *lhs, StateNode *rhs) const{
 	if(mode == HEUR && lhs->h != rhs->h)// 启发式值比较h
 		return (lhs->h < rhs->h);

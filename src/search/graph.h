@@ -59,7 +59,7 @@ public:
 */
 
   double forwardUpdate();// 状态节点前向更新
-  double backwardUpdate(bool setBestAct = false);
+  double backwardUpdate(bool setBestAct = false);//后向更新
 /**
  * valueUpdate调用 forwardUpdate和 backwardUpdate进行更新，涉及涉及概率，忽略
  * momo007 2022.05.25 not use comment

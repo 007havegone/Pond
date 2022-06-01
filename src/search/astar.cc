@@ -23,7 +23,7 @@ void AStar::setup(StateNode* start){
 	open.clear();
 
 	next = start;
-	next->BestPrevAction = NULL;
+	next->BestPrevAction = NULL;//最佳action值为空
 	open.insert(next);// 插入节点next
 
 	first = true;//第一次调用
@@ -45,14 +45,14 @@ bool AStar::step(){
 			cout << "Dead end!\n";
 		if(next->isGoal())
 			cout << "Found branch!\n";
-		return false;
+		return false;// 返回false停止搜索
 	}
 
 	open.erase(open.begin());
 	closed.insert(next);
 	// 添加所有满足当前状态动作到ActionNodeList中
 	next->addAllActions();
-	// 考虑每个动作
+	// 考虑每个动作结点
 	for(ActionNodeList::iterator act_it = next->NextActions->begin(); act_it != next->NextActions->end(); act_it++){
 		ActionNode* action = *act_it;
 		StateNode* child = action->newSample();

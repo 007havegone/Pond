@@ -82,6 +82,7 @@ void Search::init(int num_acts, DdNode *b_initial_state, DdNode *b_goal_state)
 
 	//  printBDD(Start->dd);
 
+	// conformant planning无概率，这部分可能需要修改
 #ifdef PPDDL_PARSER
 	if (OPTIMIZE_REWARDS && OPTIMIZE_PROBABILITY)
 	{ // cost
@@ -128,14 +129,20 @@ void Search::init(int num_acts, DdNode *b_initial_state, DdNode *b_goal_state)
 			NUMBER_OF_MGS = random_walk_sample_size(Start, NUMBER_OF_MGS);
 	}
 
+	/**
+	 * momo007 2022.06.01 not used, 
+	 * only use partial obs(Contigent) and null obs(Conformant)
+	 */
 	// insert dummy action that partitions starting belief
 	if (OBSERVABILITY == OBS_FULL && (numStates = (int)(Cudd_CountMinterm(manager, Start->dd, 2 * num_alt_facts) - pow(2, num_alt_facts))) && numStates > 1)
 	{
 		cout << "FO" << endl;
+		assert(0);
 		list<DdNode *> obs_result;
 
 #ifdef PPDDL_PARSER
 		list<double> values;
+		// momo007 need rewrite to bdd
 		get_states_from_add(Start->dd, &obs_result, &values);
 #else
 		get_states_from_bdd(Start->dd, &obs_result);
@@ -149,7 +156,7 @@ void Search::init(int num_acts, DdNode *b_initial_state, DdNode *b_goal_state)
 #else
 		actionNode->act = new alt_action();
 #endif
-
+		// 添加初始状态节点和动作结点的连接
 		actionNode->NextState = NULL;
 		actionNode->PrevState = Start;
 		Start->NextActions = new ActionNodeList;
@@ -212,17 +219,25 @@ void Search::init(int num_acts, DdNode *b_initial_state, DdNode *b_goal_state)
 
 		if (!USE_CARD_GRP && (LUG_FOR == SPACE || LUG_FOR == INCREMENTAL) && HEURISTYPE != NONE && HEURISTYPE != CARD && num_lugs == 0)
 		{
+			std::cout << "LUG_FOR = SPACE\n";
 			getHeuristic(NULL, NULL, 0);
 			//  printBDD(Start->dd);
 		}
 		else if (USE_CARD_GRP)
+		{
+			std::cout << "USE CARD GRP\n";
 			HEURISTYPE = CARD;
+		}
 
 		states.push_back(Start);
-		if (type == MOLAO)
+		if (type == MOLAO){
+			std::cout << "MOLAO heuristic[waring!!!]\n";
+			assert(0);
 			getMOLAOHeuristics(&states, Start);
+		}
 		else if (!DEFERRED_EVALUATION)
 		{
+			std::cout << "!DEFERRED EVALUATION\n";
 			getHeuristic(&states, Start, 0);
 			cout << "H(I) = " << Start->h << endl;
 		}

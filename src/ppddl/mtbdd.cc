@@ -2462,12 +2462,13 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			Cudd_RecursiveDeref(dd_man, ddN);
 			if (dda != Cudd_ReadLogicZero(dd_man)) {// 非空说明Effect存在转换
 				ddN = dda;
-				// 考虑Frame axioms
+				// dda计算得到Frame axioms
 				dda = Cudd_bddAnd(dd_man, ddN, identity_bdd);// 合取X=X'等价的BDD 
 				Cudd_Ref(dda);
 				Cudd_RecursiveDeref(dd_man, ddN);
 				ddN = dda;
-				DdNode* ddo = Cudd_bddOr(dd_man, ddN, ddT);// 析取到outcome上
+				// Frame axioms析取到outcome set中
+				DdNode* ddo = Cudd_bddOr(dd_man, ddN, ddT);
 				Cudd_Ref(ddo);
 				Cudd_RecursiveDeref(dd_man, ddN);
 				Cudd_RecursiveDeref(dd_man, ddT);
@@ -2476,6 +2477,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				Cudd_RecursiveDeref(dd_man, dda);
 			}
 		}
+		// 至此，完成了一个outcome的action axioms,
 		/*
 		 * Multiply the transition matrix for the current outcome with the
 		 * probability of the outcome, and add the result to the
@@ -2483,22 +2485,24 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		 */
 		//    cout << "pr = " << outcomes->probabilities[i].double_value() << endl;
 		//    printBDD(ddT);
-		DdNode* ddp = Cudd_BddToAdd(dd_man, ddT);// ddp当前outcome的BDD转ADD
-		Cudd_Ref(ddp);
-		DdNode* ddk = Cudd_addConst(dd_man,// ddk当前outcome的执行概率值
-				outcomes->probabilities[i].double_value());
-		Cudd_Ref(ddk);
-		// 更新当前outcome每种情况的概率
-		DdNode* ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddp, ddk);
-		Cudd_Ref(ddt);
-		Cudd_RecursiveDeref(dd_man, ddp);
-		Cudd_RecursiveDeref(dd_man, ddk);
-		// 将当前outcome添加到所有的outcome的ADD中
-		ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddt, ddP);
-		Cudd_Ref(ddp);
-		Cudd_RecursiveDeref(dd_man, ddt);
-		Cudd_RecursiveDeref(dd_man, ddP);
-		ddP = ddp;
+		// DdNode* ddp = Cudd_BddToAdd(dd_man, ddT);// ddp当前outcome的BDD转ADD
+		// Cudd_Ref(ddp);
+		// DdNode* ddk = Cudd_addConst(dd_man,// ddk当前outcome的执行概率值
+		// 		outcomes->probabilities[i].double_value());
+		// Cudd_Ref(ddk);
+		// // 更新当前outcome每种情况的概率
+		// DdNode* ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddp, ddk);
+		// Cudd_Ref(ddt);
+		// Cudd_RecursiveDeref(dd_man, ddp);
+		// Cudd_RecursiveDeref(dd_man, ddk);
+		// // 将当前outcome添加到所有的outcome的ADD中
+		// ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddt, ddP);
+		// Cudd_Ref(ddp);
+		// Cudd_RecursiveDeref(dd_man, ddt);
+		// Cudd_RecursiveDeref(dd_man, ddP);
+		// ddP = ddp;
+		// momo007 done
+
 		//    printBDD(ddP);
 		//dan     /*
 		//      * Construct transition reward matrix from goal condition for goal
@@ -2625,19 +2629,19 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	// 		Cudd_PrintDebug(dd_man, ddR, 2*nvars, 2);
 	// 	}
 	// }
-
-	if(problem.domain().requirements.non_deterministic){
-		// Converts an ADD to a BDD.
-		// Replaces all discriminants STRICTLY greater than value with 1, and all other discriminants with 0.
-		DdNode *nd = Cudd_addBddStrictThreshold(manager,ddP,0.0);
-		Cudd_Ref(nd);
-		Cudd_RecursiveDeref(manager, ddP);
-		ddP = nd;
-		Cudd_Ref(ddP);
-		Cudd_RecursiveDeref(manager, nd);
-	}
+	// momo007 2022.05.27 not used reward
+	// if(problem.domain().requirements.non_deterministic){
+	// 	// Converts an ADD to a BDD.
+	// 	// Replaces all discriminants STRICTLY greater than value with 1, and all other discriminants with 0.
+	// 	DdNode *nd = Cudd_addBddStrictThreshold(manager,ddP,0.0);
+	// 	Cudd_Ref(nd);
+	// 	Cudd_RecursiveDeref(manager, ddP);
+	// 	ddP = nd;
+	// 	Cudd_Ref(ddP);
+	// 	Cudd_RecursiveDeref(manager, nd);
+	// }
 	std::cout << "####### end action mtbdds######\n";
-	return std::make_pair(ddP, ddR);
+	return std::make_pair(ddD, ddR);
 }
 
 

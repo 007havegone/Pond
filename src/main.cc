@@ -821,7 +821,7 @@ int main(int argc, char *argv[])
 			// 非确定性
 			if (my_problem->domain().requirements.non_deterministic)
 			{
-				std::cout << "nondet\n";
+				std::cout << "nondet goal\n";
 				goal_threshold = 1.0;
 				if (SENSORS)
 				{
