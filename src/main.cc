@@ -339,7 +339,7 @@ int main(int argc, char *argv[])
 				}
 
 				// 是否启用线上模式，忽略
-				if (strcmp(argv[i], "-on") == 0)
+				/*if (strcmp(argv[i], "-on") == 0)
 				{
 					string addr = "";
 					int port = -1;
@@ -374,7 +374,7 @@ int main(int argc, char *argv[])
 					if (port > -1)
 						server_port = port;
 					online_search = true;//该参数开启online模式，默认false
-				}
+				}*/
 
 				if (strcmp(argv[i], "-R") == 0)
 				{
@@ -981,16 +981,17 @@ int main(int argc, char *argv[])
 
 		else
 		{*/
-			if (step_search != NULL)//如果参数使用了step_search的子类
-			{
-				if (search == NULL)
-					search = step_search;
-				else
-					delete step_search;
-				step_search = NULL;
-			}
+		if (step_search != NULL)//如果参数使用了step_search的子类
+		{
+			if (search == NULL)
+				search = step_search;
+			else
+				delete step_search;
+			step_search = NULL;
+		}
 		/*}*/
-		// 没有指定搜索算法，默认强制爬山算法
+		
+		// 没有指定搜索算法，则默认强制爬山算法
 		if (search == NULL)
 			search = new EHC();
 
@@ -1158,7 +1159,7 @@ void set_cubes()
 	}
 }
 
-extern const char *getAction(struct ActionNode *a);
+// extern const char *getAction(struct ActionNode *a);
 
 /**
  * momo007 2022.05.12 

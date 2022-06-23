@@ -2978,7 +2978,7 @@ double build_forward_get_h(DdNode* init,
 					tmp->valid = 0;
 					if(action_transitions.count(tmp->action) == 0){
 						action_transitions.insert(std::make_pair(tmp->action, Cudd_ReadZero(manager)));
-						action_rewards.insert(std::make_pair(tmp->action, Cudd_ReadZero(manager)));
+						// action_rewards.insert(std::make_pair(tmp->action, Cudd_ReadZero(manager)));
 					}
 				}
 			}

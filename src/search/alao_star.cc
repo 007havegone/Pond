@@ -34,11 +34,13 @@ bool ALAOStar::step(){
 }
 
 double ALAOStar::getQuality(){
-	return next->goalSatisfaction;	// Assuming conformant search
-//	return next->prReached * next->expDiscRew;
-//	return start->expDiscRew;
-//	static double c = 0.0;
-//	return ++c;
+	std::cout << "ALAOStar::getQuality()\n";
+	assert(0);
+	return next->goalSatisfaction; // Assuming conformant search
+	//	return next->prReached * next->expDiscRew;
+	//	return start->expDiscRew;
+	//	static double c = 0.0;
+	//	return ++c;
 }
 
 void ALAOStar::cleanup(){

@@ -56,7 +56,7 @@ void StepSearch::cleanup(){
 	StateNode* child;
 	while(!open.empty()){
 		state = open.front(); open.pop();
-
+		// 每个结点的best和solve制空。
 		if(state->Solved <= 0 && state->BestAction != NULL){
 			state->BestAction = NULL;
 			state->Solved = 0;
