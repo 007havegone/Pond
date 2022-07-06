@@ -40,7 +40,7 @@ LAOStar::LAOStar()
 void LAOStar::search(){
   StateList *AncestorList;
   struct StateNode *node;
-  lastBackup = Start;
+  lastBackup = Start;//使用global.cc定义的start
   // 获取f= h+g
   dfs_limit = (int)Start->f;
   for(Iteration = 1; ; Iteration++){// iteration until reach the goal or Convergence
@@ -325,23 +325,25 @@ void LAOStar::DisplaySolution(){
 /* Set NumSolutionStates to zero before calling this recursive function */
 StateList* LAOStar::DisplaySolutionRecursive(struct StateNode *node){
   struct StateDistribution *successor;
-
+  // 打印当前结点的信息
   printf("\nindex %d State f %f, g %f, h %f\n",
      node->StateNo,
      node->f,
      node->g,
      node->h
      );
-
+  // 打印goal满足情况
   printf("GoalSatisfaction = %f\n", node->goalSatisfaction);
   NumSolutionStates++;
+  // 不是终端结点
   if(node->Terminal == 0 && node->BestAction != NULL){
+    // 显示最佳action
     printf("Best Act = \n");
     printAction(node->BestAction);
-
+    // 打印该action的后继状态分布
     for(successor = node->BestAction->NextState; successor != NULL; successor = successor->Next)
       printf("Next state = %d, Prob = %f\n",  successor->State->StateNo, successor->Prob);
-
+    // 如果该状态还未超过最大迭代数，递归迭代
     for(successor = node->BestAction->NextState; successor != NULL; successor = successor->Next){
       if(successor->State->Update < Iteration){
         successor->State->Update = Iteration;

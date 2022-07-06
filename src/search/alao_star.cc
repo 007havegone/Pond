@@ -21,14 +21,16 @@ void ALAOStar::setup(StateNode* start){
 	StepSearch::setup(start);
 	next = start;
 }
-
+/**
+ * 父类StepSearch调用step进行更新，直到收敛或者没有结点可以更新
+ */
 bool ALAOStar::step(){
 	if(next == NULL || next->isGoal())
 		return false;
 
-	next->expand();
-	valueIteration();
-	next = getBestTip();
+	next->expand();// 拓展结点
+	valueIteration();// value迭代
+	next = getBestTip();// 获取新的结点准备更新
 
 	return true;
 }

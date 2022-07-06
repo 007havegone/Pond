@@ -125,7 +125,9 @@ struct Problem {
   /* Returns the initial formula of this problem. */
   const StateFormula& init_formula() const { return *init_formula_; }
 
-  /* Returns the goal of this problem. */
+  /* Returns the goal of this problem. 
+      关键函数，返回目标状态的公式
+  */
   const StateFormula& goal() const { return *goal_; }
 
   /* Returns the goal reward for this problem, or NULL if no explicit

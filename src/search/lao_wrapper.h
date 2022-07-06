@@ -19,11 +19,12 @@ void increment_heuristic(StateNode*);// use in expand node
  * momo007 2022.05.25 not need in conformant
  */
 // DdNode * apply_events(DdNode*);
-DdNode* normalize(DdNode*);
+DdNode* normalize(DdNode*);// not used
 
 double computeGoalSatisfaction(DdNode*);// 判断是否蕴含goal，成立返回1.0，否则0
 
 struct StateFormula;
+// 该动作更新接口，调用计算action的转换BDD，随后调用下面的progress(DdNode*image, DdNode* parent)接口
  DdNode* progress(std::pair<const Action* const, DdNode*>*, 
 		 DdNode* parent);
 //int split(std::map<const StateFormula*, DdNode*>,//std::pair<const Action* const, DdNode*>*, 
@@ -35,7 +36,7 @@ int split(std::list<std::map<const pEffect*, DdNode* >*>* a,
 	  std::list<double>* probabilities,
 	  int numSamples = 1
 	  );
-double computeReward(std::pair<const Action* const, DdNode*>* action, DdNode* successor, DdNode* parent);
+// double computeReward(std::pair<const Action* const, DdNode*>* action, DdNode* successor, DdNode* parent);
 #else
 DdNode* progress(alt_action*, 
 		 DdNode* parent);
@@ -56,16 +57,18 @@ class goal_list;
 
 
 struct StateDistribution *CreateStateDistribution( void );// 创建一个默认状态分布(概率为0等)
-void printAction(struct ActionNode* a);
+void printAction(struct ActionNode* a);// 后续可以用到
 void CreateHeuristic();// not used
 void DisplayStateList(StateList *list);// not used
 StateList *CreateStateList();  // not used
 
+// lug.cc中使用和 check_loop_conditions()中使用
 BitVector *new_bit_vector(int length);// 创建一个指针长度为 length*int位
 void free_bit_vector(BitVector*);
 int get_bit(BitVector*, int, int);
 void set_bit(BitVector* b, int index);
 
+// 后续输出状态信息可能用到
 DdNode** extractDNFfromBDD(DdNode* node);
 DdNode** extractTermsFromMinterm(DdNode* node);
 

@@ -13,7 +13,7 @@ protected:
 public:
 	virtual ~StepSearch();
 
-	virtual void search();
+	virtual void search();// override
 
 	virtual void setup(StateNode* start);// 初始化
 	virtual bool step() = 0;// 不同更新一个结点的方法

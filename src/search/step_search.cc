@@ -17,8 +17,8 @@ StepSearch::~StepSearch(){
 }
 
 void StepSearch::search(){
-	setup(Start);
-	while(step());
+	setup(Start);// 调用astar的初始化
+	while(step());//启用step进行搜索
 	cleanup();
 }
 

@@ -162,12 +162,12 @@ protected:
  */
 class StateDistribution{
 public:
-  struct StateNode*         State;
-  DdNode*                   reason;
-  std::set<const pEffect*>*         creason;
-  double                    Prob;
-  double                    Reward;
-  struct StateDistribution* Next;
+  struct StateNode*         State;// 状态结点
+  DdNode*                   reason;// effect BDD?
+  std::set<const pEffect*>*         creason;// effect公式
+  double                    Prob;// 概率
+  double                    Reward;// 奖赏
+  struct StateDistribution* Next;// 下一个分布
 };
 
 class StateComparator{
@@ -178,7 +178,7 @@ enum CompareMode{
   EXP_EGS,                // Expected extended goal satisfaction
   HEUR                    // Heuristic value，默认模式
 };
-
+  // 用于Open List的结点比较排序
   StateComparator();
   void init(CompareMode mode);
 

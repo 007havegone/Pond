@@ -23,12 +23,12 @@ protected:
   int ConvergenceTestRecursive(struct StateNode *node, int currHorizon, double path_pr);
   StateList *DisplaySolutionRecursive(struct StateNode *node);
 
-  int NumExpandedStates;
-  int Iteration;
-  int NumExpandedStatesIter;    /* number of states expanded this iteration */
-  int NumAncestorStatesIter;
-  int NumSolutionStates;
-  StateList *ExpandedStateList;
+  int NumExpandedStates;        // 拓展的结点数
+  int Iteration;                // 迭代次数
+  int NumExpandedStatesIter;    // 本次迭代拓展结点数
+  int NumAncestorStatesIter;    // 本次迭代祖先结点数
+  int NumSolutionStates;        // solution中的状态数
+  StateList *ExpandedStateList; // 拓展结点
   int CountBackups;
   double Residual;
   int ExitFlag;
