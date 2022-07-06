@@ -204,6 +204,9 @@ static void collect_init_state_variables(const StateFormula& formula) {
 
 /*
  * Collects state variables from the given formula.
+ * initState是否是初始状态
+ * 	仅收集非初始状态,或初始状态但不是top level的atom
+ * toplevel是否是最高一层的公式
  */
 static void collect_state_variables(const StateFormula& formula, bool initState, bool topLevel = true) {
 	if (typeid(formula) == typeid(Constant)) {
@@ -223,6 +226,16 @@ static void collect_state_variables(const StateFormula& formula, bool initState,
 			if((!topLevel && initState) ||  !initState){
 				//	std::cout << "new var = " << dynamic_atoms.size() << " " << initState <<std::endl;
 				dynamic_atoms.insert(std::make_pair(state_variables.size(), af));
+				std::cout << "AC::" << std::flush;
+				af->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
+						  my_problem->terms());
+				printf("\n");
+			}
+			else{
+				std::cout << "MISS::" << std::flush;
+				af->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
+						  my_problem->terms());
+				printf("\n");
 			}
 			state_variables.insert(std::make_pair(af, state_variables.size()));
 
@@ -313,7 +326,7 @@ static void collect_state_variables(const pEffect& effect) {
 		}
 		return;
 	}
-
+	// effect最终都是simple Effect,涉及到的都是dynamic并且状态变量
 	const SimpleEffect* se = dynamic_cast<const SimpleEffect*>(&effect);
 	if (se != NULL) {
 		/*
@@ -325,6 +338,10 @@ static void collect_state_variables(const pEffect& effect) {
 			//std::cout << "AE " << dynamic_atoms.size() <<std::endl;
 			dynamic_atoms.insert(std::make_pair(state_variables.size(), atom));
 			state_variables.insert(std::make_pair(atom, state_variables.size()));
+			std::cout << "AE::" << std::flush;
+			atom->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
+						  my_problem->terms());
+				printf("\n");
 		}
 		return;
 	}
@@ -1004,7 +1021,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * the simple effect.
 		 */
 		//    cout << "HI SE"<<endl;
-		std::cout << "simple Effect outcome sta\n";
+		// std::cout << "simple Effect outcome sta\n";
 		bool is_true = typeid(*se) == typeid(AddEffect);
 		outcomes.probabilities.push_back(1);
 		outcomes.transitions.push_back(TransitionSetList());
@@ -1012,7 +1029,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 				se->atom(), is_true);
 		outcomes.transitions.back().push_back(t);
 		//     cout << "BYE SE"<<endl;
-		std::cout << "simple Effect outcome done\n";
+		// std::cout << "simple Effect outcome done\n";
 		return;
 	}
 
@@ -2283,14 +2300,6 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		DdNode* ddT = Cudd_ReadLogicZero(dd_man);
 		Cudd_Ref(ddT);
 
-
-		/* This is going to be an MTBDD representing the transition reward
-       matrix for this outcome. */
-		// DdNode* ddr;
-		// if (valid_reward_function) {
-		// 	ddr = Cudd_ReadZero(dd_man);
-		// 	Cudd_Ref(ddr);
-		// }
 		/* This is going to be a BDD representing the conjunction of the
        negations of each individual transition set condition.  We need
        to add self-loops for all states satisfying this formula (this
@@ -2309,17 +2318,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 			int err = 0;
 			const TransitionSet& t = **ti;
 			if (t.effect_bdd() == Cudd_ReadLogicZero(dd_man)) {
-				/*
-				 * The effect of this transition set is inconsistent, meaning
-				 * that the same atom is both added and deleted.
-				 */
-				//cout << "ERROR: same atom added and deleted"<<endl;
-				//	   action_outcomes.erase(&action);
-				//continue;
-				//   free_outcomes(*outcomes);
 				err = 1;
-				//throw logic_error("action `" + action.name()
-				//+ "' has inconsistent effects");
 			}
 
 			if(event && t.effect_bdd() == Cudd_ReadOne(dd_man))
@@ -2392,38 +2391,13 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				ddT = ddo;// ddT存储了一个outcome的所有的转换关系
 
 				//      printBDD(ddt);
-				// momo007 2022.05.27 not used 包含rewards，使用ADD得表示转换的reward
-				// if(my_problem->domain().requirements.rewards){
-				// 	/*
-				// 	 * Add the reward for this transition set to the transition
-				// 	 * reward matrix for the outcome.
-				// 	 */
-				// 	if (valid_reward_function && t.reward() != 0.0) {
-				// 		DdNode* dds = Cudd_BddToAdd(dd_man, ddt);
-
-				// 		Cudd_Ref(dds);
-				// 		DdNode* ddv = Cudd_addConst(dd_man, t.reward().double_value());
-				// 		Cudd_Ref(ddv);
-				// 		dda = Cudd_addApply(dd_man, Cudd_addTimes, dds, ddv);
-				// 		Cudd_Ref(dda);
-				// 		Cudd_RecursiveDeref(dd_man, dds);
-				// 		Cudd_RecursiveDeref(dd_man, ddv);
-				// 		ddo = Cudd_addApply(dd_man, Cudd_addPlus, dda, ddr);
-				// 		Cudd_Ref(ddo);
-				// 		Cudd_RecursiveDeref(dd_man, dda);
-				// 		Cudd_RecursiveDeref(dd_man, ddr);
-				// 		ddr = ddo;
-				// 	}
-				// }
 				Cudd_RecursiveDeref(dd_man, ddt);
-
-
 			}
 			else{//err - inconsistent effect
 				/*
 				 * Finally, the condition.
 				 */
-				std::cout << "inconsistent effect\n";
+				std::cout << "err inconsistent effect\n";
 				dda = Cudd_bddAnd(dd_man, Cudd_Not(t.condition_bdd()), ddt);
 				Cudd_Ref(dda);
 				Cudd_RecursiveDeref(dd_man, ddt);
@@ -2477,118 +2451,6 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 				Cudd_RecursiveDeref(dd_man, dda);
 			}
 		}
-		// 至此，完成了一个outcome的action axioms,
-		/*
-		 * Multiply the transition matrix for the current outcome with the
-		 * probability of the outcome, and add the result to the
-		 * transition probability matrix for the action.
-		 */
-		//    cout << "pr = " << outcomes->probabilities[i].double_value() << endl;
-		//    printBDD(ddT);
-		// DdNode* ddp = Cudd_BddToAdd(dd_man, ddT);// ddp当前outcome的BDD转ADD
-		// Cudd_Ref(ddp);
-		// DdNode* ddk = Cudd_addConst(dd_man,// ddk当前outcome的执行概率值
-		// 		outcomes->probabilities[i].double_value());
-		// Cudd_Ref(ddk);
-		// // 更新当前outcome每种情况的概率
-		// DdNode* ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddp, ddk);
-		// Cudd_Ref(ddt);
-		// Cudd_RecursiveDeref(dd_man, ddp);
-		// Cudd_RecursiveDeref(dd_man, ddk);
-		// // 将当前outcome添加到所有的outcome的ADD中
-		// ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddt, ddP);
-		// Cudd_Ref(ddp);
-		// Cudd_RecursiveDeref(dd_man, ddt);
-		// Cudd_RecursiveDeref(dd_man, ddP);
-		// ddP = ddp;
-		// momo007 done
-
-		//    printBDD(ddP);
-		//dan     /*
-		//      * Construct transition reward matrix from goal condition for goal
-		//      * directed problems.
-		//      */
-		//     if (!valid_reward_function) {
-		//       DdNode* dda = Cudd_bddAnd(dd_man, ddT, ddgp);
-		//       Cudd_Ref(dda);
-		//       ddr = Cudd_BddToAdd(dd_man, dda);
-		//       Cudd_Ref(ddr);
-		//       Cudd_RecursiveDeref(dd_man, dda);
-		//     } else if (problem.goal_reward() != NULL) {
-		//       Rational gr = problem.goal_reward()->expression().value(ValueMap());
-		//       DdNode* ddgr = Cudd_bddAnd(dd_man, ddT, ddgp);
-		//       Cudd_Ref(ddgr);
-		//       dda = Cudd_BddToAdd(dd_man, ddgr);
-		//       Cudd_Ref(dda);
-		//       Cudd_RecursiveDeref(dd_man, ddgr);
-		//       DdNode* ddk = Cudd_addConst(dd_man, gr.double_value());
-		//       Cudd_Ref(ddk);
-		//       ddgr = Cudd_addApply(dd_man, Cudd_addTimes, dda, ddk);
-		//       Cudd_Ref(ddgr);
-		//       Cudd_RecursiveDeref(dd_man, dda);
-		//       Cudd_RecursiveDeref(dd_man, ddk);
-		//       dda = Cudd_addApply(dd_man, Cudd_addPlus, ddgr, ddr);
-		//       Cudd_Ref(dda);
-		//       Cudd_RecursiveDeref(dd_man, ddgr);
-		//       Cudd_RecursiveDeref(dd_man, ddr);
-		//       ddr = dda;
-		//     }
-		// momo007 2022.05.27 not used reward
-		// if(my_problem->domain().requirements.rewards){
-		// 	/*
-		// 	 * Find the transitions that are assigned reward by the current
-		// 	 * outcome, and have also been assigned reward by previous
-		// 	 * outcomes.  The rewards are not allowed to be different for the
-		// 	 * same transition in different outcomes.
-		// 	 */
-		// 	std::cout << "reward requirements[warning!!!]\n";
-		// 	dda = Cudd_bddAnd(dd_man, ddT, ddD);
-		// 	Cudd_Ref(dda);
-		// 	DdNode* ddn = Cudd_Not(dda);
-		// 	Cudd_Ref(ddn);
-		// 	ddt = Cudd_BddToAdd(dd_man, dda);
-		// 	Cudd_Ref(ddt);
-		// 	Cudd_RecursiveDeref(dd_man, dda);
-		// 	DdNode* new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
-		// 	Cudd_Ref(new_r);
-		// 	DdNode* old_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddR);
-		// 	Cudd_Ref(old_r);
-		// 	Cudd_RecursiveDeref(dd_man, ddt);
-		// 	if (Cudd_EqualSupNorm(dd_man, new_r, old_r, 1e-10, 0) == 0) {
-		// 		/*
-		// 		 * The current outcome assigns rewards to transitions in
-		// 		 * conflict with reward assignments of previous outcomes.
-		// 		 */
-		// 		throw std::logic_error("action `" + action.name()
-		// 				+ "' has inconsistent transition rewards");
-		// 	}
-		// 	Cudd_RecursiveDeref(dd_man, new_r);
-		// 	Cudd_RecursiveDeref(dd_man, old_r);
-
-		// momo007 2022.05.27 not used reward
-		// 	/*
-		// 	 * Find the transitions that are assigned reward by the current
-		// 	 * outcome, but have not previously been assigned any reward.  Add
-		// 	 * the reward for these transitions to the transition reward
-		// 	 * matrix for the action.
-		// 	 */
-		// 	dda = Cudd_bddAnd(dd_man, ddT, ddn);
-		// 	Cudd_Ref(dda);
-		// 	Cudd_RecursiveDeref(dd_man, ddn);
-		// 	ddt = Cudd_BddToAdd(dd_man, dda);
-		// 	Cudd_Ref(ddt);
-		// 	Cudd_RecursiveDeref(dd_man, dda);
-		// 	new_r = Cudd_addApply(dd_man, Cudd_addTimes, ddt, ddr);
-		// 	Cudd_Ref(new_r);
-		// 	Cudd_RecursiveDeref(dd_man, ddt);
-		// 	Cudd_RecursiveDeref(dd_man, ddr);
-		// 	ddr = Cudd_addApply(dd_man, Cudd_addPlus, new_r, ddR);
-		// 	Cudd_Ref(ddr);
-		// 	Cudd_RecursiveDeref(dd_man, new_r);
-		// 	Cudd_RecursiveDeref(dd_man, ddR);
-		// 	ddR = ddr;
-		// }
-
 		/*
 		 * Add the transitions of this outcome to the BDD representing all
 		 * transitions.
@@ -2602,8 +2464,10 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	}// end-for outcome
 
 
-
-	Cudd_RecursiveDeref(dd_man, ddD);
+	/**
+	 * momo007 2022.06.29 下面改行需要注释，否则在部分domain上会出现def次数部匹配问题
+	 */
+	// Cudd_RecursiveDeref(dd_man, ddD);
 	//DAN -- need them for pg construction//  free_outcomes(outcomes);
 	if (verbosity >= 4) {
 		std::cout << std::endl << "Transition probability matrix for ";
@@ -2612,23 +2476,6 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		Cudd_PrintDebug(dd_man, ddP, 2*nvars, 2);
 	}
 	Cudd_RecursiveDeref(dd_man, ddc);
-	// momo007 2022.05.27 not used reward
-	// if(my_problem->domain().requirements.rewards){
-	// 	/*
-	// 	 * Compute reward vector from the transition probability matrix
-	// 	 * and transition reward matrix.
-	// 	 */
-	// 	DdNode* tmp = Cudd_addApply(dd_man, Cudd_addTimes, ddP, ddR);
-	// 	Cudd_Ref(tmp);
-	// 	Cudd_RecursiveDeref(dd_man, ddR);
-	// 	ddR = Cudd_addExistAbstract(dd_man, tmp, col_cube);
-	// 	Cudd_Ref(ddR);
-	// 	Cudd_RecursiveDeref(dd_man, tmp);
-	// 	if (verbosity >= 3) {
-	// 		std::cout << std::endl << "Reward vector\n ";
-	// 		Cudd_PrintDebug(dd_man, ddR, 2*nvars, 2);
-	// 	}
-	// }
 	// momo007 2022.05.27 not used reward
 	// if(problem.domain().requirements.non_deterministic){
 	// 	// Converts an ADD to a BDD.
@@ -2644,198 +2491,6 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	return std::make_pair(ddD, ddR);
 }
 
-
-/* ====================================================================== */
-/* Value iteration. */
-
-/*
- * Returns a policy for the current problem generated using value
- * iteration.
- */
-static DdNode* value_iteration(const Problem& problem,
-		DdNode* ddng, DdNode* col_cube,
-		double gamma, double epsilon) {
-	if (verbosity >= 3) {
-		std::cout << "Value iteration";
-	}
-	/*
-	 * Precompute variable permutations.
-	 */
-	int* row_to_col = new int[2*nvars];
-	int* col_to_row = new int[2*nvars];
-	for (int i = 0; i < nvars; i++) {
-		row_to_col[2*i] = 2*i + 1;
-		row_to_col[2*i + 1] = 2*i + 1;
-		col_to_row[2*i] = 2*i;
-		col_to_row[2*i + 1] = 2*i;
-	}
-
-	/*
-	 * Construct action conditions, action value filters, and initial policy.
-	 */
-	std::map<const Action*, DdNode*> filters;
-	std::map<const Action*, DdNode*> policy;
-	for (std::map<const Action*, DdNode*>::const_iterator ai =
-			action_transitions.begin();
-			ai != action_transitions.end(); ai++) {
-		DdNode* ddc = formula_bdd((*ai).first->precondition());
-		DdNode* ddt = Cudd_bddAnd(dd_man, ddc, ddng);
-		Cudd_Ref(ddt);
-		Cudd_RecursiveDeref(dd_man, ddc);
-		DdNode* ddn = Cudd_Not(ddt);
-		Cudd_Ref(ddn);
-		Cudd_RecursiveDeref(dd_man, ddt);
-		ddc = Cudd_BddToAdd(dd_man, ddn);
-		Cudd_Ref(ddc);
-		Cudd_RecursiveDeref(dd_man, ddn);
-		ddn = Cudd_ReadPlusInfinity(dd_man);
-		Cudd_Ref(ddn);
-		ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddc, ddn);
-		Cudd_Ref(ddt);
-		Cudd_RecursiveDeref(dd_man, ddc);
-		Cudd_RecursiveDeref(dd_man, ddn);
-		filters.insert(std::make_pair((*ai).first, ddt));
-		DdNode* ddp = Cudd_ReadLogicZero(dd_man);
-		Cudd_Ref(ddp);
-		policy.insert(std::make_pair((*ai).first, ddp));
-	}
-
-	/*
-	 * Iterate until value function converges.
-	 */
-	DdNode* ddg = Cudd_addConst(dd_man, gamma);
-	Cudd_Ref(ddg);
-	DdNode* ddV = Cudd_ReadZero(dd_man);
-	Cudd_Ref(ddV);
-	if (verbosity >= 3) {
-		std::cout << std::endl << "V 0:" << std::endl;
-		Cudd_PrintDebug(dd_man, ddV, 2*nvars, 2);
-	}
-	double tolerance = epsilon*(1.0 - gamma)/(2.0*gamma);
-	bool done = false;
-	size_t iters = 0;
-	while(!done){
-		iters++;
-		if(verbosity >= 3){
-			if(iters % 1000 == 0)
-				std::cout << ':';
-			else if (iters % 100 == 0)
-				std::cout << '.';
-		}
-		DdNode* ddVp = Cudd_addPermute(dd_man, ddV, row_to_col);
-		Cudd_Ref(ddVp);
-		DdNode* ddM = Cudd_ReadZero(dd_man);
-		Cudd_Ref(ddM);
-		for (std::map<const Action*, DdNode*>::const_iterator ai =
-				action_transitions.begin();
-				ai != action_transitions.end(); ai++) {
-			DdNode* ddp = Cudd_addApply(dd_man, Cudd_addTimes, (*ai).second, ddVp);
-			Cudd_Ref(ddp);
-			DdNode* dds = Cudd_addExistAbstract(dd_man, ddp, col_cube);
-			Cudd_Ref(dds);
-			Cudd_RecursiveDeref(dd_man, ddp);
-			ddp = Cudd_addApply(dd_man, Cudd_addTimes, ddg, dds);
-			Cudd_Ref(ddp);
-			Cudd_RecursiveDeref(dd_man, dds);
-			dds = Cudd_addApply(dd_man, Cudd_addPlus,
-					action_rewards[(*ai).first], ddp);
-			Cudd_Ref(dds);
-			Cudd_RecursiveDeref(dd_man, ddp);
-			ddp = Cudd_addPermute(dd_man, dds, col_to_row);
-			Cudd_Ref(ddp);
-			Cudd_RecursiveDeref(dd_man, dds);
-			DdNode* ddf = Cudd_addApply(dd_man, Cudd_addMinus, ddp,
-					filters[(*ai).first]);
-			Cudd_Ref(ddf);
-			Cudd_RecursiveDeref(dd_man, ddp);
-			ddp = ddf;
-			if (verbosity >= 3) {
-				std::cout << std::endl << "value of action ";
-				(*ai).first->print(std::cout, problem.terms());
-				std::cout << ':' << std::endl;
-				Cudd_PrintDebug(dd_man, ddp, 2*nvars, 1);
-			}
-			DdNode* ddm = Cudd_addApply(dd_man, Cudd_addMinus, ddp, ddM);
-			Cudd_Ref(ddm);
-			DdNode*& dde = policy[(*ai).first];
-			Cudd_RecursiveDeref(dd_man, dde);
-			dde = Cudd_addBddThreshold(dd_man, ddm, 0);
-			Cudd_Ref(dde);
-			Cudd_RecursiveDeref(dd_man, ddm);
-			DdNode* ddn = Cudd_Not(dde);
-			Cudd_Ref(ddn);
-			if (ddn != Cudd_ReadOne(dd_man)) {
-				for (std::map<const Action*, DdNode*>::const_iterator aj =
-						policy.begin();
-						(*aj).first != (*ai).first; aj++) {
-					DdNode*& ddj = policy[(*aj).first];
-					DdNode* dda = Cudd_bddAnd(dd_man, ddn, ddj);
-					Cudd_Ref(dda);
-					Cudd_RecursiveDeref(dd_man, ddj);
-					ddj = dda;
-				}
-			}
-			Cudd_RecursiveDeref(dd_man, ddn);
-			ddm = Cudd_addApply(dd_man, Cudd_addMaximum, ddp, ddM);
-			Cudd_Ref(ddm);
-			Cudd_RecursiveDeref(dd_man, ddM);
-			ddM = ddm;
-			if (verbosity >= 3) {
-				std::cout << "current max values:" << std::endl;
-				Cudd_PrintDebug(dd_man, ddM, 2*nvars, 1);
-			}
-			Cudd_RecursiveDeref(dd_man, ddp);
-		}
-		Cudd_RecursiveDeref(dd_man, ddVp);
-		ddVp = ddM;
-		if (verbosity >= 3) {
-			std::cout << "V " << iters << ':' << std::endl;
-			Cudd_PrintDebug(dd_man, ddVp, nvars, 1);
-		}
-		done = (Cudd_EqualSupNorm(dd_man, ddV, ddVp, tolerance, 0) == 1);
-		Cudd_RecursiveDeref(dd_man, ddV);
-		ddV = ddVp;
-	}
-	if (verbosity >= 3) {
-		std::cout << ' ' << iters << " iterations." << std::endl;
-	}
-	Cudd_RecursiveDeref(dd_man, ddV);
-	Cudd_RecursiveDeref(dd_man, ddg);
-	for (std::map<const Action*, DdNode*>::const_iterator ai = filters.begin();
-			ai != filters.end(); ai++) {
-		Cudd_RecursiveDeref(dd_man, (*ai).second);
-	}
-	delete row_to_col;
-	delete col_to_row;
-
-	/*
-	 * Construct single policy MTBDD.
-	 */
-	DdNode* ddP = Cudd_ReadZero(dd_man);
-	Cudd_Ref(ddP);
-	for (std::map<const Action*, DdNode*>::const_iterator ai = policy.begin();
-			ai != policy.end(); ai++) {
-		if ((*ai).second != Cudd_ReadLogicZero(dd_man)) {
-			policy_actions.insert(std::make_pair((*ai).first->id(), (*ai).first));
-		}
-		DdNode* ddp = Cudd_BddToAdd(dd_man, (*ai).second);
-		Cudd_Ref(ddp);
-		Cudd_RecursiveDeref(dd_man, (*ai).second);
-		size_t id = (*ai).first->id();
-		DdNode* ddi = Cudd_addConst(dd_man, id);
-		Cudd_Ref(ddi);
-		DdNode* ddt = Cudd_addApply(dd_man, Cudd_addTimes, ddi, ddp);
-		Cudd_Ref(ddt);
-		Cudd_RecursiveDeref(dd_man, ddi);
-		Cudd_RecursiveDeref(dd_man, ddp);
-		ddp = Cudd_addApply(dd_man, Cudd_addPlus, ddt, ddP);
-		Cudd_Ref(ddp);
-		Cudd_RecursiveDeref(dd_man, ddt);
-		Cudd_RecursiveDeref(dd_man, ddP);
-		ddP = ddp;
-	}
-	return ddP;
-}
 
 
 DdNode* iterative_assemble_init(std::list<std::list<DdNode*>* >* preffects,
@@ -3114,6 +2769,11 @@ void collectInit(const Problem* problem){
 				tmp = tmp1;
 				Cudd_Ref(tmp);
 				Cudd_RecursiveDeref(manager, tmp1);
+				if(bdd_is_zero(manager,tmp))
+				{
+					a->print(std::cout, problem->domain().predicates(), problem->domain().functions(), problem->terms());
+					abort();
+				}
 			}
 		}
 		// 记录初始状态集合，这里为何需要合取所有状态变量的否定？
@@ -3396,327 +3056,6 @@ void collectInit(const Problem* problem){
 		//     }
 
 	}
-	else if(0){
-		const ProbabilisticEffect* pe;
-
-		//std::cout << "HI" <<std::endl;
-
-		b_initial_state = Cudd_addConst(manager, 1.0);//Cudd_ReadOne(manager);
-		Cudd_Ref(b_initial_state);
-		DdNode* tmp, *tmp1, *tmp2, *fr, *pr_atoms;
-		pr_atoms = Cudd_ReadOne(manager);
-		EffectList& efl = (EffectList&)problem->init_effects();
-		std::list<std::list<DdNode*>* > preffects;
-		for(EffectList::iterator ie=//(const pEffect**)
-				efl.begin();
-				ie!= efl.end(); ie++){
-
-			if(pe = dynamic_cast<const ProbabilisticEffect*>(*ie)){
-				OutcomeSet outcomes;
-				effect_outcomes(outcomes, Cudd_addConst(manager, 1.0), *pe);
-				// print_outcomes(std::cout, outcomes);
-				std::list<DdNode*>* preffect = new std::list<DdNode*>();
-				preffects.push_back(preffect);
-				size_t n = outcomes.probabilities.size();
-				double sum = 0.0;
-				for (size_t i = 0; i < n; i++) {
-					// 	 sum += outcomes.probabilities[i].double_value();
-					// 	 tmp = Cudd_addConst(manager, outcomes.probabilities[i].double_value());
-					// 	 Cudd_Ref(tmp);
-					// 	 for (TransitionSetList::const_iterator ti =
-					// 		outcomes.transitions[i].begin();
-					// 	      ti != outcomes.transitions[i].end(); ti++) {
-					// 	   tmp1 = Cudd_BddToAdd(manager, (*ti)->effect_bdd());
-					// 	   Cudd_Ref(tmp1);
-					// 	   tmp2 = Cudd_addApply(manager, Cudd_addTimes, tmp1, tmp);
-					// 	   Cudd_Ref(tmp2);
-					// 	   Cudd_RecursiveDeref(manager, tmp1);
-					// 	   preffect->push_back(tmp2);
-					// 	   printBDD(tmp2);
-					// 	 }
-
-					if(outcomes.transitions[i].size() == 1 &&
-							outcomes.transitions[i].front()->effect_bdd() == Cudd_ReadOne(manager))
-						continue;
-
-					sum += outcomes.probabilities[i].double_value();
-					tmp = Cudd_addConst(manager, outcomes.probabilities[i].double_value());
-					Cudd_Ref(tmp);
-					tmp1 = Cudd_ReadOne(manager);
-					for (TransitionSetList::const_iterator ti =
-							outcomes.transitions[i].begin();
-							ti != outcomes.transitions[i].end(); ti++) {
-
-						tmp2 = Cudd_bddAnd(manager, tmp1, (*ti)->effect_bdd());
-						Cudd_Ref(tmp2);
-						Cudd_RecursiveDeref(manager, tmp1);
-						tmp1 = tmp2;
-						Cudd_Ref(tmp1);
-						Cudd_RecursiveDeref(manager, tmp2);
-					}
-					fr = Cudd_BddToAdd(manager, tmp1);
-					Cudd_Ref(fr);
-					tmp2 = Cudd_addApply(manager, Cudd_addTimes, fr, tmp);
-					Cudd_Ref(tmp2);
-					Cudd_RecursiveDeref(manager, fr);
-					Cudd_RecursiveDeref(manager, tmp1);
-					preffect->push_back(tmp2);
-					//printBDD(tmp2);
-
-					tmp1 = Cudd_Support(manager, tmp2);
-					Cudd_Ref(tmp1);
-					fr = Cudd_bddAnd(manager, pr_atoms, tmp1);
-					Cudd_Ref(fr);
-					Cudd_RecursiveDeref(manager, pr_atoms);
-					pr_atoms = fr;
-					Cudd_Ref(pr_atoms);
-					Cudd_RecursiveDeref(manager, fr);
-				}
-
-
-				if(sum < 1.0){//need to add case where all given effects are false
-					//std::cout << "Sum lt 1"<<std::endl;
-					tmp2 = Cudd_ReadOne(manager);
-					Cudd_Ref(tmp2);
-
-					// 	 for (size_t i = 0; i < n; i++) {
-					// 	   for (TransitionSetList::const_iterator ti =
-					// 		  outcomes.transitions[i].begin();
-					// 		ti != outcomes.transitions[i].end(); ti++) {
-					// 	     tmp = Cudd_bddAnd(manager, Cudd_Not((*ti)->effect_bdd()), tmp2);
-					// 	     Cudd_Ref(tmp);
-					// 	     Cudd_RecursiveDeref(manager, tmp2);
-					// 	     tmp2 = tmp;
-					// 	     Cudd_Ref(tmp2);
-					// 	     Cudd_RecursiveDeref(manager, tmp);
-					// 	   }
-					// 	 }
-
-					//  	 tmp = Cudd_addConst(manager, 1.0 - sum);
-					// 	 Cudd_Ref(tmp);
-					// 	 tmp1 = Cudd_BddToAdd(manager, tmp2);
-					// 	 Cudd_Ref(tmp1);
-					// 	 Cudd_RecursiveDeref(manager, tmp2);
-					// 	 tmp2 = Cudd_addApply(manager, Cudd_addTimes, tmp, tmp1);
-					// 	 Cudd_Ref(tmp2);
-					// 	 Cudd_RecursiveDeref(manager, tmp);
-					// 	 Cudd_RecursiveDeref(manager, tmp1);
-
-					fr = Cudd_ReadOne(manager);
-					Cudd_Ref(fr);
-					for (size_t i = 0; i < n; i++) {
-						for (TransitionSetList::const_iterator ti =
-								outcomes.transitions[i].begin();
-								ti != outcomes.transitions[i].end(); ti++) {
-							for(int j = 0; j < num_alt_facts; j++){
-								tmp1 = Cudd_bddIthVar(manager, (2*j)+1);
-								Cudd_Ref(tmp1);
-								//	       tmp2 = Cudd_bddAnd(manager, tmp1, (*ti)->effect_bdd());
-								//Cudd_Ref(tmp2);
-								// 	       std::cout << "ent" << std::endl;
-								// 	       printBDD((*ti)->effect_bdd());
-								// 	       printBDD(tmp1);
-								if(bdd_entailed(manager, (*ti)->effect_bdd(), tmp1)){
-									//tmp2 != Cudd_ReadLogicZero(manager)){
-									DdNode *tmp4 = Cudd_Not(tmp1);
-									Cudd_Ref(tmp4);
-									DdNode *tmp3 = Cudd_bddAnd(manager, fr, tmp4);
-									Cudd_Ref(tmp3);
-									Cudd_RecursiveDeref(manager, tmp4);
-									Cudd_RecursiveDeref(manager, fr);
-									fr = tmp3;
-									Cudd_Ref(fr);
-									Cudd_RecursiveDeref(manager, tmp3);
-									// std::cout << "fr =" <<std::endl;
-									//printBDD(fr);
-								}
-
-								Cudd_RecursiveDeref(manager, tmp1);
-								//Cudd_RecursiveDeref(manager, tmp2);
-							}
-						}
-					}
-					tmp = Cudd_addConst(manager, 1.0 - sum);
-					Cudd_Ref(tmp);
-					tmp1 = Cudd_BddToAdd(manager, fr);
-					Cudd_Ref(tmp1);
-					Cudd_RecursiveDeref(manager, fr);
-					tmp2 = Cudd_addApply(manager, Cudd_addTimes, tmp, tmp1);
-					Cudd_Ref(tmp2);
-					Cudd_RecursiveDeref(manager, tmp);
-					Cudd_RecursiveDeref(manager, tmp1);
-
-
-					preffect->push_back(tmp2);
-					//	 	 printBDD(tmp2);
-
-					tmp1 = Cudd_Support(manager, tmp2);
-					Cudd_Ref(tmp1);
-					fr = Cudd_bddAnd(manager, pr_atoms, tmp1);
-					Cudd_Ref(fr);
-					Cudd_RecursiveDeref(manager, pr_atoms);
-					pr_atoms = fr;
-					Cudd_Ref(pr_atoms);
-					Cudd_RecursiveDeref(manager, fr);
-
-				}
-
-
-				//       make_mutex(preffect);
-				//       make_mutex1(preffect, pr_atoms);
-				free_outcomes(outcomes);
-			}
-		}
-
-		DdNode *tmpDan = iterative_assemble_init(&preffects,
-				preffects.begin(),
-				b_initial_state,
-				Cudd_ReadOne(manager));
-		Cudd_Ref(tmpDan);
-
-
-		//   tmp =  recurse_assemble_init(&preffects,
-		// 			       preffects.begin(),
-		// 			       b_initial_state,
-		// 			       Cudd_ReadOne(manager));
-		//   Cudd_Ref(tmp);
-		Cudd_RecursiveDeref(manager, b_initial_state);
-		b_initial_state = tmpDan;
-		Cudd_Ref(b_initial_state);
-		Cudd_RecursiveDeref(manager, tmpDan);
-
-		//    std::cout << "HI" <<std::endl;
-
-
-		//const Atom* a;
-		for(int i = 0; i < num_alt_facts; i+=1){
-			a = (*(dynamic_atoms.find(i))).second;
-			fr=Cudd_Support(manager, b_initial_state);
-			Cudd_Ref(fr);
-			if(((problem)->init_atoms().find(a)) != (problem)->init_atoms().end()){
-				tmp = Cudd_addIthVar(manager, (2*i)+1);
-				Cudd_Ref(tmp);
-				tmp1 = Cudd_addApply(manager,
-						Cudd_addTimes,
-						b_initial_state,
-						tmp);
-				Cudd_Ref(tmp1);
-				Cudd_RecursiveDeref(manager, tmp);
-				Cudd_RecursiveDeref(manager, b_initial_state);
-				b_initial_state = tmp1;
-				Cudd_Ref(b_initial_state);
-				Cudd_RecursiveDeref(manager, tmp1);
-			}
-			else if(a &&
-					!Cudd_bddIsVarEssential(manager,
-							fr,
-							(2*i)+1,
-							1)
-							&&
-							!Cudd_bddIsVarEssential(manager,
-									pr_atoms,
-									(2*i)+1,
-									1) ){
-				tmp = Cudd_BddToAdd(manager,
-						Cudd_Not(Cudd_bddIthVar(manager, (2*i)+1)));
-				Cudd_Ref(tmp);
-				tmp1 = Cudd_addApply(manager,
-						Cudd_addTimes,
-						b_initial_state,
-						tmp);
-				Cudd_Ref(tmp1);
-				Cudd_RecursiveDeref(manager, tmp);
-				Cudd_RecursiveDeref(manager, b_initial_state);
-				b_initial_state = tmp1;
-				Cudd_Ref(b_initial_state);
-				Cudd_RecursiveDeref(manager, tmp1);
-			}
-			Cudd_RecursiveDeref(manager,fr);
-		}
-		Cudd_RecursiveDeref(manager, pr_atoms);
-		//cout << "sfdxhi prog"<<endl;
-		// if(  Cudd_DebugCheck(manager)){ cout << "problem " << endl; exit(0);   }
-
-		//  cout << "set varmap" <<endl;
-		tmp1 = Cudd_addPermute(manager, b_initial_state, varmap);
-
-		Cudd_Ref(tmp1);
-		Cudd_RecursiveDeref(manager, b_initial_state);
-		b_initial_state = tmp1;
-		Cudd_Ref(b_initial_state);
-		Cudd_RecursiveDeref(manager, tmp1);
-
-		if(problem->domain().requirements.non_deterministic){
-			tmp1 = Cudd_addBddStrictThreshold(manager, b_initial_state, 0.0);
-			Cudd_Ref(tmp1);
-			Cudd_RecursiveDeref(manager, b_initial_state);
-			b_initial_state = tmp1;
-			Cudd_Ref(b_initial_state);
-			Cudd_RecursiveDeref(manager, tmp1);
-
-		}
-	}
-	else{
-		ConjunctiveEffect* init_effect = new ConjunctiveEffect();
-		EffectList& efl = (EffectList&)problem->init_effects();
-		// 添加所有的初始Effect
-		for(EffectList::iterator ie= efl.begin(); ie!= efl.end(); ie++){
-			init_effect->add_conjunct(**ie);
-		}
-
-		// init_effect->print(std::cout, problem->domain().predicates(), problem->domain().functions(), problem->terms());
-		// 建立Effect和 dbn_nodes的映射关系，即每个Effect相应的深度信念网路节点
-		std::map<const pEffect*, dbn_node*> *pr_nodes = dbn::generate_probabilistic_nodes(init_effect);
-		dbn* init_dbn = effect_dbn((const pEffect&)*init_effect, pr_nodes);
-		//		init_dbn->add_noops(num_alt_facts);
-		
-		if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
-			dbn_node* goal = init_dbn->vars[2*(num_alt_facts-2)+1];
-			dbn_node* sink = init_dbn->vars[2*(num_alt_facts-1)+1];
-
-			if(goal->cpt)
-			  Cudd_RecursiveDeref(manager, goal->cpt);
-			if(sink->cpt)
-			  Cudd_RecursiveDeref(manager, sink->cpt);
-
-			DdNode* t1 = Cudd_Not(Cudd_bddIthVar(manager, 2*(num_alt_facts-2)+1));
-			Cudd_Ref(t1);
-			DdNode* t2 = Cudd_Not(Cudd_bddIthVar(manager, 2*(num_alt_facts-1)+1));
-			Cudd_Ref(t2);
-			goal->cpt = Cudd_BddToAdd(manager, t1);
-			Cudd_Ref(goal->cpt);
-			sink->cpt = Cudd_BddToAdd(manager, t2);
-			Cudd_Ref(sink->cpt);
-			Cudd_RecursiveDeref(manager, t1);
-			Cudd_RecursiveDeref(manager, t2);
-			//      printBDD(goal->cpt);
-			//       printBDD(sink->cpt);
-
-		}
-		//    std::cout << "HI" << std::endl;
-		//    std::cout << "init_dbn:" <<  *init_dbn << std::endl;
-
-		DdNode *allF = Cudd_ReadOne(manager);
-		for(int i = 0; i < num_alt_facts; i++){
-			DdNode *tmp = Cudd_bddAnd(manager, allF, Cudd_Not(Cudd_bddIthVar(manager, 2*i)));
-			Cudd_Ref(tmp);
-			Cudd_RecursiveDeref(manager, allF);
-			allF = tmp;
-			Cudd_Ref(allF);
-			Cudd_RecursiveDeref(manager, tmp);
-		}
-		DdNode* allFAdd = Cudd_BddToAdd(manager, allF);
-		Cudd_Ref(allFAdd);
-
-		b_initial_state = progress(init_dbn, allFAdd);
-		Cudd_Ref(b_initial_state);
-		Cudd_RecursiveDeref(manager, allFAdd);
-		Cudd_RecursiveDeref(manager, allF);
-		delete init_dbn;
-
-		//     printBDD(b_initial_state);
-	}
-
 }
 
 
@@ -3745,7 +3084,7 @@ dbn* action_dbn(const Action& action){
 	//     printBDD(action_dbns[&action]->vars[2*num_alt_facts+i]->cpt);
 	//   }
 	//action_dbns[&action]->get_dds();
-	action_rewards[&action] = action_dbns[&action]->vars[-1]->cpt;
+	// action_rewards[&action] = action_dbns[&action]->vars[-1]->cpt;
 	//action_dbns[&action]->get_reward_dd();
 
 	//    if(action_dbns[&action]->vars[-1]!=NULL)
@@ -3858,7 +3197,7 @@ DdNode* groundActionDD(const Action& action){
 			// 添加action和BDD的对应关系。
 			action_transitions.insert(std::make_pair(&action, dds.first));
 			// 添加动作和reward对应关系
-			action_rewards.insert(std::make_pair(&action, dds.second));
+			// action_rewards.insert(std::make_pair(&action, dds.second));
 			// 如果是observation，添加observation的转换关系BDD
 			if(ddos && ddos->size() > 0){//&((Action)action).observation()){
 				OBSERVABILITY = OBS_PART;
@@ -3873,7 +3212,7 @@ DdNode* groundActionDD(const Action& action){
 			  std::cout << "ERROR, pruning: ";
 			//action.print(cout, (*my_problem).terms()); cout <<endl;
 			action_transitions.insert(std::make_pair(&action, Cudd_ReadZero(manager)));
-			action_rewards.insert(std::make_pair(&action, Cudd_ReadZero(manager)));
+			// action_rewards.insert(std::make_pair(&action, Cudd_ReadZero(manager)));
 			//     Cudd_RecursiveDeref(manager, dds.first);
 			//     Cudd_RecursiveDeref(manager, dds.second);
 			//    if(ddos)
@@ -3883,8 +3222,8 @@ DdNode* groundActionDD(const Action& action){
 				num_alt_effs++;//for dummy unconditional effect index
 			return Cudd_ReadZero(manager);
 		}
-
-		//  printBDD(dds.first);
+		// printf("%s\n", action.name().c_str());
+		// printBDD(dds.first);
 		return dds.first;
 	}
 
@@ -4004,23 +3343,6 @@ double transform_probability_to_reward(double pr) {
 /* Solves the given problem. */
 DdNode* solve_problem(const Problem& problem,
 		double gamma, double epsilon) {
-	/** momo007 2022.05.26 not used
-	gDiscount = (*my_problem).discount();
-	std::cout << "DISCOUNT = " << gDiscount << std::endl;
-	*/
-	/*
-	 * Extract the reward function.
-	 */
-	/** momo007 2022.05.26 not used
-	std::pair<Function, bool> rf =
-			problem.domain().functions().find_function("reward");
-	if (rf.second) {
-		reward_function = rf.first;
-	} else {
-		reward_function = problem.domain().functions().last_function() + 1;
-	}
-	valid_reward_function = rf.second;
-	*/
 	// momo007
 	std::cout << "current domain if define the reward function: " << valid_reward_function << std::endl;
 
@@ -4038,7 +3360,11 @@ DdNode* solve_problem(const Problem& problem,
 		if(LUGTOTEXT && !check_consistent(action.effect(), &pos, &neg)){
 			continue;
 		}
+		(*ai)->print(std::cout, problem.terms());
+		std::cout << std::endl;
+		// 前提条件涉及到的是state varibale和dynamic variable
 		collect_state_variables(action.precondition(), false);
+		// 装备收集effect的state ariable和dynamic variable
 		collect_state_variables(action.effect());
 
 		if(&((Action*)(*ai))->observation()){
@@ -4055,27 +3381,6 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
-	/** momo007 2022.05.26 not used
-	std::cout << "start collect event state variales" << std::endl;
-	for (ActionList::const_iterator ai = problem.events().begin();
-			ai != problem.events().end(); ai++) {
-		const Action& action = **ai;
-		collect_state_variables(action.precondition(), false);
-		collect_state_variables(action.effect());
-
-		if(&((Action*)(*ai))->observation()){
-			ObservationVector& ob =
-					(ObservationVector&)((Observation&)((Action*)(*ai))->observation()).obVector();
-			ObservationEntry *e;
-			for(ObservationVector::iterator i = ob.begin();i != ob.end(); i++){
-				e = ((ObservationEntry*)(*i));
-				//cout << "collect"<<endl;
-				collect_state_variables(e->formula(), false);
-				// 	 collect_state_variables(e->symbol());
-			}
-		}
-	}
-	*/
 	std::cout << "start collect init state variales" << std::endl;
 	for (EffectList::const_iterator ei = problem.init_effects().begin();
 			ei != problem.init_effects().end(); ei++) {
@@ -4097,8 +3402,22 @@ DdNode* solve_problem(const Problem& problem,
 
 
 	nvars = dynamic_atoms.size();
-	std::cout << "check the dynamic_atoms and state vairables\n";
-	assert(dynamic_atoms.size() == state_variables.size());
+	// std::cout << "check the dynamic_atoms and state vairables\n";
+	std::cout << "dynamic atoms:" << dynamic_atoms.size() << std::endl;
+	// for (int i = 0; i < dynamic_atoms.size();++i)
+	// {
+	// 	dynamic_atoms[i]->print(std::cout, problem.domain().predicates(),
+	// 							problem.domain().functions(), problem.terms());
+	// }	
+	std::cout << "state variables:" << state_variables.size() << std::endl;
+	// std::map<const Atom *, int>::iterator ite = state_variables.begin();
+	// while(ite != state_variables.end())
+	// {
+	// 	ite->first->print(std::cout, problem.domain().predicates(),
+	// 					  		problem.domain().functions(), problem.terms());
+	// 	ite++;
+	// }
+	// assert(dynamic_atoms.size() == state_variables.size());
 
 	// not used here
 	if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
@@ -4133,39 +3452,6 @@ DdNode* solve_problem(const Problem& problem,
 			}
 		}
 	}
-	std::cout << "DBN_PROGRESSION = " << DBN_PROGRESSION << std::endl;
-	/** momo007 2022.05.26 not used */
-	// if( /*my_problem->domain().requirements.rewards &&*/ DBN_PROGRESSION){
-	// 	std::cout << "<<开启了DBN_PROGHRESSION>>\n";
-	// 	for (ActionList::const_iterator ai = problem.actions().begin(); ai != problem.actions().end(); ai++)
-	// 	{
-	// 		const Action &action = **ai;
-	// 		int num_aux = 0;
-	// 		double a_min_reward = DBL_MAX;
-	// 		double a_max_reward = -1 * DBL_MAX;
-	// 		action.effect().getMinMaxRewards(&a_min_reward, &a_max_reward, &num_aux);
-	// 		std::cout << " num_aux: " << num_aux << std::endl;
-	// 		if (num_aux > max_num_aux_vars)
-	// 		{
-	// 			max_num_aux_vars = num_aux;
-	// 		}
-	// 		if (a_max_reward > max_reward)
-	// 			max_reward = a_max_reward;
-	// 		if (a_min_reward < min_reward)
-	// 			min_reward = a_min_reward;
-	// 	}
-	//   if(min_reward > 0)
-	//     min_reward = 0;
-	//   if(max_reward < 0)
-	//     max_reward = 0;
-	//   std::cout 	<< "min: " << min_reward << " max: " << max_reward
-	// 		<< " discount: " << gDiscount << " epsilon: " << gEpsilon
-	// 		<< " num_aux_vars: " << max_num_aux_vars
-	// 		<< std::endl;
-	// 	//std::cout << transform_reward_to_probability(0) << std::endl;
-	//   std::cout << "<<DNB_PROGRESSION done>>\n";
-	// }
-	
 
 	/*
 	 * Iniiatlize CUDD.
@@ -4234,14 +3520,6 @@ DdNode* solve_problem(const Problem& problem,
 	 * momo007 2022.05.26 rewrite only support goal without reward
 	 */
 	DdNode* ddg;
-	// if(  my_problem->domain().requirements.rewards && DBN_PROGRESSION){
-	// 	std::cout << "construct the bdd for reward goal" << std::endl;
-	// 	ddg = Cudd_bddIthVar(manager, 2 * (num_alt_facts - 2));
-	// 	Cudd_Ref(ddg);
-	// }
-	// else{
-	// 	ddg = formula_bdd(problem.goal());
-	// }
 
 	std::cout << "construct the bdd for goal formula" << std::endl;
 	ddg = formula_bdd(problem.goal());
@@ -4302,19 +3580,6 @@ DdNode* solve_problem(const Problem& problem,
 
 	std::cout << "done constructing action preconditon BDD" << std::endl;
 
-	/** momo007 2022.05.26
-	for (ActionList::const_iterator ai = problem.events().begin();
-		 ai != problem.events().end(); ai++)
-	{
-		const Action& action = **ai;
-		event_preconds.insert(std::make_pair<const Action*, DdNode*>(&action,
-				formula_bdd(action.precondition())));
-		//groundActionDD(action);//, problem, ddgp, ddng, col_cube);
-	}
-	
-	std::cout << "done constructing event preconditon BDD" << std::endl;
-
-	*/
 	set_cubes();
 	collectInit(&problem);
 	std::cout << "done constructing the init state BDD" << std::endl;
@@ -4341,7 +3606,7 @@ DdNode* solve_problem(const Problem& problem,
 			std::cout << "Reward vector for ";
 			(*ai).first->print(std::cout, problem.terms());
 			std::cout << ':' << std::endl;
-			Cudd_PrintDebug(dd_man, action_rewards[(*ai).first], 2*nvars, 1);
+			// Cudd_PrintDebug(dd_man, action_rewards[(*ai).first], 2*nvars, 1);
 		}
 	}
 
