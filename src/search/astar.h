@@ -23,6 +23,8 @@ public:
 
 	void setBestAct(StateNode* state);
 
+	void printBestPlan();
+
 protected:
 	std::set<StateNode*> closed;
 	std::set<StateNode*, StateComparator> open;// 通过启发式函数进行排序
