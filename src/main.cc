@@ -121,46 +121,6 @@ int main(int argc, char *argv[])
 		int seed = 1;
 		bool incremental_search = false;
 
-		bool online_search = false;
-		int hLimit = -1;
-		string server_addr = "localhost";
-		int server_port = 2324;
-		/*
-			POND Planner - Version 2.2
-			Usage: pond <domain-name> <prob-name> [OPTIONS]
-			OPTIONS:
-			Search Algorithm:
-			  <default> 		 : Enforced Hill Climbing
-			  -s ehc 		 : Enforced Hill Climbing
-			  -s astar 		 : A*
-			  -s aostar 		 : AO* (ND Conditional)
-			  -s molao 		 : Multi-Objective LAO* (Pr Conditional)
-			  -s replan 		 : POND-replan
-			  -s hop 		 : Hindsight Optimization
-			  -s schop 		 : Sequential Correlated HOP
-			  -s pchop 		 : Parallel Correlated HOP
-			Heuristics:
-			  <default> 		 : h = 0 <Breadth First Search>
-			  -h lugrp [-pg <sag_type>] [-pmg <# particles (McLUG)>]
-					: (Mc)LUG relaxed plan
-			Particles:
-			  1.0 <= pmg 		 : #particles = pmg
-			  0.0 < pmg < 1.0 	 : #particles = auto selected using pmg factor
-					  (0.1 recommended)
-			SAG Types:
-			  <default> 		 : One LUG per generated node
-			  'node' 		 : One LUG per generated node
-			  'global' 		 : One LUG per problem
-			  'globalrp' 		 : One relaxed plan per problem
-			Helpful Actions:
-			  <default> 		 : off
-			  -ha 			 : on
-			Verbosity:
-			  <default> 		 : 1
-			  -v 0 			 : Minimal/No search information
-			  -v 1 			 : Print when goal(s) reached
-			  -v 2 			 : Print all nodes expanded
-		*/
 		if (argc < 3 || argv[1] == "--help")
 		{
 			cout << "POND Planner - Version 2.2\n"
@@ -337,44 +297,6 @@ int main(int argc, char *argv[])
 						step_search = new ExpH();
 					}
 				}
-
-				// 是否启用线上模式，忽略
-				/*if (strcmp(argv[i], "-on") == 0)
-				{
-					string addr = "";
-					int port = -1;
-
-					while (i + 1 < argc && argv[i + 1][0] != '-')
-					{
-						i++;
-						if (strcmp(argv[i], "depth") == 0)
-						{
-							if (i + 1 < argc && argv[i + 1][0] != '-')
-							{
-								hLimit = atoi(argv[++i]);
-								cout << "Online horizon depth = " << hLimit << endl;
-							}
-						}
-						else
-						{
-							string arg(argv[i]);
-							int colonIndex = arg.find(':');
-							addr = arg.substr(0, colonIndex);
-							if (colonIndex != string::npos)
-							{
-								istringstream iss(arg.substr(colonIndex + 1));
-								if (!(iss >> port))
-									port = -1;
-							}
-						}
-					}
-
-					if (!addr.empty())
-						server_addr = addr;
-					if (port > -1)
-						server_port = port;
-					online_search = true;//该参数开启online模式，默认false
-				}*/
 
 				if (strcmp(argv[i], "-R") == 0)
 				{
@@ -750,6 +672,7 @@ int main(int argc, char *argv[])
 			cout << "Print all nodes expanded";
 			break;
 		}
+		verbosity = 0;
 		cout << " (" << verbosity << ")\n";
 
 		// 开始计时
@@ -773,6 +696,10 @@ int main(int argc, char *argv[])
 			// 获取problem
 			my_problem = (*(Problem::begin())).second;
 
+			/**
+			 * momo007 2022.07.06
+			 * this code may use in LUG construct
+			 */
 			//      if(PF_LUG){
 			//        NUMBER_OF_MGS = 8192;   // set to a constant to generate this many
 			//
@@ -831,25 +758,7 @@ int main(int argc, char *argv[])
 					search = new LAOStar();
 				}
 			}
-			// 概率不确定性
-			/* momo007 2022.05.26 not use */ 
-			// else if (my_problem->domain().requirements.probabilistic)
-			// {
-			// 	std::cout << "probability\n";
-			// 	if (goal_pr_in > 0.0)
-			// 		goal_threshold = goal_pr_in;
-			// 	else
-			// 		goal_threshold = (*my_problem).tau();
-			// }
 
-			if (max_horizon < 0)
-				max_horizon = (int)(*my_problem).horizon();
-
-			cout << "GOAL THRESHOLD = " << goal_threshold << endl;
-			if (max_horizon > -1)
-				cout << "horizon = " << max_horizon << endl;
-			else
-				cout << "horizon = Indefinite" << endl;
 
 			OPTIMIZE_REWARDS = 1;
 			OPTIMIZE_PROBABILITY = 1;
@@ -859,30 +768,6 @@ int main(int argc, char *argv[])
 			dname = (char *)(new string(my_problem->domain().name()))->c_str();
 			pname = (char *)(new string(my_problem->name()))->c_str();
 
-			/* momo007 2022.05.26 not used rewrite */
-			// if (my_problem->domain().requirements.rewards)
-			// {
-			// 	if (total_goal_reward == DBL_MAX && my_problem->goal_reward())
-			// 		total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
-			// 	else if (total_goal_reward == DBL_MAX)
-			// 		total_goal_reward = 0;
-			// 	cout << "GOAL REWARD = " << total_goal_reward << endl;
-			// 	DdNode *fr = Cudd_BddToAdd(manager, b_goal_state);
-			// 	Cudd_Ref(fr);
-			// 	DdNode *fr1 = Cudd_addConst(manager, total_goal_reward);
-			// 	Cudd_Ref(fr1);
-			// 	goal_reward = Cudd_addApply(manager, Cudd_addTimes, fr1, fr);
-			// 	Cudd_Ref(goal_reward);
-			// 	Cudd_RecursiveDeref(manager, fr);
-			// 	Cudd_RecursiveDeref(manager, fr1);
-			// 	if (verbosity >= 3)
-			// 	{
-			// 		cout << "goal reward" << endl;
-			// 		printBDD(goal_reward);
-			// 	}
-			// }
-			// else
-			// 	total_goal_reward = 0.0;
 			total_goal_reward = 0.0;
 		}
 		catch (const Exception &e)
@@ -896,11 +781,6 @@ int main(int argc, char *argv[])
 		cout << "#PROPOSITIONS = " << num_alt_facts << endl;
 
 		goal_samples = Cudd_ReadLogicZero(manager);
-		//    if(PF_LUG){                 // generate samples
-		//      list<int> new_vars;
-		//      generate_n_labels(num_new_labels, &all_samples, &new_vars);
-		//      NUMBER_OF_MGS = old;      // reset to actual
-		//    }
 
 		if (HEURISTYPE == SLUGRP ||
 			HEURISTYPE == LUGRP ||
@@ -939,48 +819,7 @@ int main(int argc, char *argv[])
 			if (!USE_CARD_GRP)
 				initLUG(&action_preconds, b_goal_state);
 		}
-		/**
-		 * momo007 2022.05.12
-		 * remove online search
-		 */
-		/*if (online_search)
-		{
-			search = new OnlineSearch(step_search, hLimit);
-			cout << "Performing online search with TCP/IP address " << server_addr << " on port " << server_port << endl;
 
-			struct sockaddr_in addr;
-			struct hostent *server;
-
-			server_socket = socket(AF_INET, SOCK_STREAM, 0);
-			if (server_socket < 0)
-			{
-				perror("ERROR opening socket");
-				exit(0);
-			}
-			server = gethostbyname(server_addr.c_str());
-			if (server == NULL)
-			{
-				fprintf(stderr, "ERROR, no such host\n");
-				exit(0);
-			}
-			bzero((char *)&addr, sizeof(addr));
-			addr.sin_family = AF_INET;
-			bcopy((char *)server->h_addr, (char *)&addr.sin_addr.s_addr, server->h_length);
-			addr.sin_port = htons(server_port);
-
-			cout << "Connecting" << flush;
-			while (connect(server_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-			{
-				cout << "." << flush;
-				usleep(500000);
-			}
-			cout << endl;
-
-			search_goal_threshold = 0.0;
-		}
-
-		else
-		{*/
 		if (step_search != NULL)//如果参数使用了step_search的子类
 		{
 			if (search == NULL)
@@ -993,23 +832,27 @@ int main(int argc, char *argv[])
 		
 		// 没有指定搜索算法，则默认强制爬山算法
 		if (search == NULL)
+		{
+			std::cout << "using EHC() algorithm\n";
 			search = new EHC();
+		}
+			
 
 		// 初始化动作个数，状态和目标状态
 		search->init(num_alt_acts, b_initial_state, b_goal_state);
 
 		cout << "starting search" << endl;
 		if (incremental_search && server_socket < 0) // Incremental AND offline?
-			search->incremental_search();
-		else
-			search->search();
-
-		// momo007 2022.05.12
-		/*if (server_socket > 0)
 		{
-			shutdown(server_socket, 2);
-			close(server_socket);
-		}*/
+			std::cout << "call incremental_search()\n";
+			search->incremental_search();
+		}
+		else
+		{
+			std::cout << 'call search()\n';
+			search->search();
+		}
+			
 
 		if (allowed_time > 0)
 		{
@@ -1035,9 +878,9 @@ int main(int argc, char *argv[])
 				nodes_to_deref.insert((*ai).second);
 			action_transitions.clear();
 
-			for (map<const Action *, DdNode *>::const_iterator ai = action_rewards.begin(); ai != action_rewards.end(); ai++)
-				nodes_to_deref.insert((*ai).second);
-			action_rewards.clear();
+			// for (map<const Action *, DdNode *>::const_iterator ai = action_rewards.begin(); ai != action_rewards.end(); ai++)
+			// 	nodes_to_deref.insert((*ai).second);
+			// 		action_rewards.clear();
 
 			delete[] varmap;
 			delete randomGen;
@@ -1065,7 +908,7 @@ int main(int argc, char *argv[])
 	}
 }
 /**
- * 创建当前和后继状态变量的Cube，设置映射关系，没有被调用到。
+ * 创建当前和后继状态变量的Cube，设置映射关系
  */
 void set_cubes()
 {
@@ -1112,121 +955,5 @@ void set_cubes()
 			Cudd_Ref(particle_cube);
 		}
 	}
-	// 概率
-	else if (my_problem->domain().requirements.probabilistic)
-	{
-		if (!current_state_vars)
-		{
-			current_state_vars = new DdNode *[num_alt_facts];
-			for (int i = 0; i < num_alt_facts; i++)
-			{
-				current_state_vars[i] = Cudd_addIthVar(manager, 2 * i);
-				Cudd_Ref(current_state_vars[i]);
-			}
-
-			next_state_vars = new DdNode *[num_alt_facts];
-			for (int i = 0; i < num_alt_facts; i++)
-			{
-				next_state_vars[i] = Cudd_addIthVar(manager, 2 * i + 1);
-				Cudd_Ref(next_state_vars[i]);
-			}
-
-			aux_state_vars = new DdNode *[max_num_aux_vars];
-			for (int i = 0; i < max_num_aux_vars; i++)
-			{
-				aux_state_vars[i] = Cudd_addIthVar(manager, 2 * num_alt_facts + i);
-				Cudd_Ref(aux_state_vars[i]);
-			}
-
-			current_state_cube = Cudd_addComputeCube(manager, current_state_vars, 0, num_alt_facts);
-			Cudd_Ref(current_state_cube);
-			next_state_cube = Cudd_addComputeCube(manager, next_state_vars, 0, num_alt_facts);
-			Cudd_Ref(next_state_cube);
-			aux_var_cube = Cudd_addComputeCube(manager, aux_state_vars, 0, max_num_aux_vars);
-			Cudd_Ref(aux_var_cube);
-		}
-		if (PF_LUG)
-		{
-			particle_vars = new DdNode *[num_new_labels];
-			for (int i = 0; i < num_new_labels; i++)
-			{
-				particle_vars[i] = Cudd_addIthVar(manager, 2 * i + 1);
-				Cudd_Ref(particle_vars[i]);
-			}
-			particle_cube = Cudd_addComputeCube(manager, particle_vars, 0, num_new_labels);
-			Cudd_Ref(particle_cube);
-		}
-	}
+	
 }
-
-// extern const char *getAction(struct ActionNode *a);
-
-/**
- * momo007 2022.05.12 
- * 
- * ignore following code in this project
- */
-/*void IPC_write_plan(StateNode *s, list<string> *plan)
-{
-	if (s->Terminal || s->BestAction->act == terminalAction)
-		return;
-	plan->push_back(getAction(s->BestAction));
-	IPC_write_plan(s->BestAction->NextState->State, plan);
-}
-
-void IPC_write()
-{
-	int plan_length, action_length;
-	ostringstream plan_string(ostringstream::out);
-	ostringstream action_string(ostringstream::out);
-	ostringstream mytime(ostringstream::out);
-
-	list<string> plan, actions;
-	list<int> plan_ints;
-
-	time_t ftime = time(NULL);
-	tm *now = localtime(&ftime);
-	mytime << "__" << now->tm_hour << "_" << now->tm_min << "_" << now->tm_sec;
-
-	string outfile(my_problem->name());
-	outfile += mytime.str() + ".out";
-	ofstream fout(outfile.c_str());
-
-	IPC_write_plan(Start, &plan);
-
-	plan_length = plan.size();
-
-	for (list<string>::iterator i = plan.begin(); i != plan.end(); i++)
-		actions.push_back(*i);
-
-	actions.unique();
-	action_length = actions.size();
-
-	for (list<string>::iterator i = plan.begin(); i != plan.end(); i++)
-	{
-		int index = 0;
-		for (list<string>::iterator j = actions.begin(); j != actions.end(); j++)
-		{
-			if (*i == *j)
-			{
-				plan_string << " " << index;
-				break;
-			}
-			else
-				index++;
-		}
-	}
-
-	for (list<string>::iterator j = actions.begin(); j != actions.end(); j++)
-		action_string << " " << *j;
-
-	fout << "0"
-		 << "\n%%\n"
-		 << action_length << action_string.str()
-		 << "\n%%\n"
-		 << "linear " << plan_length << plan_string.str() << endl
-		 << endl;
-
-	fout.close();
-}
-*/

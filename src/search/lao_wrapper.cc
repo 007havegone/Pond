@@ -271,70 +271,6 @@ int check_loop_conditions(StateNode* src, StateNode* dest, DdNode* state, int cu
 }
 
 
-double computeReward(pair<const Action* const, DdNode*>* action,
-										 DdNode* successor,
-										 DdNode* parent){
-											 double retVal = -1.0;
-
-											 DdNode* aParent, *aSuccessor;
-
-
-											 if( my_problem->domain().requirements.rewards){
-
-												 if(my_problem->domain().requirements.non_deterministic){
-													 aParent = Cudd_BddToAdd(manager, parent);
-													 aSuccessor = Cudd_BddToAdd(manager, successor);
-												 }
-												 else{
-													 aParent = parent;
-													 aSuccessor = successor;
-												 }
-												 Cudd_Ref(aParent);
-												 Cudd_Ref(aSuccessor);
-
-												 DdNode* allrw = Cudd_ReadZero(manager);
-
-												 if(!action){    // terminal, collect goal reward
-													 DdNode* allrw = Cudd_addApply(manager, Cudd_addTimes,
-														 aSuccessor,
-														 //parent,
-														 //goal_reward,
-														 goal_reward
-														 );
-													 Cudd_Ref(allrw);
-													 if(my_problem->domain().requirements.non_deterministic)
-														 retVal = get_min(allrw);
-													 else
-														 retVal = get_sum(allrw);
-												 }
-												 else{   // non-terminal, collect cost
-
-													 DdNode* reward = action_rewards[(*action).first];
-
-													 Cudd_Ref(reward);
-													 allrw = Cudd_addApply(manager,
-														 Cudd_addTimes,
-														 reward,
-														 aParent);
-													 Cudd_Ref(allrw);
-													 Cudd_RecursiveDeref(manager, reward);
-												 }
-
-												 if(allrw != Cudd_ReadZero(manager)){
-													 if(my_problem->domain().requirements.non_deterministic)
-														 retVal = get_min(allrw);
-													 else
-														 retVal = get_sum(allrw);
-												 }
-
-												 Cudd_RecursiveDeref(manager, allrw);
-												 Cudd_RecursiveDeref(manager, aParent);
-												 Cudd_RecursiveDeref(manager, aSuccessor);
-											 }
-
-											 return retVal;
-}
-
 DdNode* normalize(DdNode* dd){
 	double total = get_sum(dd);
 	DdNode* fr = Cudd_addConst(manager, total);
@@ -604,7 +540,7 @@ void computeSuccessors(pair<const Action* const, DdNode*>* action,
 		for(list<DdNode*>::iterator successor = successors->begin();
 			successor != successors->end(); successor++, tmpprs1++){
 
-				rewards->push_back(computeReward(action, *successor, parent->dd));
+				// rewards->push_back(computeReward(action, *successor, parent->dd));
 				if(my_problem->domain().requirements.non_deterministic){
 					tmppr = 1.0/(double)successors->size();
 					tmpdd=*successor;
@@ -715,7 +651,7 @@ double computeGoalSatisfaction(DdNode* dd){
 		Cudd_RecursiveDeref(manager, tmp);
 		Cudd_RecursiveDeref(manager, tmp1);
 	}
-	// 判断当前状态是否蕴含目标命题
+	// 判断当前状态是否leq目标命题
 	else if(my_problem->domain().requirements.non_deterministic){
 		if(bdd_entailed(manager, dd, Goal->dd))
 			retVal = 1.0;
@@ -1124,12 +1060,15 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 	}
 	// case2:
 	else{
-		std::cout << "progres mode: bdd\n";
+		std::cout << "progress mode: bdd\n";
 		// 获取action的BDD，核心实现，涉及到axioms
 		DdNode *t = groundActionDD(*(a->first));
 		Cudd_Ref(t);
-		std::cout << "print action BDD\n";
-		printBDD(t);
+		if(verbosity>2)
+		{
+			std::cout << "print action BDD\n";
+			printBDD(t);
+		}
 
 		// 动作的BDD为空
 		if(t == Cudd_ReadZero(manager) || t == Cudd_ReadLogicZero(manager)){
@@ -1139,13 +1078,19 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 			else if(my_problem->domain().requirements.non_deterministic)
 				return Cudd_ReadLogicZero(manager);
 		}
-		std::cout << "before perform the action state bdd\n";
-		printBDD(parent);
+		if(verbosity>2)
+		{
+			std::cout << "before perform the action state bdd\n";
+			printBDD(parent);	
+		}
 		// 使用action的BDD进行遗忘更新
 		result = progress(t, parent);
 		Cudd_RecursiveDeref(manager,t);
-		std::cout << "After perform the action\n";
-		printBDD(result);
+		if(verbosity)
+		{
+			std::cout << "After perform the action\n";
+			printBDD(result);	
+		}
 		std::cout << "@@@@@@@@@@@@@@@@@@@@@@\n";
 		// 定义了event，进一步更新
 		// DdNode *ex_result;
@@ -1983,6 +1928,7 @@ static int actNum = 1;
 void outputPlan(){
 
 	gEndTime = clock();
+	/**
 	int min, max, numPlans;
 	min = 10000;
 	max = -1;
@@ -2029,6 +1975,7 @@ void outputPlan(){
 		cout << "p(Plan Success) = "<< Start->ExtendedGoalSatisfaction <<endl;
 
 	}
+	*/
 	printf("Total User Time = %f secs\n", (float)((gEndTime-gStartTime)/(float)CLOCKS_PER_SEC));
 }
 
