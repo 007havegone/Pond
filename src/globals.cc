@@ -153,7 +153,7 @@ std::map<const Action*, std::list<std::map<const pEffect*, DdNode*>*>* > action_
 //for each action keeps a pair of positive and negative affected variables
 std::map<const Action*, std::pair<DdNode*, DdNode*>* > action_affects;
 /* MTBDDs representing reward vector for actions. */
-std::map<const Action*, DdNode*> action_rewards;
+// std::map<const Action*, DdNode*> action_rewards;
 std::map<const Action*, OutcomeSet*> action_outcomes;
 plan* the_plan;
  const StateFormula* the_observation;

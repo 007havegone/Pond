@@ -225,7 +225,7 @@ extern std::map<const Action*, dbn*> action_obs_dbns;
 /* 动作的effect，pair的first表示action，pair的second存储变换前后的atom的BDD */
 extern std::map<const Action*, std::pair<DdNode*, DdNode*>* > action_affects;
 /* MTBDDs representing reward vector for actions. */
-extern std::map<const Action*, DdNode*> action_rewards;
+// extern std::map<const Action*, DdNode*> action_rewards;
 /* 根据formula计算得到BDD，prime=true代表后继状态，false为当前状态 */
 extern DdNode* formula_bdd(const StateFormula& formula, bool primed);
  /* exhaustive conditional effects, ala SGP -- dan */

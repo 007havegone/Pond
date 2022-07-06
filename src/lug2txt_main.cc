@@ -621,35 +621,35 @@ int main(int argc, char *argv[])
 
 			dname = (char *)(new string(my_problem->domain().name()))->c_str();
 			pname = (char *)(new string(my_problem->name()))->c_str();
+			// if (my_problem->domain().requirements.rewards)
+			// {
+			// 	if (my_problem->goal_reward())
+			// 		total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
+			// 	else
+			// 		total_goal_reward = 0;
 
-			if (my_problem->domain().requirements.rewards)
-			{
-				if (my_problem->goal_reward())
-					total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
-				else
-					total_goal_reward = 0;
+			// 	cout << "GOAL REWARD = " << total_goal_reward << endl;
 
-				cout << "GOAL REWARD = " << total_goal_reward << endl;
+			// 	DdNode *fr = Cudd_BddToAdd(manager, b_goal_state), *fr1 = Cudd_addConst(manager, total_goal_reward);
+			// 	Cudd_Ref(fr);
+			// 	Cudd_Ref(fr1);
 
-				DdNode *fr = Cudd_BddToAdd(manager, b_goal_state), *fr1 = Cudd_addConst(manager, total_goal_reward);
-				Cudd_Ref(fr);
-				Cudd_Ref(fr1);
+			// 	goal_reward = Cudd_addApply(manager, Cudd_addTimes, fr1, fr);
+			// 	Cudd_Ref(goal_reward);
+			// 	Cudd_RecursiveDeref(manager, fr);
+			// 	Cudd_RecursiveDeref(manager, fr1);
 
-				goal_reward = Cudd_addApply(manager, Cudd_addTimes, fr1, fr);
-				Cudd_Ref(goal_reward);
-				Cudd_RecursiveDeref(manager, fr);
-				Cudd_RecursiveDeref(manager, fr1);
-
-				if (verbosity >= 3)
-				{
-					cout << "goal reward" << endl;
-					printBDD(goal_reward);
-				}
-			}
-			else
-			{
-				total_goal_reward = 0.0;
-			}
+			// 	if (verbosity >= 3)
+			// 	{
+			// 		cout << "goal reward" << endl;
+			// 		printBDD(goal_reward);
+			// 	}
+			// }
+			// else
+			// {
+			// 	total_goal_reward = 0.0;
+			// }
+			total_goal_reward = 0.0;
 		}
 		catch (const Exception &e)
 		{
@@ -1126,13 +1126,13 @@ int main(int argc, char *argv[])
 			Cudd_RecursiveDeref(manager, (*ai).second);
 		}
 		action_transitions.clear();
-		for (std::map<const Action *, DdNode *>::const_iterator ai =
-				 action_rewards.begin();
-			 ai != action_rewards.end(); ai++)
-		{
-			Cudd_RecursiveDeref(manager, (*ai).second);
-		}
-		action_rewards.clear();
+		// for (std::map<const Action *, DdNode *>::const_iterator ai =
+		// 		 action_rewards.begin();
+		// 	 ai != action_rewards.end(); ai++)
+		// {
+		// 	Cudd_RecursiveDeref(manager, (*ai).second);
+		// }
+		// action_rewards.clear();
 		delete[] varmap;
 		delete randomGen;
 		for (std::vector<DdNode *>::const_iterator di = identity_bdds.begin();

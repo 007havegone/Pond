@@ -481,10 +481,10 @@ int main(int argc, char *argv[])
 			if (my_problem->domain().requirements.rewards)
 			{
 				std::cout << "start to set up the rewards\n";
-				if (my_problem->goal_reward())
-					total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
-				else
-					total_goal_reward = 0;
+				// if (my_problem->goal_reward())
+				// 	total_goal_reward = -1 * my_problem->goal_reward()->expression().value(my_problem->init_values()).double_value();
+				// else
+				total_goal_reward = 0;
 
 				cout << "GOAL REWARD = " << total_goal_reward << endl;
 
@@ -670,13 +670,13 @@ int main(int argc, char *argv[])
 			Cudd_RecursiveDeref(manager, (*ai).second);
 		}
 		action_transitions.clear();
-		for (std::map<const Action *, DdNode *>::const_iterator ai =
-				 action_rewards.begin();
-			 ai != action_rewards.end(); ai++)
-		{
-			Cudd_RecursiveDeref(manager, (*ai).second);
-		}
-		action_rewards.clear();
+		// for (std::map<const Action *, DdNode *>::const_iterator ai =
+		// 		 action_rewards.begin();
+		// 	 ai != action_rewards.end(); ai++)
+		// {
+		// 	Cudd_RecursiveDeref(manager, (*ai).second);
+		// }
+		// action_rewards.clear();
 		delete[] varmap;
 		delete randomGen;
 		for (std::vector<DdNode *>::const_iterator di = identity_bdds.begin();
