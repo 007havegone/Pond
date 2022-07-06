@@ -122,8 +122,7 @@ StateNode::~StateNode(){
  * waring!!!, need rewrite
  */
 bool StateNode::isGoal(){
-	return (max_horizon >  0 && horizon >= max_horizon)
-			|| (max_horizon <= 0 && goalSatisfaction >= search_goal_threshold);
+	return bdd_is_one(manager,bdd_imply(manager, this->dd, Goal->dd));
 }
 
 // used for observational outcomes to check looping and change search graph successors
@@ -241,8 +240,8 @@ int StateNode::processSuccessors(list<StateNode*>* states, list<StateNode*>* fh_
 void StateNode::expand(){
 	struct StateNode* parent = this;
 	int currHorizon = parent->horizon;
-	struct StateNode* stateNode;
-	struct ActionNode* actionNode;
+	struct StateNode* stateNode;// 创建新的state结点
+	struct ActionNode* actionNode;// 创建新的action结点
 	struct StateDistribution* stateDist, *stateDist1;
 	list<DdNode*> successors, reasons;
 	list<set<const pEffect*>*> creasons;
@@ -442,13 +441,6 @@ void StateNode::expand(){
 				}
 
 
-				//   if(1 || Search::type != MOLAO
-				//   && my_problem->domain().requirements.probabilistic
-				//   && ((max_horizon == -1 && goal_threshold == 0.0 && parent->goalSatisfaction > goal_threshold)
-				//   || (max_horizon == -1 && goal_threshold != 0.0 && parent->goalSatisfaction >= goal_threshold)
-				//   || (max_horizon != -1 && currHorizon == max_horizon)
-				//   || (parent->NextActions == NULL && parent->BestAction == NULL))){
-
 				states.clear();
 				successors.clear();
 				reasons.clear();
@@ -496,14 +488,7 @@ void StateNode::expand(){
 			stateNode->h = 0;
 	}
 
-	if(OPTIMIZE_REWARDS && OPTIMIZE_PROBABILITY){		 // cost
-		if(my_problem->domain().requirements.rewards)
-			stateNode->g = computeReward(NULL, stateNode->dd, parent->dd);
-		else
-			stateNode->g = 0.0;
-	}
-	else if(!OPTIMIZE_REWARDS && OPTIMIZE_PROBABILITY)	// probability
-		stateNode->g = 0.0;
+	stateNode->g = 0.0;
 
 	stateNode->h = 0;
 	stateNode->f = stateNode->g + stateNode->h;
@@ -590,10 +575,8 @@ void StateNode::addAllActions(){
 	for(map<const Action*, DdNode*>::iterator a = action_preconds.begin(); a != action_preconds.end(); a++){
 		if((*a).first->name().compare("noop_action") == 0)
 			continue;
-
-		ActionNode* action = addAction((*a).first->name(), true, false);
+		ActionNode *action = addAction((*a).first->name(), false, false);
 		assert(action != NULL);
-		std::cout << "addAction\n";
 	}
 	if(wasNotExpanded)
 		cout << expandedStates << ":";
@@ -623,17 +606,17 @@ ActionNode* StateNode::addAction(const string name, bool reuseIfExists, bool dis
 		return NULL;
 	}
 		
-
 	ActionNode* action = NULL;
 	if(reuseIfExists){// 该动作已经记录过
-		action = getAction(name, false);
+		action = getAction(name, false);// 这里根据名字查找会出现重复
 		if(action != NULL){
-			if(displayState)
+			if (displayState)
 				cout << "\t" << StateNo << "\t" << g << "\t" << h << "\t" << goalSatisfaction << "\t" << prReached << endl;
 			return action;
 		}
 	}
-
+	cout << "add new action\n";
+	
 	map<const Action*, DdNode*>::iterator a;
 	for(a = action_preconds.begin(); a != action_preconds.end() && (*a).first->name().compare(name) != 0; a++);
 	if(a == action_preconds.end())
@@ -1003,7 +986,10 @@ StateNode* ActionNode::addState(const set<string>& trueObs, bool reuseIfExists){
 StateNode* ActionNode::newSample(){
 	return newSample(NULL);
 }
-
+/**
+ * momo007 2022.07.06
+ * This method now is now used in the A star algorithm
+ */
 StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observations){
 	/**
 	 * momo007 not used dbn node
@@ -1019,12 +1005,17 @@ StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observatio
 	// 查找动作判断其满足情况
 	map<const Action*, DdNode*>::iterator fr = action_preconds.find(act);
 	assert(fr != action_preconds.end());
-	if(!add_bdd_entailed(manager, PrevState->dd, fr->second)){
+	std::cout << "befor add_bdd()\n" << std::flush;
+	/**
+	 * momo007 2022.06.09 add using error, not the state only contain bdd
+	 */
+	// if (!add_bdd_entailed(manager, PrevState->dd, fr->second))
+	if(bdd_isnot_one(manager,bdd_imply(manager,PrevState->dd, fr->second)))
+	{
+		std::cout << "not entailed()\n" << std::flush;
 		return NULL;
 	}
-	std::cout << "current sat the action precondition" << act->name() << "\n";
 	pair<const Action *const, DdNode *> act_pair(act, fr->second);// 动作及其前提条件pair
-	std::cout << "start forggeting to get next successor states\n";
 	DdNode *causativeSuccessor = progress(&act_pair, PrevState->dd);
 	Cudd_Ref(causativeSuccessor);
 
@@ -1039,20 +1030,21 @@ StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observatio
 		std::cout << "split the zero bdd\n";
 		num_successors = split(observations, PrevState->dd, &successors, &creasons, &probabilities, 1);
 	}
-		
-	else{
-		std::cout << "split the bdd\n";
-		num_successors = split(observations, causativeSuccessor, &successors, &creasons, &probabilities, 1);
-	}
+	successors.push_back(causativeSuccessor);
+	// else{
+	// 	std::cout << "split the bdd\n";
+	// 	// 分别传入总的后继状态，successor(obs分割后的)，creason（reason），每个分支的概率,sample数量
+	// 	num_successors = split(observations, causativeSuccessor, &successors, &creasons, &probabilities, 1);
+	// }
 
 //	Cudd_RecursiveDeref(manager, causativeSuccessor);		// Keep or Comment??
 
-	assert(num_successors == 1);// 这里为什么一定要保证为1?
-	assert(Cudd_ReadZero(manager) != *(successors.begin()));
+	// assert(num_successors == 1);// 这里为什么一定要保证为1?
+	// assert(Cudd_ReadZero(manager) != *(successors.begin()));
 
 	list<DdNode*>::iterator o = successors.begin();// 考虑后继状态
-	list<set<const pEffect*>*>::iterator cr = creasons.begin();// 考虑observation
-	list<double>::iterator v = probabilities.begin();// 考虑observation的prob
+	// list<set<const pEffect*>*>::iterator cr = creasons.begin();// 考虑observation
+	// list<double>::iterator v = probabilities.begin();// 考虑observation的prob
 
 	StateNode* state = NULL;
 //	cout << "A" << ActionNo;
@@ -1089,17 +1081,18 @@ StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observatio
 			state = StateNode::generated[*o];
 
 		bool linked = false;
+		// 判断是否添加过
 		for(StateDistribution* dist = NextState; dist != NULL; dist = dist->Next){
 			if(dist->State == state){
 				linked = true;
 				break;
 			}
 		}
-
+		// 第一次添加，链表头插法
 		if(!linked){
 			StateDistribution* stateDist = CreateStateDistribution();
 			stateDist->State = state;
-			stateDist->creason = *cr;
+			// stateDist->creason = *cr;
 			stateDist->Prob = 1.0;		// HACK
 			stateDist->Next = NextState;
 			NextState = stateDist;
