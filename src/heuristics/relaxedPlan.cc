@@ -1122,7 +1122,7 @@ double costNonNoopsCombineWorlds(set<LabelledAction*>* ops){
 }
 int RelaxedPlan::getRelaxedConformantNumActions() {
 	int num_acts = 0;
-	//    cout << "PLan length = " << plan_length<<endl;
+	   cout << "PLan length = " << plan_length<<endl;
 	//    this->display();
 	for(int i = 0; i < plan_length; i++)
 

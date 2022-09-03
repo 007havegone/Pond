@@ -5191,11 +5191,11 @@ void setKGraphTo(int k) {
 	gall_ops_pointer = k_graphs[k]->gall_ops;
 	gall_efs_pointer = k_graphs[k]->gall_efs;
 
-	graph_levels = k_graphs[k]->num_levels;
+	graph_levels = k_graphs[k]->num_levels;// 层级数目
 	gall_fts_pointer = k_graphs[k]->all_fts_pointer;
-	gft_mutex_pairs = k_graphs[k]->ft_mutex_pairs;
+	gft_mutex_pairs = k_graphs[k]->ft_mutex_pairs;// 互斥对
 	gft_table = k_graphs[k]->graph;
-	b_initial_state = k_graphs[k]->initial;
+	b_initial_state = k_graphs[k]->initial;// 初始状态
 }
 
 #ifdef PPDDL_PARSER
@@ -6478,6 +6478,7 @@ bool getSupport(int time,
 	//form cover elements as world-clause pairs
 	//  cout << "|subgoals| = " << subgoals->size() << endl;
 	//   cout << "["<<endl;  Cudd_CheckKeys(manager);cout <<"|" <<endl;
+	// 创待待查找support operator的目标集合
 	for(list<LabelledFormula*>::iterator s = subgoals->begin();
 			s != subgoals->end(); s++){
 		subgoal = ((DdNode*)(*s)->elt);
@@ -6537,7 +6538,9 @@ bool getSupport(int time,
 	//do cover
 	//cout << "|clauses| = " << clauses.size() <<endl;
 
-
+	/**
+	 * 这里为和需要移除最大价值的目标
+	 */
 	while(clauses.size() > 0){
 		//   cout << "|clauses| = " << clauses.size() <<endl;
 		//      cout << "|effects| = " << effects->size() <<endl;
@@ -6596,7 +6599,7 @@ bool getSupport(int time,
 				break;
 			}
 		}
-		if(!match){
+		if(!match){// 没有合适的operator
 			if(COMPUTE_LABELS)
 				actions->insert(new LabelledAction((*e)->elt->op, (*e)->label, 0));
 			else
@@ -6715,7 +6718,10 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 #ifdef PPDDL_PARSER
 	DdNode* tmp;
 	DdNode* tmp1;
+	// 忽略
 	if(!PF_LUG && my_problem->domain().requirements.probabilistic){
+		std::cout << "Error heuristic\n";
+		assert(0);
 		tmp = Cudd_addBddStrictThreshold(manager, worlds, 0.0);
 		Cudd_Ref(tmp);
 	}
@@ -6736,8 +6742,9 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 
 	//   printBDD(tmp);
 	//   printBDD(worlds);
-
+	// 在最后一层添加上目标的标记公式
 	if((*my_problem).goal_cnf() && !(*my_problem).domain().requirements.rewards){
+		// 考虑目标每个命题
 		for(list<DdNode*>::iterator g = goal_cnf.begin();
 				g != goal_cnf.end(); g++){
 			Cudd_Ref(*g);
@@ -6760,16 +6767,16 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 #endif
 
 
-
+	// 从最后一层开始，抽取plan
 	for(int j =  return_plan->plan_length; j>0; j--) {
-		if(LUG_FOR == SPACE){
+		if(LUG_FOR == SPACE){// 空的？
 			//     cout << "." << flush;
 		}
 
 		   //cout << "Starting backwards from " << j << endl;
 		//find actions for level
 		  //cout << "before get support"<<endl;
-
+		// 计算上一层的support operator
 		if(!getSupport(j, //time to support
 				return_plan->action_levels[j-1], //ops returned
 				return_plan->effect_levels[j-1], //efs returned
@@ -6790,7 +6797,7 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 		//           Cudd_CheckKeys(manager);    fflush(stdout);
 		//    Cudd_CheckKeys(manager);    fflush(stdout);
 		//      cout << "]"<<flush << endl;
-
+		// 还为到达第一层，更新子目标
 		if(j>1){
 			//insert preconditions of actions and effects
 			insertSubgoals(j-1, //time to insert subgoals
@@ -6802,7 +6809,7 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 
 		  //cout << "after subgoals"<<endl;
 	}
-	numRPs++;
+	numRPs++;// relaxed plan heuristic调研次数
 	//   Cudd_CheckKeys(manager);    fflush(stdout);
 
 	//cout << "done with rp"<<endl;
@@ -7218,18 +7225,19 @@ int getRelaxedPlanHeuristic(){
 
 	if( HEURISTYPE==HRPUNION )
 		merged_plan = new RelaxedPlan(IPP_MAX_PLAN, 0);
-	//cout << "|graphs| = " << num_graphs<<endl;
-	for(int i = 0; i < num_graphs; i++) {
+	cout << "|graphs| = " << num_graphs << endl;// 这里恒为0，还未创建1张图，导致后续得到的planning长度为0
+	for (int i = 0; i < num_graphs; i++)
+	{
 		if(num_graphs > 1 || HEURISTYPE==HRPUNION || HEURISTYPE==HRPMAX|| HEURISTYPE==HRPSUM)
-			setKGraphTo(i);
-		//cout << "num levs = " << graph_levels <<endl;
+			setKGraphTo(i);// 存在bug，该接口内使用的kgraph未初始化
+		cout << "num levs = " << graph_levels <<endl;
 		tmp_plan_length = graph_levels;//getLabelLevel(b_initial_state, NULL);
 
-		if(tmp_plan_length == IPP_MAX_PLAN){
+		if(tmp_plan_length == IPP_MAX_PLAN){// 无法到达目标
 			//cout << "HO"<<endl;
 			return IPP_MAX_PLAN;
 		}
-		else if(tmp_plan_length == 0)
+		else if(tmp_plan_length == 0)// 初始状态即目标，忽略
 			continue;
 		else {
 			//tmp_plan = new RelaxedPlan(IPP_MAX_PLAN, 0);
@@ -7237,21 +7245,21 @@ int getRelaxedPlanHeuristic(){
 			tmp_plan = getRelaxedPlan(tmp_plan_length, b_goal_state, FALSE, Cudd_ReadOne(manager));
 			// cout << "got rp"<<endl;
 		}
-		if(num_graphs > 1 ||
-				HEURISTYPE==HRPUNION ||
-				HEURISTYPE==HRPMAX ||
-				HEURISTYPE==HRPSUM) {
-			if(tmp_plan) {
+		// 多个graph，合并relaxed plan
+		if(num_graphs > 1 || HEURISTYPE==HRPUNION || HEURISTYPE==HRPMAX || HEURISTYPE==HRPSUM) {
+			if(tmp_plan) {// 存在relaxed plan，合并
 				if(HEURISTYPE==HRPUNION){
 					a = 0;
+					// 考虑每一层relax plan
 					for(int j = tmp_plan->plan_length - 1;j >=0; j--){
 						set_merged = TRUE;
+						//如果存在action levels
 						if(tmp_plan && tmp_plan->action_levels[j]){
 							//loop through tmp level and add to merged
 							//level if not in merged level
 							for(end1 = tmp_plan->action_levels[j]->begin();
 									end1 != tmp_plan->action_levels[j]->end(); ++end1 ) {
-								match_found = FALSE;
+								match_found = FALSE;// 该action是否添加过
 								for(end2 = merged_plan->action_levels[a]->begin();
 										end2 != merged_plan->action_levels[a]->end(); ++end2 ) {
 									if(((OpNode*)(*end1)->elt)->alt_index ==
@@ -7260,22 +7268,25 @@ int getRelaxedPlanHeuristic(){
 										break;
 									}
 								}
+								// 之前没添加，增加
 								if(!match_found)
 									merged_plan->action_levels[a]->insert(*end1);
 							}
 						}
 						else
 							break;
-						a++;
+						a++;// 此次合并的层数
 					}
 				}
 			}
+			// 释放内存
 			if(k_graphs[i]->relaxed_plan) {
 				delete k_graphs[i]->relaxed_plan;
 				k_graphs[i]->relaxed_plan = NULL;
 			}
 			k_graphs[i]->relaxed_plan = tmp_plan;
 		}
+		// 单个graph,直接赋值
 		else{
 			set_merged = TRUE;
 			merged_plan = tmp_plan;
@@ -7285,6 +7296,7 @@ int getRelaxedPlanHeuristic(){
 	if(HEURISTYPE==HRPUNION /*&& merged_plan && set_merged*/) {
 		return_val = 0;
 		return_val = merged_plan->getRelaxedConformantNumActions();
+		std::cout << "getRelaxedConformantNumActions() =" << return_val << std::endl;
 		//    cout << "num acts = " << return_val<<endl;
 		delete merged_plan;
 	}
@@ -7294,26 +7306,27 @@ int getRelaxedPlanHeuristic(){
 			return_val += merged_plan->action_levels[k]->size();
 		}
 	}
+	// Heuristic Relaxed planning max and sum
 	else if(HEURISTYPE==HRPMAX ||HEURISTYPE==HRPSUM ){
 		return_val = -1;
 		int tmp = 0;
 		for(int i = 0; i < num_graphs; i++) {
-			if(!(k_graphs[i]->relaxed_plan)) {
+			if(!(k_graphs[i]->relaxed_plan)) {// 存在一个状态不可达，置为max
 				return_val = IPP_MAX_PLAN;
 				break;
 			}
-			if(RP_COUNT == RPEFFS)
+			if(RP_COUNT == RPEFFS)// 计算effect
 				tmp = k_graphs[i]->relaxed_plan->getRelaxedNumEffects();
-			else if(RP_COUNT == RPACTS)
+			else if(RP_COUNT == RPACTS)// 计算act
 				tmp = k_graphs[i]->relaxed_plan->getRelaxedConformantNumActions();
 
 			delete k_graphs[i]->relaxed_plan;
 
 			// cout << "Num acts " << tmp << endl;
-			if(tmp > return_val )
+			if(tmp > return_val )// 更新最大值
 				return_val = tmp;
 
-			if(HEURISTYPE==HRPSUM)
+			if(HEURISTYPE==HRPSUM)// 累加
 				sum_val += tmp;
 
 		}
