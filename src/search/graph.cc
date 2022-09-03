@@ -988,7 +988,7 @@ StateNode* ActionNode::newSample(){
 }
 /**
  * momo007 2022.07.06
- * This method now is now used in the A star algorithm
+ * This method now is without using in the A star algorithm
  */
 StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observations){
 	/**
@@ -1005,7 +1005,7 @@ StateNode* ActionNode::newSample(list<map<const pEffect*, DdNode*>*>* observatio
 	// 查找动作判断其满足情况
 	map<const Action*, DdNode*>::iterator fr = action_preconds.find(act);
 	assert(fr != action_preconds.end());
-	std::cout << "befor add_bdd()\n" << std::flush;
+	std::cout << "before add_bdd()\n" << std::flush;
 	/**
 	 * momo007 2022.06.09 add using error, not the state only contain bdd
 	 */
@@ -1193,9 +1193,9 @@ bool StateComparator::operator() (StateNode *lhs, StateNode *rhs) const{
 		if(lhs->f != rhs->f)
 			return (lhs->f < rhs->f);
 	}
-
-	if(lhs->goalSatisfaction != rhs->goalSatisfaction)
-		return (lhs->goalSatisfaction > rhs->goalSatisfaction);
+	// 不涉及概率时，没有作用
+	// if(lhs->goalSatisfaction != rhs->goalSatisfaction)
+	// 	return (lhs->goalSatisfaction > rhs->goalSatisfaction);
 
 	if(lhs->randPriority != rhs->randPriority)
 		return (lhs->randPriority < rhs->randPriority);
