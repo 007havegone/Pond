@@ -1,0 +1,24 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            
+            "request": "launch",
+            "name": "POND program launch",
+            "cwd": "${workspaceFolder}",
+            "type": "cppdbg",
+            "program": "${workspaceFolder}/src/pondbeta",
+            "args": [
+                "${workspaceFolder}/src/d5.pddl",
+                "${workspaceFolder}/src/p5.pddl",
+                "-s",
+                "astar",
+                "-h",
+                "sgsum"
+            ]
+        }
+    ]
+}
