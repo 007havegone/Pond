@@ -15,7 +15,8 @@ enum SearchType{
   HOP_SEARCH,// **
   PCHOP_SEARCH,
   ALAO_STAR,
-  EXPH// **
+  EXPH,// **
+  AOSTAR
 };
 
 class DdNode;
