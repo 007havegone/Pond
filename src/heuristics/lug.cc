@@ -4058,6 +4058,9 @@ DdNode* statesAtLevel(DdNode* source, int level){
 
 bool first_sample = true;
 
+/**
+ * 计算启发式值， states为children。
+ */
 void getHeuristic(list<StateNode*>* states,
 		StateNode* parent,//double parentGoalSatisfaction,
 		int currHorizon){
@@ -4084,37 +4087,44 @@ void getHeuristic(list<StateNode*>* states,
 	//     if(LUG_FOR == SPACE)
 	//cout << "ppHI" <<endl;
 
-
+	/**
+	 * NONE，根据最小的reward最为目标的h
+	 */
 	if (HEURISTYPE == NONE && states){
 		//cout << "|states| = " << states->size()<<endl;
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
 			(*i)->h = min(total_goal_reward, 0.0);//(*i)->h = 0.0;
-			// cout << "NONE" <<endl;
-			//cout << (*i)->h << endl;
+			cout << "NONE" <<endl;
+			cout << (*i)->h << endl;
 		}
 	}
+	/**
+	 * CARD，根据每个dd的cardinality作为h
+	 */
 	else if (HEURISTYPE == CARD && states){
 		//cout << "|states| = " << states->size()<<endl;
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
-			//      cout << "NONE" <<endl;
+			     cout << "CARD" <<endl;
 			(*i)->h = getCardinality((*i)->dd);
 
-			//cout << (*i)->h << endl;
+			cout << (*i)->h << endl;
 		}
 	}
 	/*************** Multiple graph Heuristics **************/
-
+	
 	else if((HEURISTYPE == HRPSUM ||
 			HEURISTYPE == HRPMAX ||
 			HEURISTYPE == HRPUNION) && states){
+		// 考虑每个child
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
-			COMPUTE_LABELS=FALSE;
+			COMPUTE_LABELS=FALSE;// 两个标签的意义？
 			ALLOW_LEVEL_OFF = FALSE;
 
 #ifdef PPDDL_PARSER
+			// 该接口实现为空
 			totalgp = build_k_planning_graphs((*i)->dd,
 					b_goal_state,  num_k_graphs );
 #else
@@ -4122,10 +4132,11 @@ void getHeuristic(list<StateNode*>* states,
 					b_goal_state,
 					available_acts, num_k_graphs );
 #endif
+			// 该接口存在bug
 			(*i)->h = getRelaxedPlanHeuristic();
 			if((*i)->h == IPP_MAX_PLAN)
 				(*i)->h = 999999999.9999;
-			//        cout << "i = " << (*i)->StateNo << " H = " << (*i)->h << endl;
+			       cout << "i = " << (*i)->StateNo << " H = " << (*i)->h << endl;
 			free_k_graphs();
 			//        cout << "freed"<<endl;
 		}

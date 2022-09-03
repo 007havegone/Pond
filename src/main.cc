@@ -781,7 +781,7 @@ int main(int argc, char *argv[])
 		cout << "#PROPOSITIONS = " << num_alt_facts << endl;
 
 		goal_samples = Cudd_ReadLogicZero(manager);
-
+		// 这里的kGraph用于后续的启发式
 		if (HEURISTYPE == SLUGRP ||
 			HEURISTYPE == LUGRP ||
 			HEURISTYPE == LUGLEVEL ||
