@@ -81,6 +81,8 @@ bool AStar::step(){
 		actNode->PrevState = next;// 状态结点连接动作结点
 		next->NextActions->push_back(actNode);
 	}
+	// 拓展结点个数+1
+	expandedNodes++;
 	// 考虑每个动作，计算后继状态，同时链接起来
 	for (ActionNodeList::iterator act_it = next->NextActions->begin(); act_it != next->NextActions->end(); act_it++)
 	{
@@ -133,7 +135,7 @@ bool AStar::step(){
 			*/
 			list<StateNode *> m_states;
 			m_states.push_back(child);
-			getHeuristic(&m_states, next, next->horizon + 1);
+			getHeuristic(&m_states, next, next->horizon + 1);// 计算child的启发值
 			//state->h = 100;
 			m_states.clear();
 
@@ -161,7 +163,9 @@ bool AStar::step(){
 
 			child->prReached = next->prReached * 1.0;//dist->Prob;		// HACK
 			child->horizon = next->horizon + 1;
-			child->randPriority = rand();// 这个参数可能影响每次搜索结果不同
+			// 在无启发式的情况下，StateComparator中会使用该参数，从而影响搜索的方向
+			// child->randPriority = rand();
+			child->randPriority = 1;
 			// 重新添加
 			if(inFringe)
 				open.insert(child_it, child);
@@ -204,7 +208,7 @@ bool AStar::step(){
 	
 	// 从open中取出最佳节点
 	next = *open.begin();
-	setBestAct(next);// 对next节点及前面
+	// setBestAct(next);// 在前面的逻辑中更新了，不需要调用该接口
 	return true;
 }
 
