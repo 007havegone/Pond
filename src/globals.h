@@ -34,6 +34,7 @@ extern int NUM_LUG_SAMPLES;
 extern std::map<const Action*, std::map<int, std::map<int, DdNode*>*>*> lug_samples;
 extern bool RBPF_LUG;
 extern int maxNDL;
+extern int expandedNodes;
 
 
 extern int MAX_PRES;

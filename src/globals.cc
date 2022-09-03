@@ -288,7 +288,7 @@ struct timeval pg_tstart, pg_tend, hsp_tstart, hsp_tend, h_start, h_end, act_tst
 long totalgp = 0, totalhsp = 0, h_total = 0, rp_total = 0, level_total = 0, dnf_total = 0;
 int numRPs = 0;
 // int numDNFs = 0;
-// int expandedNodes=0;
+int expandedNodes=0;
 // int generatedNodes=0;
 // int numberActions=0;
 // int numberSteps=0;
