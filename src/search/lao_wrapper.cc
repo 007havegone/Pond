@@ -1976,7 +1976,15 @@ void outputPlan(){
 
 	}
 	*/
-	printf("Total User Time = %f secs\n", (float)((gEndTime-gStartTime)/(float)CLOCKS_PER_SEC));
+	gNumStates = state_count;
+	pfout << "(define (plan " << dname << ")" <<endl;
+	pfout << "\t(:problem " << pname << ")" <<endl;
+	pfout << "(" << endl;
+
+	cout << "NumStatesGenerated = " << state_count << endl;
+	cout << "ExpandNode = " << expandedNodes << endl;
+	cout << "Heuristic type is:" << HEURISTYPE << endl;
+	printf("Total User Time = %f secs\n", (float)((gEndTime - gStartTime) / (float)CLOCKS_PER_SEC));
 }
 
 void outputPlanR(StateNode* s, int indent, int step, int &max, int &min,
