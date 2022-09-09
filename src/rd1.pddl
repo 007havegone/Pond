@@ -52,12 +52,12 @@
  :parameters (?r - rover ?i - camera ?t - objective ?w - waypoint)
  :precondition 
 (and 
-	(equipped_for_imaging ?r)
-	(calibration_target ?i ?t) 
+	(equipped_for_imaging ?r) ;not need
+	(calibration_target ?i ?t) ; not need
 	(at ?r ?w) 
-;	(visible_from ?t ?w)
-	(on_board ?i ?r))
- :effect ;(when (visible_from ?t ?w) 
+;	(visible_from ?t ?w) ; this one may should not be comment
+	(on_board ?i ?r)) ;not need
+ :effect ;(when (visible_from ?t ?w)  ; this is not always true in initial state, and won't be changed by effect
 (calibrated ?i ?r ?w ?t);)
 )
 

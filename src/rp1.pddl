@@ -1,13 +1,12 @@
 (define (problem roverprob1234) (:domain Rover)
-;(:objects
-;        general - lander
-;        colour high_res low_res - mode
-;        rover0 - rover
-
-;        waypoint0 waypoint1 waypoint2 waypoint3 - waypoint
-;        camera0 - camera
-;        objective1 - objective
-;        )
+(:objects
+        general - lander
+        colour high_res low_res - mode
+        rover0 - rover
+        waypoint0 waypoint1 waypoint2 waypoint3 - waypoint
+        camera0 - camera
+        objective1 - objective
+        )
 (:init
 (and
 	 (visible waypoint1 waypoint0) 
