@@ -523,10 +523,10 @@ struct _EfNode{
   int uid_block;
   unsigned int uid_mask;
 
-  FtEdge *conditions;
-  FtEdge *effects;
+  FtEdge *conditions;// 前提fact
+  FtEdge *effects;// 效果fact
 
-  Effect* effect;
+  Effect* effect;// 
 
   EfLevelInfo_pointer info_at[IPP_MAX_PLAN];
 

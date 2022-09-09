@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
 
 				k_graphs = new kGraphInfo *[K_GRAPH_MAX];
 			}
-
+			// 初始化bit operator
 			gnum_cond_effects = 0;
 			gnum_cond_effects_pre = 0;
 			gbit_operators = NULL;
@@ -385,7 +385,7 @@ int main(int argc, char *argv[])
 			gnum_bit_operators = 0;
 			gnum_relevant_facts = 0;
 
-			if (!USE_CARD_GRP)
+			if (!USE_CARD_GRP)// 默认执行
 				initLUG(&action_preconds, b_goal_state);
 		}
 

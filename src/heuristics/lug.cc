@@ -65,7 +65,7 @@ double expectedReward[IPP_MAX_PLAN]; //stores reward reached, at each level of L
 
 extern int graph_levels;
 
-int num_lugs = 0;
+int num_lugs = 0;// 创建lug graph
 
 
 std::list<std::list<int>* >* level_vars;
@@ -73,10 +73,10 @@ std::list<std::list<int>* >* level_vars;
 //Integer** integers;
 
 
-
+// 未使用
 void increment_heuristic(StateNode* node){
 
-	// cout << "increment " <<  node->StateNo<< " " << node->hIncrement << endl;
+	cout << "increment " <<  node->StateNo<< " " << node->hIncrement << endl;
 
 
 	double oldh = node->h;
@@ -157,7 +157,7 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 #ifdef PPDDL_PARSER
 		//make list to keep track of label vars at levels of LUG
 		level_vars = new list<list<int>* >();
-
+		// 创建action的BitOperator
 		for(std::map<const Action*, DdNode*>::iterator a = acts->begin();
 				a != acts->end(); a++){
 
@@ -1013,7 +1013,7 @@ void createInitLayer(DdNode* init){
 
 	GOALS_REACHED = IPP_MAX_PLAN;
 
-	if(COMPUTE_LABELS){
+	if(COMPUTE_LABELS){// Single Graph pass
 		if(PF_LUG && my_problem->domain().requirements.probabilistic){
 
 			tmp = init; //tmp holds the mapping from states to particles
@@ -1094,7 +1094,7 @@ void createInitLayer(DdNode* init){
 
 		//  cout << "[" << endl; Cudd_CheckKeys(manager); cout <<"|" << endl;
 
-
+		// 遍历考虑每个变量的pos和neg和取初始状态，知道每个var的正负情况
 		//    if(COMPUTE_LABELS){
 		b_sg = Cudd_bddIthVar(manager,2*i);
 		//Cudd_Ref(b_sg);
@@ -1107,7 +1107,7 @@ void createInitLayer(DdNode* init){
 		Cudd_Ref(init_neg_labels[i]);
 		//}
 
-
+		// 存储的label非0，说明存在相应的fact，创建FactInfo
 		if(//!COMPUTE_LABELS ||
 				Cudd_ReadLogicZero(manager) !=  init_pos_labels[i]){
 			make_entry_in_FactInfo( &tpos, i);
@@ -1141,7 +1141,7 @@ void createInitLayer(DdNode* init){
 		setInitCostVector(init);
 
 	Cudd_RecursiveDeref(manager, tmp);
-
+	// FactInfoPair存储正负命题的List
 	gbit_initial_state = new_fact_info_pair( tpos, tneg );
 	//   print_fact_info(tpos, gft_vector_length);
 	//   print_fact_info(tneg, gft_vector_length);
@@ -2451,7 +2451,7 @@ void free_my_info(int j ){
 	//   Cudd_CheckKeys(manager);
 	//   cout << "]" <<endl;
 }
-
+// direct return false, if contain bug.
 bool findGraphForStates(StateNode* parent, DdNode* init){
 	return false;
 }
@@ -2476,7 +2476,7 @@ double build_forward_get_h(DdNode* init,
 	list<DdNode*> worldsAtLevels;
 	int j = 0;
 	double h;
-	int reached_goals = 0;
+	int reached_goals = 0;// if reach the goal
 
 	//     printPlan(parent);
 	//     if(states && !states->empty() && states->front()->PrevAction)
@@ -2500,7 +2500,7 @@ double build_forward_get_h(DdNode* init,
 			//       }
 
 
-			createInitLayer(init);
+			createInitLayer(init);// 创建了FactInfoPair
 
 
 
@@ -4065,7 +4065,7 @@ void getHeuristic(list<StateNode*>* states,
 		StateNode* parent,//double parentGoalSatisfaction,
 		int currHorizon){
 	BitVector* helpful_acts;
-	DdNode* lugBase = Cudd_ReadLogicZero(manager);
+	DdNode* lugBase = Cudd_ReadLogicZero(manager);// initial state BDD for LUG/SG
 	DdNode* invars, *fr, *labelFnHolder;
 
 	//if building a subset of worlds in the LUG,
@@ -4077,21 +4077,20 @@ void getHeuristic(list<StateNode*>* states,
 
 	int gotAppl;
 	int lugHeur = 0;
-	// if(states)
+	if(states)
+	       cout << "|states|= " << states->size() <<endl;
+	else
+	       cout << "|states|=  NULL"<<endl;
+	cout << "NUM = " << NUMBER_OF_MGS <<endl;
 
-	//        cout << "|states|= " << states->size() <<endl;
-	//      else
-	//        cout << "|states|=  NULL"<<endl;
-	// cout << "NUM = " << NUMBER_OF_MGS <<endl;
-
-	//     if(LUG_FOR == SPACE)
-	//cout << "ppHI" <<endl;
+	if(LUG_FOR == SPACE)
+		cout << "ppHI" <<endl;
 
 	/**
 	 * NONE，根据最小的reward最为目标的h
 	 */
 	if (HEURISTYPE == NONE && states){
-		//cout << "|states| = " << states->size()<<endl;
+		cout << "|states| = " << states->size()<<endl;
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
 			(*i)->h = min(total_goal_reward, 0.0);//(*i)->h = 0.0;
@@ -4127,12 +4126,13 @@ void getHeuristic(list<StateNode*>* states,
 			// 该接口实现为空
 			totalgp = build_k_planning_graphs((*i)->dd,
 					b_goal_state,  num_k_graphs );
+			// 参考下面构造Multiply Graph
 #else
 			totalgp = build_k_planning_graphs((*i)->dd,
 					b_goal_state,
 					available_acts, num_k_graphs );
 #endif
-			// 该接口存在bug
+			// 这一部需要前面build_k_planning_graphs处理的数据。
 			(*i)->h = getRelaxedPlanHeuristic();
 			if((*i)->h == IPP_MAX_PLAN)
 				(*i)->h = 999999999.9999;
@@ -4156,7 +4156,7 @@ void getHeuristic(list<StateNode*>* states,
 
 
 			//build lug for all states in list of states
-			//cout << "|states| = " << states->size() << endl;
+			cout << "|states| = " << states->size() << endl;
 			for(list<StateNode*>::iterator i = states->begin();
 					i != states->end(); i++){
 

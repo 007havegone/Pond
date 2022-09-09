@@ -268,9 +268,9 @@ BitVector_pointer gpos_facts_vector_at[IPP_MAX_PLAN];
 BitVector_pointer gneg_facts_vector_at[IPP_MAX_PLAN];
 unsigned int gfacts_count = 0, gexclusions_count = 0;
 FactInfoPair *gbit_initial_state = NULL;
-BitOperator *gbit_operators = NULL;
+BitOperator *gbit_operators = NULL;// 全局op编码, initLUG中创建
 BitOperator *my_gbit_operators = NULL;
-BitOperator *used_gbit_operators = NULL;
+BitOperator *used_gbit_operators = NULL;// 使用的op编码
 //struct _command_line gcmd_line;
 //int garity[MAX_PREDICATES_TABLE];
 /***********
@@ -522,12 +522,13 @@ int  build_graph( int *min_time,
 	proven_goals = FALSE;
 	MUTEX_SCHEME=MUTEX_SCHEMES;
 
-	//  printMemInfo();
+	printMemInfo();
 
-	//    printf("MUX = %d, LEVOFF = %d\n", MUTEX_SCHEME, ALLOW_LEVEL_OFF);
+	printf("MUX = %d, LEVOFF = %d\n", MUTEX_SCHEME, ALLOW_LEVEL_OFF);
 
-	//  std::cout <<"\n\nenter build graph\n" << std::flush;
-	//     printBDD(b_initial_state);
+	std::cout <<"\n\nenter build graph\n" << std::flush;
+	printBDD(b_initial_state);
+	// clear the layers
 	for(j=0;j<IPP_MAX_PLAN;j++){
 		gpos_facts_vector_at[j]=NULL;
 		gneg_facts_vector_at[j]=NULL;
@@ -535,18 +536,20 @@ int  build_graph( int *min_time,
 	}
 
 	gnum_relevant_facts = num_facts;
-	//  printf("Num releveant facts = %d \n" ,gnum_relevant_facts );
-
+	printf("Num releveant facts = %d \n" ,gnum_relevant_facts );
+	// 创建正负FactNode的table
 	gft_table = ( FtNode_pointer * ) calloc( gnum_relevant_facts * 2, sizeof( FtNode_pointer ) );
 
 	CHECK_PTR(gft_table);
 #ifdef MEMORY_INFOi
 	gmemory += gnum_relevant_facts * 2 * sizeof( FtNode_pointer );
 #endif
+	// 将数组的指针置空
 	for ( j = 0; j<2*gnum_relevant_facts; j++ ) gft_table[j] = NULL;
+	// 创建目标pos,neg。
 	gpos_facts_vector_at[0] = new_bit_vector( gft_vector_length );
 	gneg_facts_vector_at[0] = new_bit_vector( gft_vector_length );
-
+	// 考虑初始状态的positive fact
 	for ( i = gbit_initial_state->positive->indices; i; i = i->next ) {
 		if(COMPUTE_LABELS){
 			tmp = get_init_labels(i->index, TRUE);
@@ -558,12 +561,12 @@ int  build_graph( int *min_time,
 		else
 			ft = new_ft_node( 0, i->index, TRUE, FALSE, NULL);
 
-		gft_table[i->index] = ft;
-		ft->next = gall_fts_pointer;
+		gft_table[i->index] = ft;// 存储到table中
+		ft->next = gall_fts_pointer;// 前插法加入FactNode
 		gall_fts_pointer = ft;
 		(gpos_facts_vector_at[0])[ft->uid_block] |= ft->uid_mask;
 	}
-
+	// 考虑每个negative命题
 	for ( i = gbit_initial_state->negative->indices; i; i = i->next ) {
 		if(COMPUTE_LABELS){
 			tmp = get_init_labels(i->index, FALSE);
@@ -607,7 +610,7 @@ int  build_graph( int *min_time,
 
 	for( ; time < *min_time; time++ ) {
 
-		if ( first ) {
+		if ( first ) {// 第一次执行
 			reached_goals = are_there_non_exclusive( time,
 					gbit_goal_state->positive,
 					gbit_goal_state->negative );
@@ -620,6 +623,8 @@ int  build_graph( int *min_time,
 				//}
 			}
 		}
+		// 满足停止条件
+		// 1.最大层数, 2. stop_building, 3. 不计算label,falg无变化
 		if (time == IPP_MAX_PLAN-1 ||
 				(stop_building_graph(time))  ||
 				(!COMPUTE_LABELS && gsame_as_prev_flag && HEURISTYPE != CORRRP) /*&& (!COMPUTE_LABELS || goals_proven(time)) */) break;
@@ -659,7 +664,7 @@ int  build_graph( int *min_time,
 	if(time < IPP_MAX_PLAN-1)
 		reached_goals = TRUE;
 
-	*min_time = time;
+	*min_time = time;// 记录MG中的min_time，最小需要level
 
 	un_update_actions_effects_facts(time);
 
@@ -774,7 +779,7 @@ void update_actions_effects_facts(int time){
 
 
 void un_update_actions_effects_facts(int t){
-	//  std::cout << "undo updates at time: " << time << std::endl;
+	 std::cout << "undo updates at time: " << time << std::endl;
 	for(int time = 0; t >= time; time++){
 		for( OpNode *i1 = gall_ops_pointer; i1; i1=i1->next ){
 
@@ -3350,9 +3355,8 @@ void print_mutex_facts(int time){
 
 
 void build_graph_evolution_step( void )
-
 {
-  printf(".");fflush(stdout);
+	printf(".");fflush(stdout);
 	static int time = 0;
 	int facts_count = gfacts_count, exclusions_count = gexclusions_count;
 	BitOperator *o, *prev, *tmp;
@@ -3376,14 +3380,15 @@ void build_graph_evolution_step( void )
 
 	//	printf("BUILD EVO STEP %d \n", time); fflush(stdout);
 	//	    Cudd_CheckKeys(manager);
+	// 赋值t到t+1层次
 	gpos_facts_vector_at[time+1] = copy_bit_vector( gpos_facts_vector_at[time],
 			gft_vector_length );
 	gneg_facts_vector_at[time+1] = copy_bit_vector( gneg_facts_vector_at[time],
 			gft_vector_length );
 
-
+	// 考虑每个OpNode
 	for ( i = gall_ops_pointer; i; i = i->next ) {
-		i->info_at[time] = new_op_level_info();
+		i->info_at[time] = new_op_level_info();//创建op level info
 
 		i->unconditional->info_at[time] = new_ef_level_info(time);
 		for ( j = i->conditionals; j; j = j->next ) {
