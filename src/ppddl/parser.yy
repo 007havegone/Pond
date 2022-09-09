@@ -750,7 +750,7 @@ action_body3 : /* empty */
              ;
 
 
-precondition : PRECONDITION formula { action->set_precondition(*$2); }
+precondition : PRECONDITION formula { if($2 != NULL) action->set_precondition(*$2); }
              ;
 
 effect : EFFECT eff_formula { action->set_effect(*$2); }
@@ -824,8 +824,8 @@ unknown_effs : p_effect
 probability : NUMBER 
             ;
 
-p_effect : atomic_term_formula {std::cout << "make_add_effect" << std::endl; $$ = make_add_effect(*$1); }
-         | '(' not atomic_term_formula ')' {std::cout << "make_delete_effect" << std::endl; $$ = make_delete_effect(*$3); }
+p_effect : atomic_term_formula {$$ = make_add_effect(*$1); }
+         | '(' not atomic_term_formula ')' { $$ = make_delete_effect(*$3); }
          | '(' assign_op { effect_fluent = true; } f_head f_exp ')'
              { $$ = make_assignment_effect($2, *$4, *$5); }
          ;
@@ -876,10 +876,13 @@ problem_body     : require_def problem_body_r
                  | problem_body_r
                  ;
 
-/* init and goal/metric are mandatory 
+/* 
+    MoMo007 09.08 fix the bug
+    init and goal/metric are mandatory 
 	先定义object 随后定义 init 和 goal
 */
-problem_body_r   : init  goal_spec  problem_body_ig ;
+problem_body_r  : init  goal_spec
+                | object_decl init  goal_spec   ;
 
 /* 1st: horizon, object, or discount */
 problem_body_ig  : /* empty */
@@ -931,7 +934,8 @@ problem_body_do  : /* empty */
                  ;
 
 // :objects
-object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; std::cout << "start object" << std::endl;} typed_names ')'
+object_decl  : /*empty object list*/
+             | '(' OBJECTS { name_kind = OBJECT_KIND; std::cout << "start object:" << std::endl;} typed_names ')'
                 { name_kind = VOID_KIND; std::cout << "end object" << std::endl;}
             ;
 
@@ -939,7 +943,12 @@ horizon_decl : '(' HORIZON NUMBER ')' {problem->set_plan_horizon(*$3);}
              | ANTI_COMMENT HORIZON NUMBER ')' {problem->set_plan_horizon(*$3);}
              ;
 
-
+/**
+    MoMo007 2022.09.9
+    INIT init_element init_elements
+    do not support the negative atom, or formula
+    we only use the ( and conjuncts) case.
+*/
 init : '(' INIT init_element {std::cout << "init_element " << std::endl;} init_elements ')' 
      | '(' INIT '(' and conjuncts ')' 
        { std::cout << "init and conjuncts\n"; problem->set_init_formula(*$5); get_init_elts();}  ')'
@@ -992,7 +1001,7 @@ unknown_inits : simple_init
                  add_effect_outcome(*$$, new Rational(-2.0), *$1); }
              ;
 
-simple_init : one_init
+simple_init : one_init {$$ = $1;}
             | '(' and one_inits ')' { $$ = $3; }
             ;
 
@@ -1035,7 +1044,7 @@ metric_spec : /* empty */ { std::cout << "Set default metric()" << std::endl; se
 
 
 formula : // empty 
-		 '(' ')'{std::cout << "empty formula: line " << line_number << std::endl;}
+		 '(' ')'{ $$ = new Conjunction(); std::cout << "empty()\n";}
 		| atomic_term_formula { $$ = $1; }
         | '(' '=' term_or_f_exp
             { first_eq_term = eq_term; first_eq_expr = eq_expr; }
@@ -1172,7 +1181,7 @@ name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
          | name_seq name { $$ = $1; $$->push_back($2); }
          ;
 
-type_spec : '-' { std::cout << "--" << std::endl; require_typing(); } type { $$ = $3; }
+type_spec : '-' { require_typing(); } type { $$ = $3; }
           ;
 
 type : object { $$ = OBJECT_TYPE; }

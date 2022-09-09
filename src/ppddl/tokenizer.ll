@@ -39,7 +39,7 @@ struct Application;
  class Guards;
  class label_symbol;
 
-#include "parser.h"
+#include "parser.h"// include the token generate from bison
 
 /* Current line number. */
 size_t line_number;
