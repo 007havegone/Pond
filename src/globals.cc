@@ -26,7 +26,7 @@ DdNode * all_but_sample_cube = NULL;
 //DdManager *manager;
 
 randomGenerator* randomGen;
-int PF_LUG = FALSE;//TRUE;
+int PF_LUG = FALSE;//default is FALSE
 int RANDOM_SUBSTRATE = RANDOM_CUBES;
 DdNode* new_sampleDD = NULL; //joined new_samples
 //std::list<DdNode*>  samples; //currently in use
@@ -48,7 +48,7 @@ int MAX_PRES=100;
 int NUM_LUG_SAMPLES=3;
 int LEVELS_PAST_LEVEL_OFF = 0;
 std::map<const Action*, std::map<int, std::map<int, DdNode*>*>*> lug_samples;
-bool RBPF_LUG = true;
+bool RBPF_LUG = false;// momo007 2022.09.20 change the default value to false
 
 bool ENUMERATE_SPACE = false;
 
@@ -230,7 +230,7 @@ int SENSORS=FALSE;
 /* 在graph_wrapper.cc的generate_BitOperatorEffects中判断outcome的个数是否>1 */
 int NDACTIONS=FALSE;
 // int EXEFS = FALSE;
-int RP_COUNT=RPEFFS;
+int RP_COUNT=RPACTS;// momo007 2022.09.16 change to PRACTS.
 // int CARD_TYPE=NONE;
 // int REACH_TYPE=NONE;
 int SRP_INSERT_METHOD = SRP_REDUCE_MUTEX_INSERT;
