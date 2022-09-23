@@ -397,7 +397,7 @@ OpNode *new_op_node( int time, const char *name, Bool is_noop,
   return tmp;
 
 }
-
+/*use the effect to create the effect Node*/
 EfNode *new_ef_node( int time, OpNode *op,
 		     /* BitVector *pos_effect_vector, */
 /* 		     BitVector *neg_effect_vector */
@@ -408,21 +408,21 @@ EfNode *new_ef_node( int time, OpNode *op,
 {
   Consequent *tmpCd, *tmpCs;
   EfNode *tmp = ( EfNode * ) calloc ( 1, sizeof( EfNode ) );
-  Effect *tmpPtrs, *tmpPtrd, *tmpHlp;
+  Effect *tmpPtrs, *tmpPtrd, *tmpHlp;// ptrSource, ptrDestination, helper。将数据 source->dest
   num_ef_node++;
   CHECK_PTR( tmp );
 #ifdef MEMORY_INFO
   ggraph_memory += sizeof( EfNode );
 #endif
-  //    printf("New ef node %d %d \n", eff->index, a_index);
+  // printf("New ef node %d %d \n", eff->index, a_index);
   gnum_cond_effects++;
   gnum_cond_effects_at[time]++;
   // printf("New ef node gnum_cond_effects = %d\n",  gnum_cond_effects/* _at[time] */ );
 
   tmp->in_rp= 0;//FALSE;
   tmp->alt_index = a_index;
-  tmp->uid_block = gnum_cond_effects/* _at[time] */ / gcword_size;
-  tmp->uid_mask = 1 << ( gnum_cond_effects/* _at[time] */ % gcword_size );
+  tmp->uid_block = gnum_cond_effects / gcword_size;
+  tmp->uid_mask = 1 << ( gnum_cond_effects % gcword_size );
   tmp->index = gnum_cond_effects/* ++ */;
   tmp->op = op;
   tmp->first_occurence = time;
@@ -444,6 +444,7 @@ EfNode *new_ef_node( int time, OpNode *op,
     tmpPtrd->original = eff;
   
   //  tmpPtrd->in_rp = eff->in_rp;
+  // add the outcome and their probability
   for(std::set<int>::iterator i = eff->outcome->begin(); i != eff->outcome->end(); i++)
     tmpPtrd->outcome->insert(*i);
   for(std::map<int, double>::iterator i = eff->probability->begin(); i != eff->probability->end(); i++)
@@ -460,7 +461,7 @@ EfNode *new_ef_node( int time, OpNode *op,
   copy_contents_of_FactInfo(&(tmpPtrd->ant->p_conds), tmpPtrs->ant->p_conds );
   copy_contents_of_FactInfo(&(tmpPtrd->ant->n_conds), tmpPtrs->ant->n_conds );
 
-  if(tmpPtrs->ant->b){
+  if(tmpPtrs->ant->b){// the ant may be empty
     tmpPtrd->ant->b = tmpPtrs->ant->b;
     Cudd_Ref(tmpPtrd->ant->b);
   }
@@ -513,7 +514,7 @@ FtNode *new_ft_node( int time, int index, Bool positive, Bool dummy, /* DdNode* 
 
 //     printf("NEW_FT_NODE %d\n", index);
 //   printFact(index); printf(" %d\n", positive);
-  if ( !dummy ) {
+  if ( !dummy ) { // first create is FALSE
     gfacts_count++;
   }
   if ( positive ) gprint_ftnum++;
@@ -639,15 +640,15 @@ EfLevelInfo *new_ef_level_info(int time)
 
   tmp->is_dummy = FALSE;
   tmp->label = NULL;
-   tmp->updated = 0;
-   tmp->probability_sum = 0;
-   tmp->probability = new std::map<int, double>();
-   if(MUTEX_SCHEME!=MS_NONE){
-     tmp->exclusives = new_EfExclusion(2*num_alt_facts+num_alt_effs);//gnum_cond_effects_pre);
+  tmp->updated = 0;
+  tmp->probability_sum = 0;
+  tmp->probability = new std::map<int, double>();
+  if(MUTEX_SCHEME!=MS_NONE){
+    tmp->exclusives = new_EfExclusion(2*num_alt_facts+num_alt_effs);//gnum_cond_effects_pre);
     //tmp->exclusives->pos_exclusives = NULL; 
     //tmp->exclusives->neg_exclusives = NULL; 
-   }
-   tmp->max_worlds = NULL;
+  }
+  tmp->max_worlds = NULL;
   return tmp;
 
 }

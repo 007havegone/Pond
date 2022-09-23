@@ -47,19 +47,19 @@ public:
 	RelaxedPlan* next;
 
 	double getAverageNumActions();
-	DdNode* getStatesEntered(int);
+	DdNode* getStatesEntered(int level);// 到达任意层goal的状态集合
 	double getRelaxedConformantCost();
-	double restrictRP(DdNode*);
-	int isMutex(EfNode* e1, EfNode* e2, int time);
+	double restrictRP(DdNode* state);// 计算当状态覆盖action_level多少个动作
+	int isMutex(EfNode* e1, EfNode* e2, int time);// 根据效果的互斥列表判断
 	int partitionBreaksMutex(std::list<DdNode*>* parts, int time);
 	void computeStaticMutexes();
 	double getExpectedCost();
-	int getRelaxedNumEffects();
-	void unsetEffectRPFlags();
+	int getRelaxedNumEffects();// 计算relaxed plan中条件/无条件effect的总数
+	void unsetEffectRPFlags();// 清空action中EffectNode的 in relaxed plan标记
 	/*   void insertEfs(std::set<LabelledElement*>* efs, int k); */
-	int getEffectInteractionFactor();
-	// int numNonNoops(set<LabelledElement*>* ops);
-	int getRelaxedConformantNumActions();
+	int getEffectInteractionFactor();// 计算relaxed plan中最大的一层mutex数。
+	// int numNonNoops(set<LabelledElement*>* ops);// not define
+	int getRelaxedConformantNumActions();// 计算relaxed plan的长度
 	void display();
 	void push_up_actions();
 //	double removeActsToMeetTau(double, double);
@@ -86,7 +86,9 @@ public:
 	~RelaxedPlan();
 
 };
-
+/**
+ * 轻量化relaxed plan
+ */
 class RelaxedPlanLite{
 public:
 	RelaxedPlanLite(){

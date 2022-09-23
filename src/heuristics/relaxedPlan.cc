@@ -220,6 +220,9 @@ using namespace std;
 
 
 extern int num_new_labels;
+/**
+ * 计算后继状态变量，不确定的var个数
+ */
 int num_particles_in_minterm(DdNode* dd){
 	int num = 1;
 	for(int i = 0; i < num_new_labels; i++){
@@ -229,6 +232,9 @@ int num_particles_in_minterm(DdNode* dd){
 	}
 	return num;
 }
+/**
+ * 
+ */
 double get_particle_sum(DdNode* dd){
 	list<double> values;
 	list<DdNode*> cubes;
@@ -236,8 +242,7 @@ double get_particle_sum(DdNode* dd){
 	if(dd != Cudd_ReadZero(manager)){
 		get_cubes(dd, &cubes, &values);
 		list<DdNode*>::iterator c = cubes.begin();
-		for(list<double>::iterator r = values.begin();
-		r != values.end() && c!= cubes.end(); r++,c++){
+		for(list<double>::iterator r = values.begin(); r != values.end() && c!= cubes.end(); r++,c++){
 			rew += *r * num_particles_in_minterm(*c);
 			//printBDD(*c);
 			//  cout << "num_states = " << num_states_in_minterm(*c)<<endl;
@@ -414,9 +419,9 @@ void getRPStateFormulasToEvaluate(list<list<DdNode*>* >* state_formulas,
 	DdNode* subgoal, *subgoal1, *tmp;
 
 	if(worldCheck){
-		for(int i = 0; i < num_alt_facts; i++){
+		for(int i = 0; i < num_alt_facts; i++){// 考虑每个fact
 			tmpl = new list<DdNode*>();
-
+			// 考虑level所在的目标
 			for(list<LabelledFormula*>::iterator s = rp->b_goal_levels[level]->begin();
 			s != rp->b_goal_levels[level]->end(); s++){
 				subgoal = ((DdNode*)(*s)->elt);
@@ -429,7 +434,7 @@ void getRPStateFormulasToEvaluate(list<list<DdNode*>* >* state_formulas,
 					tmpl->push_back(Cudd_Not(Cudd_bddIthVar(manager, 2*i)));
 
 			}
-			state_formulas->push_back(tmpl);
+			state_formulas->push_back(tmpl);// 获取每个fact相关BDD
 		}
 	}
 	else{
@@ -438,17 +443,17 @@ void getRPStateFormulasToEvaluate(list<list<DdNode*>* >* state_formulas,
 		for(list<LabelledFormula*>::iterator s = rp->b_goal_levels[level]->begin();
 		s != rp->b_goal_levels[level]->end(); s++){
 			list<LabelledFormula*>::iterator r = s;
-			r++;
+			r++;// 考虑下一个
 			for(;r != rp->b_goal_levels[level]->end(); r++){
 				subgoal = ((DdNode*)(*s)->elt);
 				subgoal1 = ((DdNode*)(*r)->elt);
 				printBDD(subgoal);
 				printBDD(subgoal1);
-				if(subgoal == Cudd_Not(subgoal1))
+				if(subgoal == Cudd_Not(subgoal1))// 两个互斥，忽略
 					continue;
 				if(Cudd_ReadLogicZero(manager) == Cudd_bddAnd(manager,
 						((DdNode*)(*s)->label),
-						((DdNode*)(*r)->label))){
+						((DdNode*)(*r)->label))){// momo007 2022.09.21 这里应该有个bug，但没调用过
 					tmp = Cudd_bddAnd(manager, subgoal, subgoal1);
 					Cudd_Ref(tmp);
 					tmpl->push_back(tmp);
@@ -460,6 +465,7 @@ void getRPStateFormulasToEvaluate(list<list<DdNode*>* >* state_formulas,
 
 }
 
+// 这里最终结果应该是到达plan任一层的所有state的集合，用BDD表示。
 //The labelled subgoals define the states reached at a level.
 //For a state to be reached in the relaxed plan, it must be the
 //case that all of its literals can be reached in the same worlds
@@ -477,7 +483,7 @@ DdNode* RelaxedPlan::getStatesEntered(int levels){
 
 		state_formulas.clear();
 		getRPStateFormulasToEvaluate(&state_formulas, k, this, 1);
-
+		// 将每个fact的BDD析取，随后所有fact的BDD合取到lresult
 		// cout << "got k = " << k <<endl;
 		for(list<list<DdNode*>* >::iterator i = state_formulas.begin();
 		i != state_formulas.end(); i++){
@@ -533,7 +539,7 @@ DdNode* RelaxedPlan::getStatesEntered(int levels){
 		//     }
 
 
-
+		// 所有层的fact的BDD进行析取
 		if(lresult != Cudd_ReadOne(manager)){
 			//printBDD(lresult);
 
@@ -590,6 +596,9 @@ RelaxedPlan::RelaxedPlan(RelaxedPlan* rp){
 
 }
 
+/**
+ * 计算每层动作Label和当前状态有交集的动作个数
+ */
 double RelaxedPlan::restrictRP(DdNode* dd){
 	double h =0.0;
 	DdNode* fr;
@@ -633,6 +642,9 @@ double RelaxedPlan::restrictRP(DdNode* dd){
 	return h;
 }
 
+/**
+ * 考虑4种不同的mutex情况
+ */
 void RelaxedPlan::computeStaticMutexes(){
 	set<LabelledEffect*>::iterator eff1, eff2;
 
@@ -653,11 +665,8 @@ void RelaxedPlan::computeStaticMutexes(){
 			//      cout << "HI"<<endl;
 			eff2 = eff1;
 			eff2++;
+			// 考虑同层不同的effect
 			for(; eff2 != effect_levels[i]->end();eff2++){
-
-
-
-
 
 				if(//1
 						bdd_is_one(manager,
@@ -704,7 +713,7 @@ int RelaxedPlan::isMutex(EfNode* eff1, EfNode* eff2, int time){
 
 	e1 = ef_mutexes_a[time]->begin();
 	e2 = ef_mutexes_b[time]->begin();
-
+	// 考虑互斥信息
 	for(;(e1 != ef_mutexes_a[time]->end() &&
 			e2 != ef_mutexes_b[time]->end()) ; e1++){
 		if((((EfNode*)(*e1)->elt)->alt_index == eff1->alt_index &&
@@ -718,6 +727,9 @@ int RelaxedPlan::isMutex(EfNode* eff1, EfNode* eff2, int time){
 
 }
 
+/**
+ * 通过partiton对第time层的mutex effect进行简化
+ */
 int RelaxedPlan::partitionBreaksMutex(list<DdNode*>* parts, int time){
 	//check if any of the mutexes at time or later are between effects that
 	//fall into different elements of parts.
@@ -739,21 +751,22 @@ int RelaxedPlan::partitionBreaksMutex(list<DdNode*>* parts, int time){
 
 
 			broke = 0;
+			// 考虑两个不同的partition
 			for(p1 = parts->begin(); p1 != parts->end(); p1++){
 				for(p2 = parts->begin(); p2 != parts->end(); p2++){
 					// cout << "HI"<<endl;
 					if(p1 == p2)
 						continue;
-
+					// 存在一对part将将个mutex effect分开
 					if(
-							!bdd_is_one(manager,
-									Cudd_Not(bdd_and(manager, (*e1)->label, (*p1)))) &&
-									!bdd_is_one(manager,
-											Cudd_Not(bdd_and(manager, (*e2)->label, (*p2)))) &&
-											bdd_is_one(manager,
-													Cudd_Not(bdd_and(manager, (*e1)->label, (*p2)))) &&
-													bdd_is_one(manager,
-															Cudd_Not(bdd_and(manager, (*e2)->label, (*p1))))
+						!bdd_is_one(manager,// e1 label和p1有交集
+								Cudd_Not(bdd_and(manager, (*e1)->label, (*p1)))) &&
+								!bdd_is_one(manager,// e2 laebl和p2有交集
+										Cudd_Not(bdd_and(manager, (*e2)->label, (*p2)))) &&
+										bdd_is_one(manager,// e1 label和p2没交集
+												Cudd_Not(bdd_and(manager, (*e1)->label, (*p2)))) &&
+												bdd_is_one(manager,// e2 label和p1没交集
+														Cudd_Not(bdd_and(manager, (*e2)->label, (*p1))))
 					){
 						//	       	    cout << "T"<<endl;
 						//return TRUE;
@@ -769,9 +782,9 @@ int RelaxedPlan::partitionBreaksMutex(list<DdNode*>* parts, int time){
 			}
 			if(broke){
 				//	cout << "Broke Mutex"<<endl;
-				t1 = e1; t1++;
+				t1 = e1; t1++;//考虑处理下一对effect
 				t2 = e2; t2++;
-				ef_mutexes_a[i]->erase(e1);
+				ef_mutexes_a[i]->erase(e1);// 通过part不再mutex，移除
 				ef_mutexes_b[i]->erase(e2);
 				e1 = t1;
 				e2 = t2;
@@ -796,6 +809,8 @@ double RelaxedPlan::getExpectedCost(){
 	std::list<DdNode*>::iterator p;
 
 	EfNode* tmp_ef;
+	printf("alt_act_cost is not defined\n");
+	assert(0);
 	//   cout << "PLan length = " << plan_length<<endl;
 	for(int i = 0; (i < plan_length ); i++){
 		if(partitions[i]){
@@ -807,7 +822,7 @@ double RelaxedPlan::getExpectedCost(){
 						part_cost += alt_act_costs[((OpNode*)(*j)->elt)->alt_index];
 					}
 				}
-				exp_cost += part_cost/partitions[i]->size();
+				exp_cost += part_cost/partitions[i]->size();// 计算partition后的均值
 			}
 		}
 		else{
@@ -826,6 +841,8 @@ double RelaxedPlan::getExpectedCost(){
 }
 
 void RelaxedPlan::push_up_actions(){
+	printf("RelaxedPlan::push_up_actions() without implement");
+	assert(0);
 	//some actions are counted extra because they are done
 	//in different worlds at different levels
 	//so we push actions later in the RP so that there is more
@@ -860,7 +877,7 @@ int RelaxedPlan::getRelaxedNumEffects(){
 		j = action_levels[i]->begin();
 		for(;j!=action_levels[i]->end();++j){
 			if(!((OpNode*)(*j)->elt)->is_noop){
-				if(((OpNode*)(*j)->elt)->unconditional->in_rp){
+				if(((OpNode*)(*j)->elt)->unconditional->in_rp){// momo007 2022.09.21 unconditional只有一个？
 					num_effs++;
 					//(*j)->unconditional->in_rp = FALSE;
 				}
@@ -1027,7 +1044,7 @@ int RelaxedPlan::getEffectInteractionFactor(){
 		//      cout << "LOOKIN AT LEVEL " << i <<endl;
 		for(;j!=action_levels[i]->end();++j){
 			//	cout << "CHECK Uncond "<< endl;
-			if(((OpNode*)(*j)->elt)->unconditional->in_rp){
+			if(((OpNode*)(*j)->elt)->unconditional->in_rp){// unconditional effect和effect mutex计算
 				//	  	  cout << "Uncond in rp" <<endl;
 				//count mutexes with effects of same action
 				tmp_ef = ((OpNode*)(*j)->elt)->conditionals;
@@ -1043,7 +1060,7 @@ int RelaxedPlan::getEffectInteractionFactor(){
 					}
 				}
 			}
-			tmp_ef = ((OpNode*)(*j)->elt)->conditionals;
+			tmp_ef = ((OpNode*)(*j)->elt)->conditionals;// 所有effect的mutex计算
 			while(tmp_ef) {
 				if(tmp_ef->in_rp && !tmp_ef->info_at[i]->is_dummy){
 					//    cout << "COnd in rp"<<endl;
@@ -1064,7 +1081,7 @@ int RelaxedPlan::getEffectInteractionFactor(){
 				tmp_ef = tmp_ef->next;
 			}
 		}
-		if(max < return_val) {
+		if(max < return_val) {// 记录一层中最大mutex数
 			max = return_val;
 		}
 		return_val = 0;
@@ -1078,7 +1095,7 @@ int numNonNoopsCombineWorlds(set<LabelledAction*>* ops){
 	int count = 0;
 
 	std::set<LabelledAction*>::iterator i = ops->begin();
-
+	// use the set to get the union operator
 	std::set<OpNode*>* unlab_ops = new std::set<OpNode*>();
 
 
@@ -1126,7 +1143,7 @@ int RelaxedPlan::getRelaxedConformantNumActions() {
 	//    this->display();
 	for(int i = 0; i < plan_length; i++)
 
-		num_acts += numNonNoopsCombineWorlds(action_levels[i]);
+		num_acts += numNonNoopsCombineWorlds(action_levels[i]);// 统计该层不重复noop action个数
 
 	/*     cout << "Num Acts in RP: " << num_acts << endl; */
 	return num_acts;
@@ -1187,15 +1204,15 @@ double RelaxedPlan::getAverageNumActions(){
 
 	DdNode* worldCounts = Cudd_addConst(manager, 0.0), *tmp, *tmp1;
 	Cudd_Ref(worldCounts);
-
+	// 考虑plan
 	for(int i = 0; i < plan_length; i++){
-
+		// 计算plan的所有action可达的world count
 		for(std::set<LabelledAction*>::iterator j = action_levels[i]->begin();
 		j!= action_levels[i]->end(); ++j){
-			if(!((OpNode*)(*j)->elt)->is_noop){
+			if(!((OpNode*)(*j)->elt)->is_noop){// 不是 noop
 				tmp1 = Cudd_BddToAdd(manager, (*j)->label);
 				Cudd_Ref(tmp1);
-				tmp = Cudd_addApply(manager, Cudd_addPlus,
+				tmp = Cudd_addApply(manager, Cudd_addPlus,// 累计world count
 						worldCounts,
 						tmp1);
 				Cudd_Ref(tmp);
@@ -1212,20 +1229,17 @@ double RelaxedPlan::getAverageNumActions(){
 	list<double> values;
 	list<DdNode*> cubes;
 	get_cubes(worldCounts, &cubes, &values);
-
+	// 获取全部的value
 	for(list<double>::iterator i = values.begin();
 	i != values.end(); i++){
 		result += *i;
 	}
-	result /= (double)values.size();
+	result /= (double)values.size();// 计算平均值
 
 	for(list<DdNode*>::iterator i = cubes.begin();
 	i != cubes.end(); i++){
 		Cudd_RecursiveDeref(manager, *i);
 	}
-
-
-
 
 	return result;
 }
@@ -1282,9 +1296,12 @@ void RelaxedPlan::display() {
 						// 	  //Cudd_RecursiveDeref(manager, tmp);
 					}
 					else{
+						printf("the alt_act_cost is not defined");
+						assert(0);
 						cout << ((*j)->elt)->name << "\t cost = "
-						<< alt_act_costs[((*j)->elt)->alt_index-1]
-						                 << endl<<flush;
+							 << alt_act_costs[((*j)->elt)->alt_index - 1]
+							 << endl
+							 << flush;
 					}
 
 				}
@@ -1356,7 +1373,10 @@ RelaxedPlan::~RelaxedPlan() {
 				b_goal_levels[i]->clear();
 				delete b_goal_levels[i];
 			}
-
+			/**
+			 * momo007 2022.09.16
+			 * why not release the memory of ef_mutexed_a and ef_mutexed_b
+			 */
 			//	if(ef_mutexes_a && ef_mutexes_a[i] != NULL){
 			// 	  cout << "xa = " << i << endl;
 			// 	  for(q = ef_mutexes_a[i]->begin();
@@ -1481,6 +1501,7 @@ void RelaxedPlanLite::unionRP(RelaxedPlan* rp){
   for(int i = 0; i < rp->plan_length; i++){
     if(!rp->action_levels[i])
       continue;
+	// add noop action
     for(set<LabelledAction*>::iterator j = rp->action_levels[i]->begin();
 	j != rp->action_levels[i]->end(); j++){
       if(!(*j)->elt->is_noop)
@@ -1488,6 +1509,7 @@ void RelaxedPlanLite::unionRP(RelaxedPlan* rp){
     }
     if(!rp->b_goal_levels[i])
       continue;
+	// add fact
     for(list<LabelledFormula*>::iterator j = rp->b_goal_levels[i]->begin();
 	j != rp->b_goal_levels[i]->end(); j++){
       DdNode *p  = (DdNode*)(*j)->elt;

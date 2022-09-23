@@ -650,7 +650,7 @@ extern int WORLD_CHECK;
 
 extern int CHILDCOMBO;
 extern int MUTEX_SCHEME;
-#define MS_CROSS 350
+#define MS_CROSS 350  // 不同的mutex策略
 #define MS_REGULAR 351
 #define MS_NONE 352
 #define MS_STATIC 353

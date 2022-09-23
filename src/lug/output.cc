@@ -786,6 +786,7 @@ void print_BitVector( BitVector *vec, int vec_len )
       printf("0");
     }
   }
+  printf("\n");
 
 }
 

@@ -150,12 +150,12 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 		action_list_node* a = acts;
 #endif //ppddlparser
 
-
+		// 考虑fact需要多少个int进行存储
 		gft_vector_length =  ( ( int )( num_alt_facts) / (gcword_size) )+1;
-
+		printf("gft_vector_length = %d\n", gft_vector_length);
 		//     cout << "INSTANTIATE LUG ACTIONS" <<endl;
 #ifdef PPDDL_PARSER
-		//make list to keep track of label vars at levels of LUG
+		// make list to keep track of label vars at levels of LUG
 		level_vars = new list<list<int>* >();
 		// 创建action的BitOperator
 		for(std::map<const Action*, DdNode*>::iterator a = acts->begin();
@@ -177,10 +177,11 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 		gef_vector_length =  ( ( int ) gnum_cond_effects_pre / gcword_size )+1+2*gft_vector_length;
 		gop_vector_length = ((int) gnum_bit_operators /gcword_size)+1;
 
-		//  cout << "gop_Vector_length = " << gnum_cond_effects_pre << " "<<gop_vector_length <<endl;
-		//cout << "cost sizezes = " << (num_alt_acts+(num_alt_facts*2)) << " " << (num_alt_effs+num_alt_facts*2) << " " << (num_alt_facts*2)<<endl;
+		 cout << "gef_Vector_length = " << gnum_cond_effects_pre << " "<<gef_vector_length <<endl;
+		 cout << "gop_Vector_length = " << gnum_bit_operators << " "<<gop_vector_length <<endl;
+		// cout << "cost sizezes = " << (num_alt_acts+(num_alt_facts*2)) << " " << (num_alt_effs+num_alt_facts*2) << " " << (num_alt_facts*2)<<endl;
 		//cout << "num_alt_effs " << num_alt_effs << " " << num_alt_facts << endl;
-		if(COMPUTE_LABELS &&  RP_EFFECT_SELECTION != RP_E_S_COVERAGE){
+		if(COMPUTE_LABELS &&  RP_EFFECT_SELECTION != RP_E_S_COVERAGE){// RP_EFFECT_SELECTION default is RP_E_S_COVERAGE
 			actWorldCost = new std::list<list<LabelledElement*>*>*[num_alt_acts+(num_alt_facts*2)];
 			effectWorldCost = new std::list<list<LabelledElement*>*>*[num_alt_effs+(num_alt_facts*2)];
 			factWorldCost = new std::list<list<LabelledElement*>*>*[num_alt_facts*2];
@@ -216,7 +217,11 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 		support = Cudd_Support(manager, goal);
 		Cudd_Ref(support);
 #ifdef PPDDL_PARSER
-		//goal is a bdd, not an add
+		/**
+		 * Momo007 2022.09.16
+		 * 下面这块分配的空间，在MG模式下，调用build_planning_graph会重复，
+		 * 同时造成gbit_goal_state的内存没有释放
+		 */
 		for(int i = 0; i < num_alt_facts; i++){
 			if(bdd_entailed(manager, support, Cudd_bddIthVar(manager, 2*i))){
 				if(Cudd_bddIsVarEssential(manager, goal, 2*i, 1)){
@@ -1084,7 +1089,8 @@ void createInitLayer(DdNode* init){
 	}
 	b_initial_state = init;
 	initialBDD = init;
-	//printBDD(tmp);
+	printf("tmp bdd is\n");
+	printBDD(tmp);
 	// Cudd_Ref(b_initial_state);
 	//Cudd_Ref(initialBDD);
 
@@ -1107,7 +1113,7 @@ void createInitLayer(DdNode* init){
 		Cudd_Ref(init_neg_labels[i]);
 		//}
 
-		// 存储的label非0，说明存在相应的fact，创建FactInfo
+		// 如果合取某个fact的BDD不为0，该变量将该位置为1
 		if(//!COMPUTE_LABELS ||
 				Cudd_ReadLogicZero(manager) !=  init_pos_labels[i]){
 			make_entry_in_FactInfo( &tpos, i);
@@ -1149,6 +1155,10 @@ void createInitLayer(DdNode* init){
 
 	if(PF_LUG && LUG_FOR != SPACE)
 		Cudd_RecursiveDeref(manager, c);
+	print_BitVector(gbit_initial_state->positive->vector,gft_vector_length);
+	print_BitVector(gbit_initial_state->negative->vector,gft_vector_length);
+	print_BitVector(gbit_goal_state->positive->vector,gft_vector_length);
+	print_BitVector(gbit_goal_state->negative->vector,gft_vector_length);
 
 }
 
@@ -1469,7 +1479,7 @@ bdd_entailed(manager,
 		}
 #ifdef PPDDL_PARSER
 		else if(bdd_entailed(manager, dd, Cudd_bddIthVar(manager, 2*i)) ||
-				bdd_entailed(manager, dd, Cudd_Not(Cudd_bddIthVar(manager, 2*i))))
+				bdd_entailed(manager, dd, Cudd_Not(Cudd_bddIthVar(manager, 2*i)))) 
 #else
 			else if(bdd_entailed(manager, dd, Cudd_bddIthVar(manager, i)) ||
 					bdd_entailed(manager, dd, Cudd_Not(Cudd_bddIthVar(manager, i))))
@@ -2481,7 +2491,7 @@ double build_forward_get_h(DdNode* init,
 	//     printPlan(parent);
 	//     if(states && !states->empty() && states->front()->PrevAction)
 	//       printAction(states->front()->PrevAction->Node);
-
+	// findGraphForState current directly return false
 	if(LUG_FOR != SPACE || !states ||
 			(LUG_FOR == AHREACHABLE && !findGraphForStates(parent, init))){
 
@@ -2558,6 +2568,17 @@ double build_forward_get_h(DdNode* init,
 					num_alt_facts,
 					ALLOW_LEVEL_OFF,
 					MUTEX_SCHEME );
+			
+			cout << "YO HERES THE GRAPH:" << reached_goals <<endl;
+			for(int i = 0; i <= j; i++){
+				cout << "LEVEL " << i << endl;
+				print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
+				print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
+				cout << endl;
+			for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
+				if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
+					cout << endl<< "-------------------------------------------------" <<endl;
+			}
 
 			//    cout << "got " <<  j << endl;
 
@@ -2810,7 +2831,7 @@ double build_forward_get_h(DdNode* init,
 		//    cout << "get rp for " <<  endl;
 		//        printBDD(b_initial_state);
 
-
+		printf("reached_goals = %d\n",reached_goals);
 		if(!reached_goals && LUG_FOR == NODE){
 			cout << "goals not reached" <<endl;
 			(*i)->h = DBL_MAX;
@@ -2826,7 +2847,7 @@ double build_forward_get_h(DdNode* init,
 		}
 
 
-		if(COMPUTE_LABELS){
+		if(COMPUTE_LABELS){// LUG graph
 
 			if(HEURISTYPE == SLUGRP){
 
@@ -2834,7 +2855,7 @@ double build_forward_get_h(DdNode* init,
 				//  cout << "LEVEL = " << j << endl;
 				h = getSensoryLabelRPHeuristic(j);
 			}
-			else if(HEURISTYPE == LUGRP){
+			else if(HEURISTYPE == LUGRP){// LUG + RP
 				if(USE_GLOBAL_RP){//global rp
 					//     if((*i)->PrevAction){
 					// //       cout << "PREV: "
@@ -2885,14 +2906,14 @@ double build_forward_get_h(DdNode* init,
 					}
 				}
 			}
-			else if(HEURISTYPE == LUGLEVEL){
+			else if(HEURISTYPE == LUGLEVEL){// LUG + Level
 				h = getLabelLevel((*i)->dd, &worldsAtLevels, parent);
 
 			}
-			else if(HEURISTYPE == LUGSUM){
+			else if(HEURISTYPE == LUGSUM){// LUG + Sum
 				h = getLabelSum();
 			}
-			else if(HEURISTYPE == LUGMAX){
+			else if(HEURISTYPE == LUGMAX){// LUG + MAX
 				h = getLabelMax();
 			}
 			//             cout << "H = " << h << endl;
@@ -2903,9 +2924,9 @@ double build_forward_get_h(DdNode* init,
 			//cout << h << "," <<flush;
 			(*i)->h = h;
 		}
-		else{
+		else{// Single graph
 
-			if(HEURISTYPE == LUGRP){
+			if(HEURISTYPE == LUGRP){// SG + RP, 抽取action的个数
 
 				printBDD((*i)->dd);
 				if(LUG_FOR == NODE)
@@ -2920,13 +2941,13 @@ double build_forward_get_h(DdNode* init,
 					h = 0;
 
 			}
-			else if(HEURISTYPE == LUGLEVEL){
+			else if(HEURISTYPE == LUGLEVEL){// SG + Level, 计算DNF item的最小距离
 				h = j;
 			}
-			else if(HEURISTYPE == LUGSUM){
-				h = getMinSumHueristicValue();
+			else if(HEURISTYPE == LUGSUM){// SG + Sum, 计算CNF clause的距离之和
+				h = getMinSumHueristicValue();// current only return 0
 			}
-			else if(HEURISTYPE == LUGMAX){
+			else if(HEURISTYPE == LUGMAX){// SG + Max, 计算CNF clause的最大距离
 				h = j;
 			}
 			else if(HEURISTYPE == CORRRP){
@@ -3017,7 +3038,7 @@ double build_forward_get_h(DdNode* init,
 	//   printMemInfo();
 
 
-
+	cout << (*states->begin())->h  << " " << (*states->begin())->g << endl;
 	return h;
 
 }
@@ -4083,7 +4104,7 @@ void getHeuristic(list<StateNode*>* states,
 	       cout << "|states|=  NULL"<<endl;
 	cout << "NUM = " << NUMBER_OF_MGS <<endl;
 
-	if(LUG_FOR == SPACE)
+	if(LUG_FOR == SPACE)// set the global config
 		cout << "ppHI" <<endl;
 
 	/**
@@ -4116,29 +4137,20 @@ void getHeuristic(list<StateNode*>* states,
 	else if((HEURISTYPE == HRPSUM ||
 			HEURISTYPE == HRPMAX ||
 			HEURISTYPE == HRPUNION) && states){
-		// 考虑每个child
+		// 考虑每个state, now only one belief state
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
-			COMPUTE_LABELS=FALSE;// 两个标签的意义？
+			COMPUTE_LABELS=FALSE;// MG Heuristic不使用label
 			ALLOW_LEVEL_OFF = FALSE;
-
-#ifdef PPDDL_PARSER
-			// 该接口实现为空
 			totalgp = build_k_planning_graphs((*i)->dd,
 					b_goal_state,  num_k_graphs );
-			// 参考下面构造Multiply Graph
-#else
-			totalgp = build_k_planning_graphs((*i)->dd,
-					b_goal_state,
-					available_acts, num_k_graphs );
-#endif
-			// 这一部需要前面build_k_planning_graphs处理的数据。
-			(*i)->h = getRelaxedPlanHeuristic();
+
+			(*i)->h = getRelaxedPlanHeuristic();// 该接口目前没有问题
 			if((*i)->h == IPP_MAX_PLAN)
 				(*i)->h = 999999999.9999;
 			       cout << "i = " << (*i)->StateNo << " H = " << (*i)->h << endl;
 			free_k_graphs();
-			//        cout << "freed"<<endl;
+			cout << "done free_k_graphs()"<<endl;
 		}
 
 	}
@@ -4151,6 +4163,8 @@ void getHeuristic(list<StateNode*>* states,
 	else{
 
 		/*------- All but construct initial SAG  --------*/
+		// LUG_FOR default is NODE
+		// NUMBER_OF_MGS default is 0.0 means to pick all initial states
 
 		if((LUG_FOR != INCREMENTAL && LUG_FOR != SPACE) || states){
 
@@ -4161,8 +4175,7 @@ void getHeuristic(list<StateNode*>* states,
 					i != states->end(); i++){
 
 				/*------- Pick a subset of states in i to use in heuristic  --------*/
-
-
+				
 				if(LUG_FOR!=AHREACHABLE && NUMBER_OF_MGS != 0.0){ //then pick a subset of worlds for lug
 
 					lugHeur = 1;
@@ -4287,7 +4300,7 @@ void getHeuristic(list<StateNode*>* states,
 					Cudd_RecursiveDeref(manager, tmp);
 
 				}
-
+				// do not use in conformant planning
 				if(HEURISTYPE == CORRRP){
 					DdNode *dd = Cudd_addBddStrictThreshold(manager, (*i)->dd, 0.0);
 					Cudd_Ref(dd);
@@ -4411,8 +4424,9 @@ void getHeuristic(list<StateNode*>* states,
 
 	}
 	//  cout << "]"<<flush;
-
-	if(NUMBER_OF_MGS != 0.0 && lugHeur){ //restore real states on top of subsets
+ 	
+	 // 释放前面分配的DD内存，从backup_dd中恢复原始的state
+	if(NUMBER_OF_MGS != 0.0 && lugHeur){
 
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
@@ -4431,7 +4445,7 @@ void getHeuristic(list<StateNode*>* states,
 		for(list<StateNode*>::iterator i = states->begin();
 				i != states->end(); i++){
 			(*i)->f = (*i)->g + (*i)->h;
-			//cout << "f = " << (*i)->f << endl;
+			cout << "f = " << (*i)->f << "(g=" << (*i)->g << ",h=" << (*i)->h << ")\n";
 		}
 	}
 

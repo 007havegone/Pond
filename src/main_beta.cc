@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
 			HEURISTYPE == HRPUNION ||
 			HEURISTYPE == CORRRP)
 		{
-
+			// MG heuristic
 			if (HEURISTYPE == HRPSUM ||
 				HEURISTYPE == HRPMAX ||
 				HEURISTYPE == HRPUNION ||

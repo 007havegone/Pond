@@ -343,11 +343,11 @@ typedef struct _Relevant_Fact{
 /****************************
  * BITVECTOR REPRESENTATION *
  ****************************/
-
+// 用于构造op和effect的前提和结果的基础元素
 typedef struct _FactInfo{
 
-  BitVector *vector;
-  Integers *indices;
+  BitVector *vector;// 一个Bitvector记录各个pos的是否存在
+  Integers *indices;// 一个link list存储所有的pos的值
 
 } FactInfo;
 
@@ -357,7 +357,7 @@ typedef struct _FactInfoPair{
   FactInfo *negative;
 
 } FactInfoPair;
-
+// 用于构造effect的前提
 typedef struct _Antecedent{
 
   FactInfo *p_conds;
@@ -367,7 +367,7 @@ typedef struct _Antecedent{
   struct _Antecedent *next;
 
 } Antecedent;
-
+// 用于构造effect的结果
 typedef struct _Consequent{
 
   FactInfo *p_effects;
@@ -377,17 +377,17 @@ typedef struct _Consequent{
   struct _Consequent *next;
 
 } Consequent;
-
+// 标记到当前结点的状态信息
 typedef struct _Label{
 
-  DdNode* label;
+  DdNode* label;// use the label recode the info
   double CSD; /*Cummulative Support Density*/
   struct _Label *next;
 
 } Label;
 
 typedef struct _BitOperator BitOperator;
-
+// 主要包括该effect所在的op和effect的前提和结果
 typedef struct _Effect{
   int index; /*matches alt_action index*/
   int is_nondeter;
@@ -399,31 +399,31 @@ typedef struct _Effect{
   double probability_sum;
   int in_rp;
   BitOperator *op;
-  Antecedent *ant;
-  Consequent *cons;
-  double reward;
+  Antecedent *ant;// 前提FactInfo + BDD
+  Consequent *cons;// 结果FactInfo + BDD
+  double reward;// effect的reward
   struct _Effect* original;
   struct _Effect *next;
 
 } Effect;
-
+// 该动作的precondtion，和多种类型的effect,相应的Action的BDD
 struct _BitOperator{
 
-  char *name;
+  char *name;// 动作名
   short int num_vars, inst_table[MAX_VARS];
   int alt_index;
-  int nonDeter;
+  int nonDeter;// 是否确定
   int valid;
 #ifdef PPDDL_PARSER
-  const Action* action;
+  const Action* action;// PPDDL中定义的动作
 #endif
-  int num_outcomes;
-  FactInfo *p_preconds;
-  FactInfo *n_preconds;
-  DdNode* b_pre;
-  Effect *unconditional;
-  Effect *conditionals;
-  Effect *activated_conditionals;
+  int num_outcomes;// 输出个数
+  FactInfo *p_preconds;// 前提positive-Fact
+  FactInfo *n_preconds;// 前提negative-Fact
+  DdNode* b_pre; // BDD precodition
+  Effect *unconditional;// IPP的无条件Effect list
+  Effect *conditionals;// IPP的条加Effect list
+  Effect *activated_conditionals;// ??
   struct _BitOperator *next;
 
 };
@@ -516,7 +516,7 @@ struct _EfNode{
   OpNode *op;/* the op it belongs to */
   unsigned int first_occurence;/* ...of this effect in the graph */
   int is_nondeter;
-  int in_rp;
+  int in_rp;// if current effect in relaxed plan
 
   int index;
   int alt_index;
@@ -621,7 +621,7 @@ struct _EfLevelInfo{
 struct _FtLevelInfo{
   Label* label;
 
-  EfEdge *adders_pointer;
+  EfEdge *adders_pointer;// 实现该fact的effect Node
 
   int is_dummy;
   
@@ -633,7 +633,7 @@ struct _FtLevelInfo{
 
   FtExclusion* exclusives;
 
-  EfEdge *relaxedPlanEdges;
+  EfEdge *relaxedPlanEdges;// plan由effect的fact形成，efNode中存储了op
 
   BitVector *adders;
   EfExclusion* adders_exclusives;
@@ -678,7 +678,7 @@ typedef struct _ExclusionLabelPair{
   struct _ExclusionLabelPair *next;
 
 } ExclusionLabelPair;
-
+// 构成互斥的fact
 struct _FtExclusion{
   
   BitVector *pos_exclusives;
@@ -688,18 +688,18 @@ struct _FtExclusion{
   DdNode** n_exlabel;
  
 };/* // FtExclusion; */
-
+// 构成互斥的effect
 struct _EfExclusion{
   int set;
   BitVector *exclusives;
   BitVector *pos_exclusives;
   BitVector *neg_exclusives;
-  DdNode** exlabel;
+  DdNode** exlabel;// 存储effect和其他每个Effect的mutex的BDD。
   DdNode** p_exlabel;
   DdNode** n_exlabel;
  
 } ;/* //EfExclusion; */
-
+// 构成互斥的op
 struct _OpExclusion{
  
   BitVector *exclusives;
@@ -928,8 +928,8 @@ extern int gnum_bit_operators;
 extern int gnum_cond_effects;
 extern int gnum_cond_effects_pre;
 extern int gnum_cond_effects_at[IPP_MAX_PLAN];
-extern FactInfoPair *gbit_initial_state;
-extern FactInfoPair *gbit_goal_state;
+extern FactInfoPair *gbit_initial_state;// 初始状态正负命题的情况
+extern FactInfoPair *gbit_goal_state;// 目标状态正负命题的情况
 
 
 /**********************

@@ -25,7 +25,7 @@ class LabelledElement{
 
  public:
   void* elt;
-  DdNode* label;
+  DdNode* label;// 到达该Element的belief state BDD
   double cost;
 
   virtual ~LabelledElement();

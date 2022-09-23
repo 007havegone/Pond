@@ -442,19 +442,19 @@ int main(int argc, char *argv[])
 						HEURISTYPE = LUGRP;
 						cout << "NOT USING LABELS ON PG" << endl;
 					}
-					if (strcmp(argv[i], "sglevel") == 0)
+					if (strcmp(argv[i], "sglevel") == 0)//最小term费用
 					{
 						COMPUTE_LABELS = FALSE;
 						HEURISTYPE = LUGLEVEL;
 						cout << "NOT USING LABELS ON PG" << endl;
 					}
-					if (strcmp(argv[i], "sgsum") == 0)
+					if (strcmp(argv[i], "sgsum") == 0)// 每个clasue的费用和
 					{
 						COMPUTE_LABELS = FALSE;
 						HEURISTYPE = LUGSUM;
 						cout << "NOT USING LABELS ON PG" << endl;
 					}
-					if (strcmp(argv[i], "sgmax") == 0)
+					if (strcmp(argv[i], "sgmax") == 0)// 最大clause费用
 					{
 						COMPUTE_LABELS = FALSE;
 						HEURISTYPE = LUGMAX;
@@ -700,16 +700,16 @@ int main(int argc, char *argv[])
 			 * momo007 2022.07.06
 			 * this code may use in LUG construct
 			 */
-			//      if(PF_LUG){
-			//        NUMBER_OF_MGS = 8192;   // set to a constant to generate this many
-			//
-			//        for(int i = 1; i <= NUMBER_OF_MGS; i++){
-			//          if((2 << (i-1)) >= NUMBER_OF_MGS){
-			//            num_new_labels = i;
-			//            break;
-			//          }
-			//        }
-			//      }
+			     if(PF_LUG){
+			       NUMBER_OF_MGS = 8192;   // set to a constant to generate this many, why?
+			
+			       for(int i = 1; i <= NUMBER_OF_MGS; i++){
+			         if((2 << (i-1)) >= NUMBER_OF_MGS){
+			           num_new_labels = i;
+			           break;
+			         }
+			       }
+			     }
 			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
 
@@ -799,13 +799,13 @@ int main(int argc, char *argv[])
 				LUG_FOR == AHREACHABLE)
 			{
 
-				if (NUMBER_OF_MGS > 0.0 && NUMBER_OF_MGS < 1.0)
+				if (NUMBER_OF_MGS > 0.0 && NUMBER_OF_MGS < 1.0)// 按比例
 					K_GRAPH_MAX = (int)ceil(get_sum(b_initial_state) * NUMBER_OF_MGS);
-				else if (NUMBER_OF_MGS >= 1.0)
+				else if (NUMBER_OF_MGS >= 1.0)// 按指定数目
 					K_GRAPH_MAX = (int)NUMBER_OF_MGS;
-				else
+				else// 全部状态
 					K_GRAPH_MAX = (int)get_sum(b_initial_state);
-
+				// 创建Graph
 				k_graphs = new kGraphInfo *[K_GRAPH_MAX];
 			}
 
@@ -816,7 +816,7 @@ int main(int argc, char *argv[])
 			gnum_bit_operators = 0;
 			gnum_relevant_facts = 0;
 
-			if (!USE_CARD_GRP)
+			if (!USE_CARD_GRP)// config the gbit_goal_state for sgrp, sglevel, sgsum, sgmax
 				initLUG(&action_preconds, b_goal_state);
 		}
 
@@ -942,7 +942,7 @@ void set_cubes()
 			Cudd_SetVarMap(manager, current_state_vars, next_state_vars, num_alt_facts);
 		}
 
-		// 使用了LUG,创建Label的BDD
+		// 使用了百分比状态抽取，这块的作用应该是求解reward
 		if (PF_LUG)
 		{
 			particle_vars = new DdNode *[num_new_labels];
