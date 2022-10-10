@@ -240,6 +240,11 @@ static void collect_state_variables(const StateFormula& formula, bool initState,
 			state_variables.insert(std::make_pair(af, state_variables.size()));
 
 		}
+		else{
+			af->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
+						  my_problem->terms());
+				printf("has beed added\n");
+		}
 		return;
 	}
 
@@ -321,9 +326,12 @@ static void collect_state_variables(const pEffect& effect) {
 		 * Only reward assignments are supported, and they do not involve
 		 * any state variables.
 		 */
-		if (fe->assignment().application().function() != reward_function) {
+		std::cout << "AssigE:" << std::endl;
+		if (fe->assignment().application().function() != reward_function)
+		{
 			throw std::logic_error("numeric state variables not supported");
 		}
+		std::cout << "done AssigE:" << std::endl;
 		return;
 	}
 	// effect最终都是simple Effect,涉及到的都是dynamic并且状态变量
@@ -332,7 +340,7 @@ static void collect_state_variables(const pEffect& effect) {
 		/*
 		 * A simple effect involves a single state variable.
 		 */
-		const Atom* atom = &se->atom();
+		const Atom *atom = &se->atom();
 
 		if (state_variables.find(atom) == state_variables.end()) {
 			//std::cout << "AE " << dynamic_atoms.size() <<std::endl;
@@ -342,6 +350,12 @@ static void collect_state_variables(const pEffect& effect) {
 			atom->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
 						  my_problem->terms());
 				printf("\n");
+		}
+		else
+		{
+			atom->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(),
+						  my_problem->terms());
+				printf("has beed added\n");
 		}
 		return;
 	}
@@ -353,10 +367,11 @@ static void collect_state_variables(const pEffect& effect) {
 		 * The state variables of a conjunctive effect are the state
 		 * variables of the conjuncts.
 		 */
-		// std::cout << "CE" <<std::endl;
+		std::cout << "CE" <<std::endl;
 		for (size_t i = 0; i < ce->size(); i++) {
 			collect_state_variables(ce->conjunct(i));
 		}
+		std::cout << "done CE" <<std::endl;
 		return;
 	}
 
@@ -367,9 +382,10 @@ static void collect_state_variables(const pEffect& effect) {
 		 * The state variables of a conditional effect are the state
 		 * variables of the condition and the effect.
 		 */
-		// std::cout << "CndE" <<std::endl;
+		std::cout << "CndE" <<std::endl;
 		collect_state_variables(we->condition(), false);
 		collect_state_variables(we->effect());
+		std::cout << "done CondE" << std::endl;
 		return;
 	}
 
@@ -380,10 +396,11 @@ static void collect_state_variables(const pEffect& effect) {
 		 * The state variables of a probabilistic effect are the state
 		 * variables of the possible effects.
 		 */
-		//std::cout << "PrE" <<std::endl;
+		std::cout << "PrE" <<std::endl;
 		for (size_t i = 0; i < pe->size(); i++) {
 			collect_state_variables(pe->effect(i));
 		}
+		std::cout << "done PrE" << std::endl;
 		return;
 	}
 
@@ -505,7 +522,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 */
 		std::cout << "atom = " << state_variables[af] << std::endl;
 		if(dynamic_atoms.find((state_variables[af])) == dynamic_atoms.end())
-			return Cudd_ReadOne(manager);// 不是atom，返回1，为和？
+			return Cudd_ReadOne(manager);// 该变量不是dynamic,忽略,直接返回true.
 
 		// 假设状态变量有[a,b,c,d]后即状态[a',b',c',d']排放位置为：[a,a',b,b',c,c',d,d']
 		// 当前atom是状态变量，获取他的位置，然后状态BDD，并返回该Node
@@ -549,6 +566,14 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 			Cudd_Ref(ddi);//DON'T REALLY NEED THIS, except in uts k30.pddl
 			DdNode* dda = Cudd_bddAnd(dd_man, ddf, ddi);
 			Cudd_Ref(dda);
+			cf->conjunct(i).print(std::cout, my_problem->domain().predicates(),
+								  my_problem->domain().functions(), my_problem->terms());
+			std::cout << "\n";
+			if (dda == Cudd_ReadLogicZero(manager))
+			{
+				std::cout << "formula_bdd conjunct get FALSE\n";
+				assert(0);
+			}
 			Cudd_RecursiveDeref(dd_man, ddf);
 			Cudd_RecursiveDeref(dd_man, ddi);
 			ddf = dda;
@@ -1881,7 +1906,7 @@ observation_mtbdds(const Action& action,
 
 
 	//compose all joint outcomes and compute their probabilitie
-
+	// 存储每个fact BDD的概率
 	for(ObservationVector::iterator i = //(const struct ObservationEntry**)
 			ob.begin();
 			i != ob.end(); i++){
@@ -2246,7 +2271,7 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 	}
 
 	if(LUGTOTEXT){
-		std::cout << "Error mtbdd\n";
+		std::cout << "LUG Zero mtbdd\n";
 		assert(0);
 		return std::make_pair(Cudd_ReadZero(manager), Cudd_ReadZero(manager));
 	}
@@ -3183,7 +3208,9 @@ DdNode* groundActionDD(const Action& action){
 
 			// 该动作存在observation
 			if(action.hasObservation()){
+				std::cout << "start Observation BDD()\n";
 				ddos = observation_mtbdds(action, *my_problem);
+				std::cout << "done Observation BDD()\n";
 			}
 		} catch (std::logic_error& e) {
 			///    std::cout << "caught Exception"<<std::endl;
@@ -3360,14 +3387,23 @@ DdNode* solve_problem(const Problem& problem,
 		if(LUGTOTEXT && !check_consistent(action.effect(), &pos, &neg)){
 			continue;
 		}
+		std::cout << "Action: ";
 		(*ai)->print(std::cout, problem.terms());
-		std::cout << std::endl;
+		std::cout << "\nPrecondtion: ";
 		// 前提条件涉及到的是state varibale和dynamic variable
+		action.precondition().print(std::cout, problem.domain().predicates(), problem.domain().functions(),
+									problem.terms());
+		std::cout << "\ncollect the var in precondtion:\n";
 		collect_state_variables(action.precondition(), false);
 		// 装备收集effect的state ariable和dynamic variable
+		std::cout << "\nEffect: ";
+		action.effect().print(std::cout, problem.domain().predicates(), problem.domain().functions(),
+									problem.terms());
+		std::cout << "\ncollect the var in effect:\n";
 		collect_state_variables(action.effect());
-
-		if(&((Action*)(*ai))->observation()){
+		std::cout << "\n";
+		if (&((Action *)(*ai))->observation())
+		{
 			SENSORS=TRUE;
 			ObservationVector& ob =
 					(ObservationVector&) ((Observation&)((Action*)(*ai))->observation()).obVector();
