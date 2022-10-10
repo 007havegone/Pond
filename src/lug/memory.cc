@@ -369,9 +369,9 @@ OpNode *new_op_node( int time, const char *name, Bool is_noop,
   gops_count++;
 
   tmp->preconds = NULL;
-  tmp->unconditional = NULL;
+  tmp->unconditional = NULL;// 内部没有创建uncondition effect，而是将effect的前提作为OpNode前提
   tmp->conditionals = NULL;
-  tmp->b_pre = b_pre1;
+  tmp->b_pre = b_pre1;// 设置前提BDD
   tmp->is_noop = is_noop;
   tmp->unactivated_effects = NULL;
   for(int i = 0; i < IPP_MAX_PLAN+1; i++)
@@ -424,10 +424,10 @@ EfNode *new_ef_node( int time, OpNode *op,
   tmp->uid_block = gnum_cond_effects / gcword_size;
   tmp->uid_mask = 1 << ( gnum_cond_effects % gcword_size );
   tmp->index = gnum_cond_effects/* ++ */;
-  tmp->op = op;
+  tmp->op = op;// 设置effect所属的OpNode
   tmp->first_occurence = time;
   tmp->is_nondeter = eff->is_nondeter;//FALSE;
-  tmp->conditions = NULL;
+  tmp->conditions = NULL;// here do not set the condition, because the condtion have set to OpNode by insert_ft_edge
   tmp->effects = NULL;
 
  /*  tmp->pos_effect_vector = pos_effect_vector; */
@@ -438,9 +438,9 @@ EfNode *new_ef_node( int time, OpNode *op,
   tmpPtrd = new_Effect(a_index);
 
   
-  if(eff->original)
+  if(eff->original)// 间接引用eff
     tmpPtrd->original = eff->original;
-  else
+  else// 直接引用该Effect
     tmpPtrd->original = eff;
   
   //  tmpPtrd->in_rp = eff->in_rp;
@@ -455,6 +455,7 @@ EfNode *new_ef_node( int time, OpNode *op,
   tmpPtrd->reward = eff->reward;
   tmpPtrd->node = eff->node;
   tmpPtrd->row = eff->row;
+  // set the effect to EffectNode
   tmp->effect = tmpPtrd;
   
 
@@ -532,12 +533,13 @@ FtNode *new_ft_node( int time, int index, Bool positive, Bool dummy, /* DdNode* 
 
   tmp->noop = NULL;
 
-
+  // 清空level info
   for ( i = 0; i < IPP_MAX_PLAN+2; i++ ) {
     tmp->info_at[i] = NULL;
   }
+  // 根据FactNode创建level info
   tmp->info_at[time] = new_ft_level_info( tmp );
-  if(label0)
+  if(label0)// 设置Fact的level info the label
     tmp->info_at[time]->label = label0;
   else
     tmp->info_at[time]->label = NULL;
@@ -664,7 +666,7 @@ FtLevelInfo *new_ft_level_info( FtNode *ft )
   ggraph_memory += sizeof( FtLevelInfo );
 #endif
 
-  tmp->label = NULL;
+  tmp->label = NULL;// 初始化NULL后在调用处设置label
   tmp->adders_pointer = NULL;
   tmp->is_dummy = FALSE;
   tmp->relaxedPlanEdges = NULL;
@@ -674,13 +676,13 @@ FtLevelInfo *new_ft_level_info( FtNode *ft )
   tmp->is_true = 0;
   tmp->is_goal_for[0] = NULL;
   if(MUTEX_SCHEME!=MS_NONE){
-    tmp->exclusives = new_FtExclusion();
+    tmp->exclusives = new_FtExclusion();// 创建正负Fact的exclusive vector和label
     //  tmp->exclusives->pos_exclusives = new_excl_bit_vector( gft_vector_length );
     //tmp->exclusives->neg_exclusives = new_excl_bit_vector( gft_vector_length );
     /* adders erst spaeter allozieren !: groesse op - vecs unbekannt */
     
     /* achtung! funktioniert nur, falls bitvectoren konstant lang!! */
-    if ( ft->positive ) {
+    if ( ft->positive ) {// 设置该fact是对应neg的exclusive
       (tmp->exclusives->neg_exclusives)[ft->uid_block] |= ft->uid_mask;
     } else {
       (tmp->exclusives->pos_exclusives)[ft->uid_block] |= ft->uid_mask;
@@ -881,7 +883,9 @@ BitOperator *new_BitOperator( const char *name )
   return tmp;
 
 }
-
+/**
+ * label的浅拷贝
+ */
 Label * new_Label(DdNode* lab, double csd)
 {
 
@@ -1191,7 +1195,7 @@ FtExclusion* new_FtExclusion(void) {
 
   result->pos_exclusives = new_excl_bit_vector(gft_vector_length);
   result->neg_exclusives = new_excl_bit_vector(gft_vector_length);
-
+  // 创建 exclusive label(互斥的命题对应的label)
   if(MUTEX_SCHEME!=MS_REGULAR){
     result->p_exlabel = (//ExclusionLabelPair
 			 DdNode**) calloc (num_alt_facts, sizeof(//ExclusionLabelPair
@@ -1549,7 +1553,10 @@ void free_partial_effect( Effect *ef )
 
 
 }
-
+/**
+ * momo007 2022.09.26
+ * 目前的没有调用进行内存释放
+ */
 void free_partial_operator( BitOperator *op )
 
 {
