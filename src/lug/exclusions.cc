@@ -168,7 +168,10 @@ void MAKE_EFS_EXCLUSIVE( int time, EfNode *ef1, EfNode *ef2, DdNode* label1)//, 
    //    printBDD(ef2->info_at[time]->exclusives->exlabel[ef1->alt_index]);
     //printf("Exit make ef exclusive\n");
 }
-
+/**
+ * momo007 2022.09.27
+ * update the o1 and o2 exlabel by each other.
+ */
 void MAKE_OPS_EXCLUSIVE( int time, 
 			 OpNode *o1, 
 			 OpNode *o2, 
@@ -185,7 +188,7 @@ void MAKE_OPS_EXCLUSIVE( int time,
   (o1->info_at[time]->exclusives->exclusives)[o2->uid_block] |= o2->uid_mask;
   
   (o2->info_at[time]->exclusives->exclusives)[o1->uid_block] |= o1->uid_mask;
-  
+  // config o1
   DdNode* tmp = add_worlds_to_mutex(o1->info_at[time]->exclusives->exlabel[o2->alt_index-1],
 				    label1);//, label2);
   Cudd_Ref(tmp);
@@ -194,9 +197,9 @@ void MAKE_OPS_EXCLUSIVE( int time,
   o1->info_at[time]->exclusives->exlabel[o2->alt_index-1] = tmp;
   Cudd_Ref(o1->info_at[time]->exclusives->exlabel[o2->alt_index-1]);
   Cudd_RecursiveDeref(manager, tmp);
-
-   DdNode *lm = Cudd_bddPermute(manager, label1, varmap);
-   Cudd_Ref(lm);
+  // config o2
+  DdNode *lm = Cudd_bddPermute(manager, label1, varmap);
+  Cudd_Ref(lm);
   tmp = add_worlds_to_mutex(o2->info_at[time]->exclusives->exlabel[o1->alt_index-1],
 			    lm);//label2, label1);
   Cudd_Ref(tmp);
@@ -205,7 +208,7 @@ void MAKE_OPS_EXCLUSIVE( int time,
   o2->info_at[time]->exclusives->exlabel[o1->alt_index-1] = tmp;
   Cudd_Ref(o2->info_at[time]->exclusives->exlabel[o1->alt_index-1]);
   Cudd_RecursiveDeref(manager, tmp);
-   Cudd_RecursiveDeref(manager, lm);
+  Cudd_RecursiveDeref(manager, lm);
 /*     printf("exit make op ex\n"); */
 }
 
@@ -312,6 +315,7 @@ void MAKE_OPS_UNEXCLUSIVE( int time, OpNode *o1, OpNode *o2, DdNode* label1//,
     (o1->info_at[time]->exclusives->exclusives)[o2->uid_block] &= ~(o2->uid_mask);
     (o2->info_at[time]->exclusives->exclusives)[o1->uid_block] &= ~(o1->uid_mask);  
   }
+  // 将后继状态变量替换为当前状态变量
   DdNode *t = Cudd_bddVarMap(manager, new_mutex);
   Cudd_Ref(t);
   //  printBDD(t);
@@ -589,60 +593,64 @@ void find_mutex_ops( int time )
   BitVector *a, *b;
   int r;
 
-  //    printf("Enter find mutex ops, vec len = %d %d\n",gop_vector_length_at[time], gops_count);    
+  // printf("Enter find mutex ops, vec len = %d %d\n",gop_vector_length_at[time], gops_count);    
   DdNode *competeMutex;
   DdNode* worlds1, *worlds2;
- 
+  // 复制上一层time-1的exclusive vector到当前层
   for (i1=gprev_level_ops_pointer ; i1; i1=i1->next ) {
-    //    printf("New OpExclusion for %s\n",i1->name);
-    //i1->info_at[time]->exclusives = new_OpExclusion(gop_vector_length_at[time]);// new_excl_bit_vector( gop_vector_length_at[time] );
+    // printf("New OpExclusion for %s\n",i1->name);
+    // i1->info_at[time]->exclusives = new_OpExclusion(gop_vector_length_at[time]);// new_excl_bit_vector( gop_vector_length_at[time] );
     if ( time > 0 && i1->info_at[time-1] && i1->info_at[time] ) {
       a = i1->info_at[time]->exclusives->exclusives;
       b = i1->info_at[time-1]->exclusives->exclusives;
+      // 将上一层opNode的mutex加入到当前层opNode
       for ( r = 0; r < gop_vector_length_at[time-1]; r++ ) {
-	a[r] |= b[r];
+        a[r] |= b[r];
       }
-       for ( r = 0; r < (num_alt_acts+2*num_alt_facts); r++ ) {
-	 i1->info_at[time]->exclusives->exlabel[r] = i1->info_at[time-1]->exclusives->exlabel[r];
- 	if(i1->info_at[time]->exclusives->exlabel[r])
-	  Cudd_Ref(i1->info_at[time]->exclusives->exlabel[r]);
-       }
+      // 将上一层opNode的mutex label加入到当前层opNode
+      for ( r = 0; r < (num_alt_acts+2*num_alt_facts); r++ ) {
+        i1->info_at[time]->exclusives->exlabel[r] = i1->info_at[time-1]->exclusives->exlabel[r];
+        if(i1->info_at[time]->exclusives->exlabel[r])
+          Cudd_Ref(i1->info_at[time]->exclusives->exlabel[r]);
+      }
 
     }
-  }
+  }//end-for
 
   if(time > 0) {    
     i = gop_mutex_pairs;
-    while ( i) { 
+    // 对现有的mutex pair进行化简处理
+    while (i) {
       //std::cout << "HI" << std::endl;
       if(MUTEX_SCHEME!=MS_NONE){
-	worlds1 = i->o1->info_at[time]->label->label;
-	worlds2 = i->o2->info_at[time]->label->label;
+        worlds1 = i->o1->info_at[time]->label->label;
+        worlds2 = i->o2->info_at[time]->label->label;
       }
       else {
-	worlds1 = Cudd_ReadOne(manager);
-	worlds2 = Cudd_ReadOne(manager);
+        worlds1 = Cudd_ReadOne(manager);
+        worlds2 = Cudd_ReadOne(manager);
       }
      
-
+      // 计算和op2互斥的label加入到op1的互斥label中返回
+      // 两个动作没有mutex则返回BDD 0
       competeMutex = competing_needs( time, i->o1, i->o2, worlds1, worlds2);
       Cudd_Ref(competeMutex);
-
+      // 仅考虑没有mutex的状态去更新label
       MAKE_OPS_UNEXCLUSIVE( time, i->o1, i->o2, Cudd_Not(competeMutex) );
-      if(i->o1->info_at[time]->exclusives->exlabel[i->o2->alt_index-1] ==
-	 Cudd_ReadLogicZero(manager)){
-	  tmp = i;
-	  i = i->next;
-	  free( tmp );
-	  num_op_pair--;
+      if(i->o1->info_at[time]->exclusives->exlabel[i->o2->alt_index-1] == Cudd_ReadLogicZero(manager))
+      {
+        tmp = i;
+        i = i->next;
+	      free( tmp );
+	      num_op_pair--;
 #ifdef MEMORY_INFO
-	  gexcl_memory -= sizeof( OpPair );
+	      gexcl_memory -= sizeof( OpPair );
 #endif
-	  gops_exclusions_count--;
+	      gops_exclusions_count--;
 
       }
-    }
-
+    }// end-while 1
+    // why do it again !?!??!
     gop_mutex_pairs = i;
     prev = i;
     if ( i ) i = i->next;
@@ -658,59 +666,61 @@ void find_mutex_ops( int time )
     competeMutex = competing_needs( time, i->o1, i->o2, worlds1, worlds2 );
     Cudd_Ref(competeMutex);
     MAKE_OPS_UNEXCLUSIVE( time, i->o1, i->o2 , Cudd_Not(competeMutex));
-    if (i->o1->info_at[time]->exclusives->exlabel[i->o2->alt_index-1] ==
-	Cudd_ReadLogicZero(manager)){
-	prev->next = i->next;
-	tmp = i;
-	i = i->next;
-	free( tmp );
-	num_op_pair--;
+    if (i->o1->info_at[time]->exclusives->exlabel[i->o2->alt_index-1] == Cudd_ReadLogicZero(manager))
+    {
+	    prev->next = i->next;
+	    tmp = i;
+	    i = i->next;
+	    free( tmp );
+	    num_op_pair--;
 #ifdef MEMORY_INFO
-	gexcl_memory -= sizeof( OpPair );
+	    gexcl_memory -= sizeof( OpPair );
 #endif
-	gops_exclusions_count--;
-      } else {
-	prev = prev->next;
-	i = i->next;
+	    gops_exclusions_count--;
+      } 
+      else
+      {
+	      prev = prev->next;
+        i = i->next;
       }
-    }
-  }
- 
+    }// end-while 2
+  }// end-if time > 0
+  // create the next mutex layer
   for ( i1 = gall_ops_pointer; i1 != gprev_level_ops_pointer; i1 = i1->next ) {
     for ( i2 = i1->next; i2; i2 = i2->next ) {
-      //      std::cout << (i1->alt_index-1) << " " << (i2->alt_index-1) << std::endl;
-      if ( interfere( i1, i2 ) ) {
-	//printf("interfere\n");
-
-	MAKE_OPS_EXCLUSIVE( time, i1, i2, Cudd_ReadOne(manager));//, worlds2 );
-	gops_exclusions_count++;
-	continue;
+      // std::cout << (i1->alt_index-1) << " " << (i2->alt_index-1) << std::endl;
+      if ( interfere( i1, i2 ) ) {// 1. exclusive between effect and precond
+        // printf("interfere\n");
+        MAKE_OPS_EXCLUSIVE( time, i1, i2, Cudd_ReadOne(manager));//, worlds2 );
+        gops_exclusions_count++;
+        continue;
       }
-      if ( noop_exclusive( i1, i2 ) ) {
-	// printf("noop exclusive\n");
-	 MAKE_OPS_EXCLUSIVE( time, i1, i2 , Cudd_ReadOne(manager));//, worlds2);
-	gops_exclusions_count++;
-	continue;
-      }	
-      if (time > 0){
-	DdNode *mutex = competing_needs( time, i1, i2, 
+      if ( noop_exclusive( i1, i2 ) ) {// 2. exclusive between noop and op
+        // printf("noop exclusive\n");
+        MAKE_OPS_EXCLUSIVE( time, i1, i2 , Cudd_ReadOne(manager));//, worlds2);
+        gops_exclusions_count++;
+        continue;
+      }
+      if (time > 0){// 第1层开始需要判断label是否exclusive
+        // 计算两者互斥的状态label
+	      DdNode *mutex = competing_needs( time, i1, i2, 
 					 i1->info_at[time]->label->label,
 					 i2->info_at[time]->label->label);
-	Cudd_Ref(mutex);
-	
-	if(mutex != Cudd_ReadLogicZero(manager)){
-	  //printf("compete\n");
-	  MAKE_OPS_EXCLUSIVE( time, i1, i2, mutex);//, NULL );	  
-	  gops_exclusions_count++;
-	  tmp = new_op_pair( i1, i2 );
-	  tmp->next = gop_mutex_pairs;
-	  gop_mutex_pairs = tmp;
-	}
+	      Cudd_Ref(mutex);
+        // 存在mutex label,添加mutex pair
+	      if(mutex != Cudd_ReadLogicZero(manager)){
+	        // printf("compete\n");
+          MAKE_OPS_EXCLUSIVE( time, i1, i2, mutex);//, NULL );	  
+          gops_exclusions_count++;
+          tmp = new_op_pair( i1, i2 );
+          tmp->next = gop_mutex_pairs;
+          gop_mutex_pairs = tmp;
+        }
       }
     }
-  }
+  }//end-for
     
-  //   printf("Exit find mutex ops\n");
+  // printf("Exit find mutex ops\n");
 
 }
 
@@ -736,11 +746,11 @@ void find_mutex_facts( int time )
 
 
      
- if(MUTEX_SCHEME!=MS_NONE){
+  if(MUTEX_SCHEME!=MS_NONE){
    //printf("Enter find mutex facts %d\n", time);
 
 
-  for ( i1 = gprev_level_fts_pointer; i1; i1=i1->next ) {
+    for ( i1 = gprev_level_fts_pointer; i1; i1=i1->next ) {
     
  //    if(!(i1->info_at[time])) i1->info_at[time]= new_ft_level_info( i1 );//printf("GOT NULL\n");
 //     if ( i1->info_at[time]->is_dummy ) {
@@ -756,39 +766,39 @@ void find_mutex_facts( int time )
     // cout << "set adders " << (time) << std::endl; printFact(i1->index);
     //   i1->info_at[time]->adders = new_excl_bit_vector( gop_vector_length_at[time-1] );
   
-    if ( time > 0 ) {
+      if ( time > 0 ) {
       /*
        * achtung! evtl. bei time > 0 die exclusives bereits kopieren;
        * wegen contradicting facts... im augenblick egal, da diese bits
        * bereits in new_ft_level_info gesetzt werden.
        */
-      a = i1->info_at[time]->exclusives->pos_exclusives;
-      b = i1->info_at[time-1]->exclusives->pos_exclusives;
-      for ( r = 0; r < gft_vector_length; r++ ) {
-	a[r] |= b[r];
-      }
-      for ( r = 0; r < (num_alt_facts); r++ ) {
-	i1->info_at[time]->exclusives->p_exlabel[r] = i1->info_at[time-1]->exclusives->p_exlabel[r];
- 	if(i1->info_at[time]->exclusives->p_exlabel[r])
-	  Cudd_Ref(i1->info_at[time]->exclusives->p_exlabel[r]);
-      }
+        a = i1->info_at[time]->exclusives->pos_exclusives;
+        b = i1->info_at[time-1]->exclusives->pos_exclusives;
+        for ( r = 0; r < gft_vector_length; r++ ) {
+          a[r] |= b[r];
+        }
+        for ( r = 0; r < (num_alt_facts); r++ ) {
+          i1->info_at[time]->exclusives->p_exlabel[r] = i1->info_at[time-1]->exclusives->p_exlabel[r];
+ 	        if(i1->info_at[time]->exclusives->p_exlabel[r])
+	          Cudd_Ref(i1->info_at[time]->exclusives->p_exlabel[r]);
+        }
 
-      a = i1->info_at[time]->exclusives->neg_exclusives;
-      b = i1->info_at[time-1]->exclusives->neg_exclusives;
-      for ( r = 0; r < gft_vector_length; r++ ) {
-	a[r] |= b[r];
-      }
-      for ( r = 0; r < (num_alt_facts); r++ ) {
-	i1->info_at[time]->exclusives->n_exlabel[r] = i1->info_at[time-1]->exclusives->n_exlabel[r];
- 	if(i1->info_at[time]->exclusives->n_exlabel[r])
-	  Cudd_Ref(i1->info_at[time]->exclusives->n_exlabel[r]);
-      }
+        a = i1->info_at[time]->exclusives->neg_exclusives;
+        b = i1->info_at[time-1]->exclusives->neg_exclusives;
+        for ( r = 0; r < gft_vector_length; r++ ) {
+	        a[r] |= b[r];
+        }
+        for ( r = 0; r < (num_alt_facts); r++ ) {
+	        i1->info_at[time]->exclusives->n_exlabel[r] = i1->info_at[time-1]->exclusives->n_exlabel[r];
+ 	        if(i1->info_at[time]->exclusives->n_exlabel[r])
+	          Cudd_Ref(i1->info_at[time]->exclusives->n_exlabel[r]);
+        }
 //       a = i1->info_at[time]->adders;
 //       b = i1->info_at[time-1]->adders;
 //       for ( r = 0; r < gop_vector_length_at[time-2]; r++ ) {
 // 	a[r] |= b[r];
 //       }
-    }
+      }
 
   
 //     if ( i1->noop ) {
@@ -824,7 +834,7 @@ void find_mutex_facts( int time )
     if(mutex == Cudd_ReadLogicZero(manager)){
       gexclusions_count--;
       if ( i->f1->positive && i->f2->positive ) {
-	gprint_exnum--;
+        gprint_exnum--;
       }
       tmp = i;
       i = i->next;
@@ -836,7 +846,7 @@ void find_mutex_facts( int time )
     }
     else
       break;
-  }
+  }// end-while
   
 
   gft_mutex_pairs = i;
@@ -859,7 +869,7 @@ void find_mutex_facts( int time )
     if (mutex != Cudd_ReadLogicZero(manager) ){
       gexclusions_count--;
       if ( i->f1->positive && i->f2->positive ) {
-	gprint_exnum--;
+        gprint_exnum--;
       }
       prev->next = i->next;
       tmp = i;
@@ -873,7 +883,7 @@ void find_mutex_facts( int time )
       prev = prev->next;
       i = i->next;
     }
-  }
+  }// end-while
  
   //  std::cout << "find new ft mutexes" << std::endl;
  
@@ -894,12 +904,12 @@ void find_mutex_facts( int time )
 // 	continue;
 //       }
       if(MUTEX_SCHEME!=MS_NONE){
-	worlds1 = i1->info_at[time]->label->label;
-	worlds2 = i2->info_at[time]->label->label;
+	      worlds1 = i1->info_at[time]->label->label;
+	      worlds2 = i2->info_at[time]->label->label;
       }
       else {
-	worlds1 = Cudd_ReadOne(manager);
-	worlds2 = Cudd_ReadOne(manager);
+	      worlds1 = Cudd_ReadOne(manager);
+	      worlds2 = Cudd_ReadOne(manager);
       }
  //      std::cout << "Check ft pair "
 //        		<< i1->positive << " " << i1->index << " " 
@@ -908,7 +918,7 @@ void find_mutex_facts( int time )
       Cudd_Ref(mutex);
 
       if (mutex == Cudd_ReadLogicZero(manager) ){
-	continue;
+	      continue;
       }
       //      printBDD(mutex);
 
@@ -916,7 +926,7 @@ void find_mutex_facts( int time )
       //std::cout << "Mutex Facts" << std::endl;
       MAKE_FTS_EXCLUSIVE( time, i1, i2, mutex);//, mutex);
       if ( i1->positive && i2->positive ) {
-	gprint_exnum++;
+	      gprint_exnum++;
       }
       gexclusions_count++;
       tmp = new_ft_pair( i1, i2 );
@@ -925,7 +935,7 @@ void find_mutex_facts( int time )
     }
   }
  
-  }/* for i1 ... */
+  }// end if MS != NONE
 
  // printf("Exit find mutex facts\n");
   
@@ -1083,106 +1093,98 @@ DdNode* competing_needs( int time, OpNode *o1, OpNode *o2,
   BitVector *bp, *bn;
   int r;
   FtEdge *i;
-  //  printf("Checking competing needs for %d and %d at %d: \n", (o1->alt_index-1), 
+  // printf("Checking competing needs for %d and %d at %d: \n", (o1->alt_index-1), 
   // (o2->alt_index-1), time);
   
-  if(time == 0)
-    return FALSE;
+  if(time == 0)// momo007 2022.09.27
+    return FALSE; //// return Cudd_ReadLogicZero(manager); will increase the expand count.
 
- 
-  //record which propositions are exclusive with preconds
-     if ( !p && !n) {
-       p = new_excl_bit_vector( gft_vector_length );
-       n = new_excl_bit_vector( gft_vector_length );
-       for ( i = o1->preconds; i; i = i->next ) {
- 	bp = i->ft->info_at[time]->exclusives->pos_exclusives;
- 	for ( r = 0; r < gft_vector_length; r++ ) {
- 	  p[r] |= bp[r];
- 	}
-	//find worlds where mutex
-	if(MUTEX_SCHEME != MS_REGULAR){
-	  for(r = 0; r < num_alt_facts; r++){
-	    if(get_bit(p, gft_vector_length, r)){
-	      DdNode *tmp = Cudd_bddAnd(manager, o1->info_at[time]->label->label,
-					i->ft->info_at[time]->exclusives->p_exlabel[r]);
-	      Cudd_Ref(tmp);
-	      add_worlds_to_mutex(o1->unconditional->info_at[time]->exclusives->p_exlabel[r],
-				  tmp);
-	      Cudd_RecursiveDeref(manager, tmp);				
+   //record which propositions are exclusive with preconds
+  if (!p && !n) {
+    p = new_excl_bit_vector( gft_vector_length );
+    n = new_excl_bit_vector( gft_vector_length );
+    for ( i = o1->preconds; i; i = i->next ) {
+      // 1.考虑pos
+      bp = i->ft->info_at[time]->exclusives->pos_exclusives;
+      for ( r = 0; r < gft_vector_length; r++ ) {
+        p[r] |= bp[r];
+ 	    }
+	    //find worlds where mutex
+	    if(MUTEX_SCHEME != MS_REGULAR){
+	      for(r = 0; r < num_alt_facts; r++){
+	        if(get_bit(p, gft_vector_length, r)){
+            // 将fact的exlabel加到opNode上
+	          DdNode *tmp = Cudd_bddAnd(manager, o1->info_at[time]->label->label,
+					                            i->ft->info_at[time]->exclusives->p_exlabel[r]);
+	          Cudd_Ref(tmp);
+	          add_worlds_to_mutex(o1->unconditional->info_at[time]->exclusives->p_exlabel[r], tmp);
+	          Cudd_RecursiveDeref(manager, tmp);				
+	        }
+	      }
 	    }
-	  }
-	}
- 	bn = i->ft->info_at[time]->exclusives->neg_exclusives;
- 	for ( r = 0; r < gft_vector_length; r++ ) {
- 	  n[r] |= bn[r];
- 	}
-	//find worlds where mutex
-	if(MUTEX_SCHEME != MS_REGULAR){
-	  for(r = 0; r < num_alt_facts; r++){
-	    if(get_bit(n, gft_vector_length, r)){
-	      DdNode *tmp = Cudd_bddAnd(manager, o1->info_at[time]->label->label,
-					i->ft->info_at[time]->exclusives->n_exlabel[r]);
-	      Cudd_Ref(tmp);
-	      add_worlds_to_mutex(o1->unconditional->info_at[time]->exclusives->n_exlabel[r],
-				  tmp);
+      // 2.考虑neg
+ 	    bn = i->ft->info_at[time]->exclusives->neg_exclusives;
+ 	    for ( r = 0; r < gft_vector_length; r++ ) {
+ 	      n[r] |= bn[r];
+ 	    }
+	    //find worlds where mutex
+	    if(MUTEX_SCHEME != MS_REGULAR){
+	      for(r = 0; r < num_alt_facts; r++){
+	        if(get_bit(n, gft_vector_length, r)){
+	          DdNode *tmp = Cudd_bddAnd(manager, o1->info_at[time]->label->label,
+					                            i->ft->info_at[time]->exclusives->n_exlabel[r]);
+	          Cudd_Ref(tmp);
+	          add_worlds_to_mutex(o1->unconditional->info_at[time]->exclusives->n_exlabel[r], tmp);
+	        }
+	      }
 	    }
-	  }
-	}
-       }
-       o1->unconditional->info_at[time]->exclusives->pos_exclusives = p;
-       o1->unconditional->info_at[time]->exclusives->neg_exclusives = n;
-     }
+    }// end-for o1->preconds
+    // set the exclusive vector
+    o1->unconditional->info_at[time]->exclusives->pos_exclusives = p;
+    o1->unconditional->info_at[time]->exclusives->neg_exclusives = n;
+  }// endif !p && !n
     
-    //if o2's preconds are in the mutex list for o1 then xor
-    bp = o2->pos_precond_vector;
-    bn = o2->neg_precond_vector;
-    for ( r = 0; r < gft_vector_length; r++ ) {
-      if ( (p[r] & bp[r]) || (n[r] & bn[r]) ) {
-	//printf("COMPETE!!!!a\n");
-
-	DdNode* mutex = Cudd_ReadLogicZero(manager);
-	for(int i = 0; i < num_alt_facts; i++){
-	  if(get_bit(p, gft_vector_length, i) &&
-	     get_bit(bp, gft_vector_length, i)){
-	    DdNode* tmpp = Cudd_bddPermute(manager, 	      
-					   o2->info_at[time]->label->label,
-					   varmap);
-	    Cudd_Ref(tmpp);
-	    DdNode *tmp2 = Cudd_bddAnd(manager, tmpp, 
-				       o1->unconditional->info_at[time]->exclusives->p_exlabel[i]);
-	    Cudd_Ref(tmp2);
-	   
-	    DdNode *mtmp = Cudd_bddOr(manager, mutex, tmp2);
-	    Cudd_Ref(mtmp);
-	    mutex = mtmp;
-	    Cudd_Ref(mutex);
-	    Cudd_RecursiveDeref(manager, mtmp);
-	    Cudd_RecursiveDeref(manager, tmp2);
- 	    Cudd_RecursiveDeref(manager, tmpp);
-	  }
-	  if(get_bit(n, gft_vector_length, i) &&
-	     get_bit(bn, gft_vector_length, i)){
-	    DdNode* tmpp = Cudd_bddPermute(manager, 	      
-					   o2->info_at[time]->label->label,
-					   varmap);
-	    Cudd_Ref(tmpp);
-	    DdNode *tmp2 = Cudd_bddAnd(manager, tmpp, 
-				       o1->unconditional->info_at[time]->exclusives->n_exlabel[i]);
-	    Cudd_Ref(tmp2);
-	   
-	    DdNode *mtmp = Cudd_bddOr(manager, mutex, tmp2);
-	    Cudd_Ref(mtmp);
-	    mutex = mtmp;
-	    Cudd_Ref(mutex);
-	    Cudd_RecursiveDeref(manager, mtmp);
-	    Cudd_RecursiveDeref(manager, tmp2);
- 	    Cudd_RecursiveDeref(manager, tmpp);
-	  }
-	}
-
-	return mutex;//Cudd_ReadOne(manager);//TRUE;
-      }
+  //if o2's preconds are in the mutex list for o1 then xor
+  bp = o2->pos_precond_vector;
+  bn = o2->neg_precond_vector;
+  for ( r = 0; r < gft_vector_length; r++ ) {
+    if ( (p[r] & bp[r]) || (n[r] & bn[r]) ) {
+      //printf("COMPETE!!!!a\n");
+	    DdNode* mutex = Cudd_ReadLogicZero(manager);
+	    for(int i = 0; i < num_alt_facts; i++){
+	      if(get_bit(p, gft_vector_length, i) &&
+	          get_bit(bp, gft_vector_length, i)){
+	        DdNode* tmpp = Cudd_bddPermute(manager, o2->info_at[time]->label->label, varmap);
+	        Cudd_Ref(tmpp);
+	        DdNode *tmp2 = Cudd_bddAnd(manager, tmpp, o1->unconditional->info_at[time]->exclusives->p_exlabel[i]);
+	        Cudd_Ref(tmp2);
+	        DdNode *mtmp = Cudd_bddOr(manager, mutex, tmp2);
+          Cudd_Ref(mtmp);
+          mutex = mtmp;
+          Cudd_Ref(mutex);
+          Cudd_RecursiveDeref(manager, mtmp);
+	        Cudd_RecursiveDeref(manager, tmp2);
+ 	        Cudd_RecursiveDeref(manager, tmpp);
+	      }
+	      if(get_bit(n, gft_vector_length, i) &&
+	          get_bit(bn, gft_vector_length, i)){
+	        DdNode* tmpp = Cudd_bddPermute(manager, o2->info_at[time]->label->label, varmap);
+	        Cudd_Ref(tmpp);
+	        DdNode *tmp2 = Cudd_bddAnd(manager, tmpp, o1->unconditional->info_at[time]->exclusives->n_exlabel[i]);
+	        Cudd_Ref(tmp2);
+	        DdNode *mtmp = Cudd_bddOr(manager, mutex, tmp2);
+	        Cudd_Ref(mtmp);
+	        mutex = mtmp;
+	        Cudd_Ref(mutex);
+	        Cudd_RecursiveDeref(manager, mtmp);
+	        Cudd_RecursiveDeref(manager, tmp2);
+ 	        Cudd_RecursiveDeref(manager, tmpp);
+	      }
+	    }// end-for one mutex compute
+      // 计算得到和 op1和op2里，和op1冲突的label BDD状态集合。
+	    return mutex;//Cudd_ReadOne(manager);//TRUE;
     }
+  }// end-for all mutex check
 
  //    b = o2->neg_precond_vector;
 //     for ( r = 0; r < gft_vector_length; r++ ) {
@@ -1192,11 +1194,8 @@ DdNode* competing_needs( int time, OpNode *o1, OpNode *o2,
 //       }
 //     }
     //printf("NO COMPETE!!!!\n");
-    return Cudd_ReadLogicZero(manager);
+  return Cudd_ReadLogicZero(manager);
       //FALSE;
- 
-  
-  
 }
 
 int ef_interfere( EfNode *e1, EfNode *e2 ){
@@ -1265,7 +1264,10 @@ int ef_interfere( EfNode *e1, EfNode *e2 ){
 
 }
 
-
+/**
+ * op1的前提或结果与
+ * op2的前提或结果exclusive
+ */
 int interfere( OpNode *i1, OpNode *i2 )
 
 {//need to extend for all disj effects not just the first one.
@@ -1290,7 +1292,7 @@ int interfere( OpNode *i1, OpNode *i2 )
   //	print_BitVector(e2n, gft_vector_length); printf("\n");
   for ( r = 0; r < gft_vector_length; r++ ) {
     // printf("Dying\n");
-   if ( (e1p[r] | p1p[r]) & (e2n[r] | p2n[r]) ) {
+   if ( (e1p[r] | p1p[r]) & (e2n[r] | p2n[r]) ) { 
   
     
   //        printf("Exit do Interfere 1\n");
@@ -1329,7 +1331,11 @@ int interfere( OpNode *i1, OpNode *i2 )
 
 }
 
-
+/**
+ * 1. 两个不是noop，不满足
+ * 2. 两个都是noop,不冲突，返回false
+ * 3. 其中一个是noop,判断其fact是否与op的结果冲突
+ */
 int noop_exclusive( OpNode *i1, OpNode *i2 )
 
 {
@@ -1364,8 +1370,6 @@ int noop_exclusive( OpNode *i1, OpNode *i2 )
 
 
   if (vec[ft->uid_block] & ft->uid_mask) {
-  
-
     return TRUE;
   } else {
     return FALSE;
@@ -1580,48 +1584,49 @@ void find_mutex_effects1(int time) {
       a = e1->info_at[time]->exclusives->exclusives;
       b = e1->info_at[time-1]->exclusives->exclusives;
       for ( r = 0; r < gef_vector_length; r++ ) {
-	a[r] |= b[r];
+        a[r] |= b[r];
       }
       for ( r = 0; r < (2*num_alt_facts+num_alt_effs); r++ ) {
- 	e1->info_at[time]->exclusives->exlabel[r] = 
- 	  e1->info_at[time-1]->exclusives->exlabel[r];
- 	if(e1->info_at[time]->exclusives->exlabel[r])
- 	  Cudd_Ref(e1->info_at[time]->exclusives->exlabel[r]);
+ 	      e1->info_at[time]->exclusives->exlabel[r] = 
+ 	      e1->info_at[time-1]->exclusives->exlabel[r];
+ 	      if(e1->info_at[time]->exclusives->exlabel[r])
+ 	        Cudd_Ref(e1->info_at[time]->exclusives->exlabel[r]);
       }
    
       if(time > 1){
-	a = e1->info_at[time]->exclusives->pos_exclusives;
-	b = e1->info_at[time-1]->exclusives->pos_exclusives;
+	      a = e1->info_at[time]->exclusives->pos_exclusives;
+	      b = e1->info_at[time-1]->exclusives->pos_exclusives;
 
-	for ( r = 0; r < gft_vector_length; r++ ) {
-	  a[r] |= b[r];
-	}
+	      for ( r = 0; r < gft_vector_length; r++ ) {
+	        a[r] |= b[r];
+	      }
 
-	for ( r = 0; r < num_alt_facts; r++ ) {
-
-	//	e1->info_at[time-1]->exclusives->p_exlabel[r] = Cudd_ReadLogicZero(manager);
- 	if(e1 &&
- 	   e1->info_at[time-1] &&
-	   e1->info_at[time-1]->exclusives)
-	e1->info_at[time]->exclusives->p_exlabel[r] = 
-	  e1->info_at[time-1]->exclusives->p_exlabel[r];
-	if(e1->info_at[time]->exclusives->p_exlabel[r])
-	  Cudd_Ref(e1->info_at[time]->exclusives->p_exlabel[r]);
-      }
+	      for ( r = 0; r < num_alt_facts; r++ ) {
+	        //	e1->info_at[time-1]->exclusives->p_exlabel[r] = Cudd_ReadLogicZero(manager);
+ 	        if(e1 &&
+ 	            e1->info_at[time-1] &&
+	            e1->info_at[time-1]->exclusives)
+	          
+            e1->info_at[time]->exclusives->p_exlabel[r] = 
+	          e1->info_at[time-1]->exclusives->p_exlabel[r];
+	        
+          if(e1->info_at[time]->exclusives->p_exlabel[r])
+	          Cudd_Ref(e1->info_at[time]->exclusives->p_exlabel[r]);
+        }
  
  
-      a = e1->info_at[time]->exclusives->neg_exclusives;
-      b = e1->info_at[time-1]->exclusives->neg_exclusives;
-      for ( r = 0; r < gft_vector_length; r++ ) {
-	a[r] |= b[r];
-      }
-      for ( r = 0; r < num_alt_facts; r++ ) {
+        a = e1->info_at[time]->exclusives->neg_exclusives;
+        b = e1->info_at[time-1]->exclusives->neg_exclusives;
+        for ( r = 0; r < gft_vector_length; r++ ) {
+          a[r] |= b[r];
+        }
+        for ( r = 0; r < num_alt_facts; r++ ) {
 
-	e1->info_at[time]->exclusives->n_exlabel[r] = 
-	  e1->info_at[time-1]->exclusives->n_exlabel[r];
-	if(e1->info_at[time]->exclusives->n_exlabel[r])
-	  Cudd_Ref(e1->info_at[time]->exclusives->n_exlabel[r]);
-      }
+	        e1->info_at[time]->exclusives->n_exlabel[r] = 
+	        e1->info_at[time-1]->exclusives->n_exlabel[r];
+	        if(e1->info_at[time]->exclusives->n_exlabel[r])
+	          Cudd_Ref(e1->info_at[time]->exclusives->n_exlabel[r]);
+        }
       }
     }
   }
@@ -1632,32 +1637,32 @@ void find_mutex_effects1(int time) {
     i = gef_mutex_pairs;
     while ( i){
       if(MUTEX_SCHEME!=MS_NONE){
-	worlds1 = i->e1->info_at[time]->label->label;
-	worlds2 = i->e2->info_at[time]->label->label;
+	      worlds1 = i->e1->info_at[time]->label->label;
+	      worlds2 = i->e2->info_at[time]->label->label;
       }
       else {
-	worlds1 = Cudd_ReadOne(manager);
-	worlds2 = Cudd_ReadOne(manager);
+	      worlds1 = Cudd_ReadOne(manager);
+	      worlds2 = Cudd_ReadOne(manager);
       }
       
-      //    std::cout << "a" << std::endl;   
+      // std::cout << "a" << std::endl;   
       competeMutex = ef_competing_needs( time, i->e1, i->e2, worlds1, worlds2);      
       Cudd_Ref(competeMutex);
       MAKE_EFS_UNEXCLUSIVE( time, i->e1, i->e2, Cudd_Not(competeMutex) );
       if(competeMutex == Cudd_ReadLogicZero(manager)){
-	tmp = i;
-	i = i->next;
-	free( tmp );
-	//num_ef_pair--;
+	      tmp = i;
+	      i = i->next;
+	      free( tmp );
+	      //num_ef_pair--;
 
 #ifdef MEMORY_INFO
-      gexcl_memory -= sizeof( EfPair );
+        gexcl_memory -= sizeof( EfPair );
 #endif
-      gefs_exclusions_count--;
+        gefs_exclusions_count--;
       }
       else
-	break;
-    }
+	      break;
+    }// end-while
 
 
     gef_mutex_pairs = i;
@@ -1665,33 +1670,34 @@ void find_mutex_effects1(int time) {
     if ( i ) i = i->next;
     while ( i ) {
       if(MUTEX_SCHEME!=MS_NONE){
-	worlds1 = i->e1->info_at[time]->label->label;
-	worlds2 = i->e2->info_at[time]->label->label;
+	      worlds1 = i->e1->info_at[time]->label->label;
+	      worlds2 = i->e2->info_at[time]->label->label;
       }
       else {
-	worlds1 = Cudd_ReadOne(manager);
-	worlds2 = Cudd_ReadOne(manager);
+	      worlds1 = Cudd_ReadOne(manager);
+	      worlds2 = Cudd_ReadOne(manager);
       }
       competeMutex = ef_competing_needs( time, i->e1, i->e2, worlds1, worlds2 );
       Cudd_Ref(competeMutex);
       MAKE_EFS_UNEXCLUSIVE( time, i->e1, i->e2 , Cudd_Not(competeMutex));
       if(competeMutex == Cudd_ReadLogicZero(manager)){
-	prev->next = i->next;
-	tmp = i;
-	i = i->next;
-	free( tmp );
-	//	num_ef_pair--;
+	      prev->next = i->next;
+	      tmp = i;
+	      i = i->next;
+	      free( tmp );
+	      // num_ef_pair--;
 #ifdef MEMORY_INFO
-	gexcl_memory -= sizeof( EfPair );
+	      gexcl_memory -= sizeof( EfPair );
 #endif
-	gefs_exclusions_count--;
+	      gefs_exclusions_count--;
      
-      } else {
-	prev = prev->next;
-	i = i->next;
       }
-    }
-  }
+      else {
+	      prev = prev->next;
+	      i = i->next;
+      }
+    }// end-while
+  }// end-if
 
 //   for ( i1 = gall_ops_pointer; i1   ; i1 = i1->next ) {
 //     for ( i2 = i1->next; i2; i2 = i2->next ) {
@@ -1729,11 +1735,11 @@ void find_mutex_effects1(int time) {
       DdNode* op_mutex;
       if(e1->op != e2->op)
 
-	op_mutex = ARE_MUTEX_OPS(time, e1->op, e2->op, //i1, i2, 
-				       e1->info_at[time]->label->label, 
-				       e2->info_at[time]->label->label);      
+	      op_mutex = ARE_MUTEX_OPS(time, e1->op, e2->op, //i1, i2, 
+			  	          e1->info_at[time]->label->label, 
+			  	          e2->info_at[time]->label->label);      
       else
-	op_mutex = Cudd_ReadLogicZero(manager);
+	      op_mutex = Cudd_ReadLogicZero(manager);
 
  //       for(int t1 = 0; t1 < 2; t1++){
 //  	if(t1== 0 ){
@@ -1766,18 +1772,18 @@ void find_mutex_effects1(int time) {
 //         std::cout << "e2 " << std::endl<<std::flush;
 // 	    for ( ; e2; e2 = e2->next ) {
 
-	      if((e1->effect->ant->b == Cudd_ReadLogicZero(manager) &&
-		  e1->effect->cons->b == Cudd_ReadLogicZero(manager)) ||
-		 (e2->effect->ant->b == Cudd_ReadLogicZero(manager) &&
-		  e2->effect->cons->b == Cudd_ReadLogicZero(manager)))
-		continue;
+	    if((e1->effect->ant->b == Cudd_ReadLogicZero(manager) &&
+          e1->effect->cons->b == Cudd_ReadLogicZero(manager)) ||
+		    (e2->effect->ant->b == Cudd_ReadLogicZero(manager) &&
+		      e2->effect->cons->b == Cudd_ReadLogicZero(manager)))
+		    continue;
 
 	      //since uncond has no effect, but a precond, it can
 	      //be involved in meaningless mutexes, the effects with
 	      //no antecedent should be moved into the unconditional
-	      if(e1->op == e2->op && (e1 == e1->op->unconditional ||
+	    if(e1->op == e2->op && (e1 == e1->op->unconditional ||
 				      e2 == e2->op->unconditional))
-		continue;
+        continue;
 
 
 	      //	      std::cout << "check mutex " << e1->alt_index << " " << e2->alt_index << std::endl;
@@ -1791,15 +1797,15 @@ void find_mutex_effects1(int time) {
 // 	      if(!e2->info_at[time]->exclusives->exclusives)
 // 		e2->info_at[time]->exclusives->exclusives = 
 // 		  new_excl_bit_vector(gef_vector_length);
-	      if ( op_mutex && op_mutex != Cudd_ReadLogicZero(manager)){
-		//std::cout << "op_mutex" << std::endl;
-		MAKE_EFS_EXCLUSIVE( time, e1, e2, op_mutex);//, op_mutex);
-		continue;
-	      }
+	    if ( op_mutex && op_mutex != Cudd_ReadLogicZero(manager)){
+		    //std::cout << "op_mutex" << std::endl;
+		    MAKE_EFS_EXCLUSIVE( time, e1, e2, op_mutex);//, op_mutex);
+		    continue;
+	    }
 	      else if(ef_interfere( e1, e2 ) ) {
-		//printf("Interfere\n");
+		      //printf("Interfere\n");
 
-		MAKE_EFS_EXCLUSIVE( time, e1, e2, Cudd_ReadOne(manager));//, Cudd_ReadOne(manager));
+		      MAKE_EFS_EXCLUSIVE( time, e1, e2, Cudd_ReadOne(manager));//, Cudd_ReadOne(manager));
 		
 // 	      if(e1 == e1->op->unconditional){
 // 		//if unconditional is mutex, then all conditionals are too
@@ -1822,23 +1828,23 @@ void find_mutex_effects1(int time) {
 // 		  }
 // 		}
 
-		continue;
+		      continue;
 	      }
 	      //	       std::cout << "HI"<<std::endl;
 
 	      if ( time > 0){
-		DdNode* mutex;	       
-		//printf("COMPETE NEEDS\n");
-		mutex = ef_competing_needs( time, e1, e2, 
-					  e1->info_at[time]->label->label,
-					  e2->info_at[time]->label->label);
-	    Cudd_Ref(mutex);
-	    if(mutex == Cudd_ReadLogicZero(manager))
-	      continue;
+		      DdNode* mutex;	       
+		      // printf("COMPETE NEEDS\n");
+		      mutex = ef_competing_needs( time, e1, e2, 
+					        e1->info_at[time]->label->label,
+					        e2->info_at[time]->label->label);
+	        Cudd_Ref(mutex);
+	        if(mutex == Cudd_ReadLogicZero(manager))
+	          continue;
 
  	    
 // 	    exit(0);
-	    MAKE_EFS_EXCLUSIVE( time, e1, e2, mutex);//, mutex);
+	        MAKE_EFS_EXCLUSIVE( time, e1, e2, mutex);//, mutex);
 // 	    if(e1->op->unconditional == e1){
 // 	      //if unconditional is mutex, then all conditionals are too
 // 	      for(EfNode *e3 = e1->op->conditionals; e3; e3=e3->next){
@@ -1867,7 +1873,7 @@ void find_mutex_effects1(int time) {
 
 
 
-    }
+    }// end-for
     //induced mutexes
     if(DO_INDUCED){
       //add mutexes to e1, where some other effect of 
@@ -1875,58 +1881,57 @@ void find_mutex_effects1(int time) {
       //action
       
       for(int t = 0; t < 2; t++){
-	if(t==0)
-	  e2 = e1->op->unconditional;
-	else
-	  e2 = e1->op->conditionals;
+	      if(t==0)
+	        e2 = e1->op->unconditional;
+	      else
+	        e2 = e1->op->conditionals;
 
-	for(; e2; e2 = e2->next){
-	  if(e1 == e2) continue;
+	      for(; e2; e2 = e2->next){
+	        if(e1 == e2) continue;
 
-	  DdNode *inducedWorlds = Cudd_bddAnd(manager, 
-					      e1->info_at[time]->label->label,
-					      e2->info_at[time]->label->label);
-	  Cudd_Ref(inducedWorlds);
-	  DdNode* pinducedWorlds = Cudd_bddVarMap(manager, inducedWorlds);
-	  Cudd_Ref(pinducedWorlds);
-	  DdNode* binducedWorlds = Cudd_bddAnd(manager, inducedWorlds, pinducedWorlds);
-	  Cudd_Ref(binducedWorlds);
-	  DdNode* nonMutexInducedWorlds = Cudd_bddAnd(manager,
-						      binducedWorlds,
-						      Cudd_Not(ARE_MUTEX_EFS(time, e1, e2, 
-									     e1->info_at[time]->label->label,
-									     e2->info_at[time]->label->label)));
-	  Cudd_Ref(nonMutexInducedWorlds);
+	        DdNode *inducedWorlds = Cudd_bddAnd(manager, 
+			  		          e1->info_at[time]->label->label,
+			  		          e2->info_at[time]->label->label);
+	        Cudd_Ref(inducedWorlds);
+	        DdNode* pinducedWorlds = Cudd_bddVarMap(manager, inducedWorlds);
+	        Cudd_Ref(pinducedWorlds);
+	        DdNode* binducedWorlds = Cudd_bddAnd(manager, inducedWorlds, pinducedWorlds);
+	        Cudd_Ref(binducedWorlds);
+	        DdNode* nonMutexInducedWorlds = Cudd_bddAnd(manager,
+			  			                            binducedWorlds,
+			  			                            Cudd_Not(ARE_MUTEX_EFS(time, e1, e2, 
+			  						                           e1->info_at[time]->label->label,
+			  						                           e2->info_at[time]->label->label)));
+	        Cudd_Ref(nonMutexInducedWorlds);
 
-	  Cudd_RecursiveDeref(manager, pinducedWorlds);
-	  Cudd_RecursiveDeref(manager, binducedWorlds);
-	  pinducedWorlds = Cudd_bddVarMap(manager, nonMutexInducedWorlds);
-	  Cudd_Ref(pinducedWorlds);
-	  binducedWorlds = Cudd_bddAnd(manager, pinducedWorlds, nonMutexInducedWorlds);
-	  Cudd_Ref(binducedWorlds);
-	  DdNode* nonMutexSameInducedWorlds = Cudd_bddExistAbstract(manager, binducedWorlds, 
-							       next_state_cube);
-	  Cudd_Ref(nonMutexSameInducedWorlds);
+	        Cudd_RecursiveDeref(manager, pinducedWorlds);
+	        Cudd_RecursiveDeref(manager, binducedWorlds);
+	        pinducedWorlds = Cudd_bddVarMap(manager, nonMutexInducedWorlds);
+	        Cudd_Ref(pinducedWorlds);
+	        binducedWorlds = Cudd_bddAnd(manager, pinducedWorlds, nonMutexInducedWorlds);
+	        Cudd_Ref(binducedWorlds);
+	        DdNode* nonMutexSameInducedWorlds = Cudd_bddExistAbstract(manager, binducedWorlds, 
+		      					       next_state_cube);
+	        Cudd_Ref(nonMutexSameInducedWorlds);
 
 
-	  Cudd_RecursiveDeref(manager, inducedWorlds);
-	  Cudd_RecursiveDeref(manager, pinducedWorlds);
-	  Cudd_RecursiveDeref(manager, binducedWorlds);
-	  
-	  for(EfNode *e3 = gall_efs_pointer; e3; e3 = e3->next){
-	    if(e3->op == e2->op) continue;
-	    DdNode *m23 = ARE_MUTEX_EFS(time, e2, e3, 
-					nonMutexSameInducedWorlds, 
-					e3->info_at[time]->label->label);
-	    Cudd_Ref(m23);
-	    if(m23 != Cudd_ReadLogicZero(manager)){
-	      add_worlds_to_mutex(e1->info_at[time]->exclusives->exlabel[e3->alt_index], m23);
-	    }
-	  }
-	}
+	        Cudd_RecursiveDeref(manager, inducedWorlds);
+	        Cudd_RecursiveDeref(manager, pinducedWorlds);
+	        Cudd_RecursiveDeref(manager, binducedWorlds);
+  
+	        for(EfNode *e3 = gall_efs_pointer; e3; e3 = e3->next){
+	          if(e3->op == e2->op) continue;
+	          DdNode *m23 = ARE_MUTEX_EFS(time, e2, e3, nonMutexSameInducedWorlds, 
+			  		              e3->info_at[time]->label->label);
+	          Cudd_Ref(m23);
+	          if(m23 != Cudd_ReadLogicZero(manager)){
+	            add_worlds_to_mutex(e1->info_at[time]->exclusives->exlabel[e3->alt_index], m23);
+	          }
+	        }
+	      }
       }
-    }
-  }  
+    }// end-if DO_INDUCED
+  }
   //  std::cout << "Exit FIND mux effs" << std::endl; 
 }
 
