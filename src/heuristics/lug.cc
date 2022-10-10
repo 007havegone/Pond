@@ -21,7 +21,7 @@
 #include <math.h>
 #include "correlation.h"
 #include "dd.h"
-
+#include <typeinfo>
 using namespace std;
 
 RelaxedPlan* my_rp;
@@ -53,7 +53,7 @@ extern  void setActWorldCost(int act, int cost, DdNode* worlds);
 extern  void setEffectWorldCost(int effect, int cost, DdNode* worlds);
 extern  int getFactCover(FtNode* f, DdNode* worlds, int time);
 //extern  void unionElementLabels(std::set<LabelledElement*>* );
-
+extern int getlevel(int index, int polarity);// momo007 add support for getMinSumHueristicValue
 std::list<std::list<LabelledElement*>*> ** actWorldCost;
 std::list<std::list<LabelledElement*>*> ** effectWorldCost;
 std::list<std::list<LabelledElement*>*> ** factWorldCost;
@@ -1008,6 +1008,9 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 			}
 		}
 
+/**
+ * 创建初始Fact layer和初始状态的label BDD
+ */
 #ifdef PPDDL_PARSER
 void createInitLayer(DdNode* init){
 	FactInfo *tpos = new_FactInfo();
@@ -1018,7 +1021,7 @@ void createInitLayer(DdNode* init){
 
 	GOALS_REACHED = IPP_MAX_PLAN;
 
-	if(COMPUTE_LABELS){// Single Graph pass
+	if(COMPUTE_LABELS){// LUG enter
 		if(PF_LUG && my_problem->domain().requirements.probabilistic){
 
 			tmp = init; //tmp holds the mapping from states to particles
@@ -1069,18 +1072,16 @@ void createInitLayer(DdNode* init){
 			tmp = Cudd_addBddStrictThreshold(manager, init, 0.0);
 			Cudd_Ref(tmp);
 		}
+		// conformant planning
 		else if(!PF_LUG && my_problem->domain().requirements.non_deterministic){
 			tmp = init;
 			Cudd_Ref(tmp);
 			probabilisticLabels = Cudd_ReadOne(manager);
 			Cudd_Ref(probabilisticLabels);
 		}
-		//     else if(!PF_LUG && my_problem->domain().requirements.non_deterministic){
-		//       tmp = init;
-		//       Cudd_Ref(tmp);
-		//     }
 
 	}
+	// SG enter
 	else{
 		tmp = init;
 		Cudd_Ref(tmp);
@@ -1096,17 +1097,21 @@ void createInitLayer(DdNode* init){
 
 
 	// cout << "SET INIT FACTS"<<endl;
+	/**
+	 * momo007 2022.10.10
+	 * 这里无论是SG还是LUG都使用创建label。(如果SGRP这里取消label会大大增加expand的个数,原因未知)
+	 */
 	for(int i = 0; i < num_alt_facts; i++){
 
 		//  cout << "[" << endl; Cudd_CheckKeys(manager); cout <<"|" << endl;
 
-		// 遍历考虑每个变量的pos和neg和取初始状态，知道每个var的正负情况
+		// 记录每个fact为true和false的情况下，创建label（BDD即满足该fact的状态集合）
 		//    if(COMPUTE_LABELS){
 		b_sg = Cudd_bddIthVar(manager,2*i);
 		//Cudd_Ref(b_sg);
 		init_pos_labels[i] = Cudd_bddAnd(manager, b_sg, tmp);
 		Cudd_Ref(init_pos_labels[i]);
-
+		// printBDD(init_pos_labels[i]);
 		b_ng = Cudd_Not(b_sg);//Cudd_bddIthVar(manager,2*i));
 		//Cudd_Ref(b_ng);
 		init_neg_labels[i] = Cudd_bddAnd(manager, b_ng, tmp);
@@ -1124,7 +1129,7 @@ void createInitLayer(DdNode* init){
 				Cudd_ReadLogicZero(manager) != init_neg_labels[i]){
 			make_entry_in_FactInfo( &tneg, i);
 		}
-
+		// default do not enter
 		if(PF_LUG && LUG_FOR != SPACE){//abstract out state variables to leave sample variables
 
 			DdNode *tmp1 = Cudd_bddExistAbstract(manager, init_pos_labels[i], c);
@@ -1142,7 +1147,7 @@ void createInitLayer(DdNode* init){
 		}
 	}
 
-
+	// default do not enter
 	if(!COST_REPROP && COMPUTE_LABELS && RP_EFFECT_SELECTION != RP_E_S_COVERAGE)
 		setInitCostVector(init);
 
@@ -2243,10 +2248,10 @@ int maximum(int a, int b){
 
 double getLabelRPHeuristic(StateNode* s, int max_lev, list<DdNode*>* worldsAtLevels){
 	DdNode* rpWorlds, *tmp;
-//cout << "State " << s->StateNo << endl;
-//printBDD(s->dd);
+	//cout << "State " << s->StateNo << endl;
+	//printBDD(s->dd);
 	// abstract away state information so that only get particles
-	if(PF_LUG && LUG_FOR != SPACE){
+	if(PF_LUG && LUG_FOR != SPACE){// conformant do not enter
 		if(RP_EFFECT_SELECTION == RP_E_S_COVERAGE || goal_threshold == 0.0){
 			DdNode* c;
 			if(my_problem->domain().requirements.probabilistic)
@@ -2271,6 +2276,7 @@ double getLabelRPHeuristic(StateNode* s, int max_lev, list<DdNode*>* worldsAtLev
 //			Cudd_Ref(rpWorlds);
 		}
 	}
+	// conformant planning
 	else{
 		if(LUG_LEVEL_WORLDS == 0 || (LUG_LEVEL_WORLDS != 0 && max_lev <= LUG_LEVEL_WORLDS)){  // get all worlds
 			rpWorlds = s->dd;
@@ -2492,29 +2498,20 @@ double build_forward_get_h(DdNode* init,
 	//     if(states && !states->empty() && states->front()->PrevAction)
 	//       printAction(states->front()->PrevAction->Node);
 	// findGraphForState current directly return false
-	if(LUG_FOR != SPACE || !states ||
-			(LUG_FOR == AHREACHABLE && !findGraphForStates(parent, init))){
-
-
+	if(LUG_FOR != SPACE || !states || (LUG_FOR == AHREACHABLE && !findGraphForStates(parent, init)))
+	{
 		if(!init)
 			return IPP_MAX_PLAN;
 		//printBDD(init);
 		num_lugs++;
-
-		if((LUG_FOR == INCREMENTAL && num_lugs == 1) || //first incremental lug
-				LUG_FOR != INCREMENTAL){ //or, not doing incremental lug
-
-
-			//    if(LUG_FOR == INCREMENTAL){
-			//      cout << "FIRST INCREMENTAL LUG"<<endl;
-			//       }
-
+		//first incremental lug or not doing incremental lug
+		if((LUG_FOR == INCREMENTAL && num_lugs == 1) || LUG_FOR != INCREMENTAL)
+		{
+			if(LUG_FOR == INCREMENTAL) cout << "FIRST INCREMENTAL LUG"<<endl;
 
 			createInitLayer(init);// 创建了FactInfoPair
+			// cout << "RESTORING OPERATORS" <<endl;
 
-
-
-			//            cout << "RESTORING OPERATORS" <<endl;
 			while(used_gbit_operators){
 				tmp = used_gbit_operators;
 				used_gbit_operators = used_gbit_operators->next;
@@ -2538,8 +2535,8 @@ double build_forward_get_h(DdNode* init,
 				}
 				tmp->next = gbit_operators;
 				gbit_operators = tmp;
-			}
-
+			}// end-outer while
+			// compute the num_ops
 			tmp = gbit_operators;
 			while(tmp){
 				tmpe = tmp->conditionals;
@@ -2549,14 +2546,9 @@ double build_forward_get_h(DdNode* init,
 				tmp = tmp->next;
 				num_ops++;
 			}
+			// set the current gbit_goal_state from initLUG
 			gbit_goal_state = my_gbit_goal_state;
-
-			//    cout << "build"<<endl;
-
-			//   cout << "[" <<endl;
-			//   Cudd_CheckKeys(manager);
-			//   cout << "| bg"<<endl;
-
+			
 
 			if(HEURISTYPE==CORRRP){
 				Cudd_RecursiveDeref(manager, initialBDD);
@@ -2564,244 +2556,79 @@ double build_forward_get_h(DdNode* init,
 				Cudd_Ref(initialBDD);
 			}
 
-			reached_goals = build_graph(&j,
-					num_alt_facts,
-					ALLOW_LEVEL_OFF,
-					MUTEX_SCHEME );
+			reached_goals = build_graph(&j, num_alt_facts, ALLOW_LEVEL_OFF, MUTEX_SCHEME );
 			
+			// display the planning graph info
 			cout << "YO HERES THE GRAPH:" << reached_goals <<endl;
-			for(int i = 0; i <= j; i++){
+			for(int i = 0; i <= j; i++)
+			{
 				cout << "LEVEL " << i << endl;
 				print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
 				print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
 				cout << endl;
-			for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
-				if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
-					cout << endl<< "-------------------------------------------------" <<endl;
-			}
-
+				for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
+					if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
+						cout << endl<< "-------------------------------------------------" <<endl;
+			}// end-for
 			//    cout << "got " <<  j << endl;
-
-			bool accept = false, reject = false;
-			//    double alpha = 0.01, beta = 0.1, delta = 0.1;
-
-			double ratio, A, B;
-			if(0 && PF_LUG && states // &&
-					//        (goal_threshold + delta) != 1 &&
-					//        (goal_threshold - delta) != 0
-			){//add samples if necessary to the McLUG
-
-
-				if(1){
-					A = log((1.0-beta)/alpha);
-					B = log(beta/(1.0-alpha));
-					ratio = samples_ratio(countParticles(goal_samples),
-							NUMBER_OF_MGS,
-							goal_threshold,
-							delta);
-
-
-
-					// printf("\n%f %f %d\n",d , delta, ((float)d <= (float)delta ));
-					accept = (ratio <= B) ||
-							(((float)(1.0 - goal_threshold) <= (float)delta) &&
-									(double)countParticles(goal_samples)/(double)NUMBER_OF_MGS >= goal_threshold);
-					reject = (ratio >= A);
-				}
-				else{
-					if(countParticles(goal_samples) > sample_threshold)
-						accept = 1;
-					else
-						reject = 1;
-				}
-				//       cout << "accept = " << accept << endl;
-				//     cout << "P = " << (double)countParticles(goal_samples)/(double)samples.size() <<endl;
-				while(!(accept || reject)){
-					//      for(int i = 0; i < 1; i++){
-					//   DdNode* c = Cudd_addBddStrictThreshold(manager, current_state_cube, 0.0);
-					//   Cudd_Ref(c);
-					//    DdNode abstr =
-
-
-
-
-					expected_sample_size = abs(expected_samples(total_sample_size,
-							sample_threshold,
-							beta, alpha,
-							(double)countParticles(goal_samples)/(double)NUMBER_OF_MGS,
-							goal_threshold, delta) - expected_sample_size);
-
-
-
-					if(expected_sample_size == 0){
-						reject = 1;
-						break;
-					}
-
-
-					//   cout << "expected_sample_size = " << expected_sample_size
-					//        << " total_sample_size = " << total_sample_size
-					//        << " samples.size() = " << samples.size()
-					//        << " sample_threshold = " << sample_threshold
-					//        <<endl;
-
-					////  if(samples.size() + expected_sample_size > total_sample_size)
-					//expected_sample_size = total_sample_size - samples.size();
-
-					//  printBDD(goal_samples);
-					cout << "P = " << (double)countParticles(goal_samples)/(double)NUMBER_OF_MGS <<endl;
-
-
-					cout << "adding " << expected_sample_size << " samples " <<endl;
-					int t1 = 0;
-					DdNode* newWorlds = sampleKWorlds((*states->begin())->backup_dd,
-							//total_sample_size - samples.size());
-							expected_sample_size,
-							(*states->begin())->usedSamples,
-							&t1,
-							0);
-					Cudd_Ref(newWorlds);
-
-					DdNode *t = Cudd_bddOr(manager, (*states->begin())->dd,
-							newWorlds);
-					Cudd_Ref(t);
-					Cudd_RecursiveDeref(manager, (*states->begin())->dd);
-					(*states->begin())->dd = t;
-					Cudd_Ref((*states->begin())->dd);
-					Cudd_RecursiveDeref(manager, t);
-
-					add_samples(newWorlds);
-
-					Cudd_RecursiveDeref(manager, newWorlds);
-
-
-					ratio = samples_ratio(countParticles(goal_samples),
-							NUMBER_OF_MGS,
-							goal_threshold,
-							delta);
-
-					accept = (ratio <= B) ||
-							((float)(1.0 - goal_threshold) < (float)delta &&
-									(double)countParticles(goal_samples)/(double)NUMBER_OF_MGS >= goal_threshold);
-
-
-					reject = (ratio >= A);
-					//cout << "P = " << (double)countParticles(goal_samples)/(double)samples.size() <<endl;
-
-				}
-
-				if(reject){
-					cout << "reject" <<endl;
-					(*states->begin())->h = 999999999.9;
-
-				}
-				//    cout << "doen"<<endl;
-
-				//all_samples.sort();
-				//samples.sort();
-
-				//      cout << all_samples.size() << " " << samples.size() <<endl;
+			graph_levels = j;
+			for(int i=0; i< num_alt_facts; ++i)
+			{
+				pos_fact_at_min_level[i] = getlevel(i, TRUE);
+				neg_fact_at_min_level[i] = getlevel(i, FALSE);
 			}
 
-
-
-			graph_levels = j;
-
-			if(LUG_FOR == SPACE){
-				// #ifdef PPDDL_PARSER
-				//       if(my_problem->domain().requirements.probabilistic){
-				//   //remove uniform distribution from probabilisticLabels
-				//   DdNode *tmpW = Cudd_addConst(manager, (1.0/pow(2.0,num_alt_facts)));
-				//   Cudd_Ref(tmpW);
-				//   DdNode *tmpW1 = Cudd_addApply(manager, Cudd_addDivide, probabilisticLabels, tmpW);
-				//   Cudd_Ref(tmpW1);
-				//   Cudd_RecursiveDeref(manager, tmpW);
-				//   Cudd_RecursiveDeref(manager, probabilisticLabels);
-				//   probabilisticLabels = tmpW1;
-				//   Cudd_Ref(probabilisticLabels);
-				//   Cudd_RecursiveDeref(manager, tmpW1);
-				//       }
-
-
-				// #endif
+			if(LUG_FOR == SPACE)
+			{
 				cout << "Global LUG has " << graph_levels << " layers"<<endl;
 				fflush(stdout);
-				//       Cudd_CheckKeys(manager);
+				// Cudd_CheckKeys(manager);
 
-				//printBDD(init);
+				// printBDD(init);
 				if(USE_GLOBAL_RP)
 					globalRP = getLabelRelaxedPlan(b_goal_state, graph_levels-1, init);
 				//cout << "HI" << endl;
 				//globalRP->display();
 			}
 
-
-		}
-		else{ //later incremental lug
-			//cout << "LATER INCREMENTAL LUG"<<endl;
+		}//end-if
+		else //later incremental lug
+		{ 
+			cout << "LATER INCREMENTAL LUG"<<endl;
 
 			//int LOOKAHEAD_FOR_STATES = 0;
 
-			if(LOOKAHEAD_FOR_STATES >= 0){
-				//   cout << "parent->dd:"<<endl;
-				//   printBDD(parent->dd);
+			if(LOOKAHEAD_FOR_STATES >= 0)
+			{
+				// cout << "parent->dd:"<<endl;
+				// printBDD(parent->dd);
 				DdNode* dan;
-				//   if(num_lugs > 2)
-				//     dan = Cudd_ReadOne(manager);
-				//   else
-				//     dan = init;//
-				// Cudd_ReadOne(manager);
-				dan =
-						statesAtLevel(//Cudd_ReadLogicZero(manager),//
-								parent->dd,
-								//Cudd_ReadOne(manager),
-								//init,
-								(LOOKAHEAD_FOR_STATES < graph_levels ? LOOKAHEAD_FOR_STATES+1 :  graph_levels));
+				dan = statesAtLevel( parent->dd, (LOOKAHEAD_FOR_STATES < graph_levels ? LOOKAHEAD_FOR_STATES+1 :  graph_levels));
 				Cudd_Ref(dan);
-				//   cout << "dan = " << endl;
-				//   printBDD(dan);
-				DdNode *dan2;
-				//   if(num_lugs > 2){
-				//     dan2 =//parent->rp_states;
-				//       Cudd_bddAnd(manager,
-				//       parent->rp_states,
-				//       dan);
-				//     Cudd_Ref(dan2);
-				//     Cudd_RecursiveDeref(manager, dan);
-				//     dan = dan2;
-				//     Cudd_Ref(dan);
-				//     Cudd_RecursiveDeref(manager, dan2);
-				//   }
+				// cout << "dan = " << endl;
+				// printBDD(dan);
 
 
-				//  cout << "build lug for additional states:"<<endl;
-				//  printBDD(dan);
+				// cout << "build lug for additional states:"<<endl;
 				DdNode *dan1 = Cudd_bddOr(manager, dan, init);
 				Cudd_Ref(dan1);
 				Cudd_RecursiveDeref(manager, dan);
-				//      Cudd_RecursiveDeref(manager, init);
 				init = dan1;
 				Cudd_Ref(init);
 				Cudd_RecursiveDeref(manager, dan1);
 			}
-
-
-
 			graph_levels = add_samples(init);
 		}
 
-		//     Cudd_ReduceHeap(manager,
-		//           CUDD_REORDER_WINDOW2,
-		//           //CUDD_REORDER_SYMM_SIFT,
-		//           num_alt_facts);
-
-		//   if(LUG_FOR == NODE && !reached_goals ) {
-		//       //cout << "Goals not reached in PG"<<endl;
-		//       my_rp = NULL;
-		//       free_my_info(j);
-		//       h = 999999999.9;
-		//       return h;
-		//     }
+		// Cudd_ReduceHeap(manager, CUDD_REORDER_WINDOW2, num_alt_facts);
+		// if(LUG_FOR == NODE && !reached_goals )
+		// {
+		//     cout << "Goals not reached in PG"<<endl;
+		//     my_rp = NULL;
+		//     free_my_info(j);
+		//     h = 999999999.9;
+		//     return h;
+		// }
 	}
 
 	//   cout << "HPO"<<endl;
@@ -2809,30 +2636,24 @@ double build_forward_get_h(DdNode* init,
 	//  b_initial_state = 0;  // added, -Will
 
 	if(!states){
-//		if(PF_LUG){
-//			all_samples.insert(all_samples.begin(), used_samples.begin(), used_samples.end());
-//			used_samples.clear();
-//			all_samples.insert(all_samples.begin(), samples.begin(), samples.end());
-//			samples.clear();
-//
-//		}
 		return 0.0;
 	}
 	for(list<StateNode*>::iterator i = states->begin();
 			i != states->end(); i++){
-		//     cout << "get h for " << (*i)->StateNo<<endl;
-		//     Cudd_CheckKeys(manager);
-		//     cout << "|"<<endl;
-		//    if(b_initial_state)
+		// cout << "get h for " << (*i)->StateNo<<endl;
+		// Cudd_CheckKeys(manager);
+		// cout << "|"<<endl;
+		// if(b_initial_state)
 		Cudd_RecursiveDeref(manager, b_initial_state);
 		b_initial_state = (*i)->dd;
 		Cudd_Ref(b_initial_state);
 
-		//    cout << "get rp for " <<  endl;
-		//        printBDD(b_initial_state);
+		// cout << "get rp for " <<  endl;
+		// printBDD(b_initial_state);
 
 		printf("reached_goals = %d\n",reached_goals);
 		if(!reached_goals && LUG_FOR == NODE){
+			assert(0);
 			cout << "goals not reached" <<endl;
 			(*i)->h = DBL_MAX;
 			(*i)->currentRP = NULL;
@@ -2870,9 +2691,6 @@ double build_forward_get_h(DdNode* init,
 				}
 				else{
 					//cout << "get level"<<endl;
-
-				  
-
 					if(LUG_FOR == NODE )
 						j = graph_levels;
 					else if(RBPF_LUG) {
@@ -2916,12 +2734,7 @@ double build_forward_get_h(DdNode* init,
 			else if(HEURISTYPE == LUGMAX){// LUG + MAX
 				h = getLabelMax();
 			}
-			//             cout << "H = " << h << endl;
-			//     if(  Cudd_DebugCheck(manager)){
-			//       cout << "DEBUG PROBLEM " << Cudd_ReadDead(manager)  <<endl;
-			//       exit(0);
-			//      }
-			//cout << h << "," <<flush;
+			// cout << "H = " << h << endl;
 			(*i)->h = h;
 		}
 		else{// Single graph
@@ -2941,17 +2754,18 @@ double build_forward_get_h(DdNode* init,
 					h = 0;
 
 			}
-			else if(HEURISTYPE == LUGLEVEL){// SG + Level, 计算DNF item的最小距离
+			// 这里默认了没有mutex才可以这样处理
+			else if(HEURISTYPE == LUGLEVEL){// SG + Level, 计算miniterm的最小不冲突level，不存在mutex时等于max情况。
 				h = j;
 			}
 			else if(HEURISTYPE == LUGSUM){// SG + Sum, 计算CNF clause的距离之和
-				h = getMinSumHueristicValue();// current only return 0
+				h = getMinSumHueristicValue();// momo007 fix the bug of clause
 			}
-			else if(HEURISTYPE == LUGMAX){// SG + Max, 计算CNF clause的最大距离
+			else if(HEURISTYPE == LUGMAX){// SG + Max, 计算CNF clause的最大距离(目前只有一个clause,直接等于level)
 				h = j;
 			}
 			else if(HEURISTYPE == CORRRP){
-				//cout << "GETTING CORRP HEURISTIC" << endl;
+				cout << "GETTING CORRP HEURISTIC" << endl;
 				h = relaxedPlanHeuristic();//graph_levels;
 			}
 			(*i)->h = h;
@@ -3042,73 +2856,187 @@ double build_forward_get_h(DdNode* init,
 	return h;
 
 }
+/** 
+ * momo007 该函数实现给定CNF，创建vector，存储每个clause的fact的pos/neg情况
+ * 目前每个vector<pair<int,bool>> 对应一个clause
+ */
+void getCnfIndex(const StateFormula& formula, vector<vector<pair<int,bool> > > &vec, int clauseNum)
+{
+	if(typeid(formula) == typeid(Constant))
+	{
+		return;
+	}
+	const Atom *af = dynamic_cast<const Atom *>(&formula);
+	if(af != NULL)
+	{
+		if(vec.size() < clauseNum)
+		{
+			vec.push_back(vector<pair<int, bool> >());
+		}
+		if(dynamic_atoms.find(state_variables[af]) != dynamic_atoms.end())
+		{
+			vec[clauseNum - 1].push_back(make_pair(state_variables[af], true));
+		}
+	}
+	const Negation *nf = dynamic_cast<const Negation *>(&formula);
+	if(nf != NULL)
+	{
+		if(vec.size() < clauseNum)
+		{
+			vec.push_back(vector<pair<int, bool> >());
+		}
+		getCnfIndex(nf->negand(), vec, clauseNum);
+		return;
+	}
+	const Conjunction *cf = dynamic_cast<const Conjunction *>(&formula);
+	if(cf != NULL)
+	{
+		for (size_t i = 0; i < cf->size(); i++){
+			getCnfIndex(cf->conjunct(i), vec, i + 1);
+		}
+		return;
+	}
+	const Disjunction *df = dynamic_cast<const Disjunction *>(&formula);
+	if(df != NULL)
+	{
+		for (size_t i = 0; i <  df->size();++i)
+		{
+			getCnfIndex(df->disjunct(i), vec, clauseNum);
+		}
+	}
+}
+/**
+ * momo007 该函数实现打印cnf公式
+ */
+void printGoalCnf(const vector<vector<pair<int, bool> > > &index){
 
+	for (int i = 0; i < index.size();++i)
+	{
+		if(i!=0)
+			cout << "/\\";
+		std::cout << "(";
+		for (int j = 0; j < index[i].size(); ++j)
+		{
+			if(j != 0)
+				std::cout << "\\/";
+			if(index[i][j].second == false)
+			{
+				std::cout << "!";
+			}
+			
+			dynamic_atoms[index[i][j].first]->print(std::cout,
+													my_problem->domain().predicates(),
+													my_problem->domain().functions(),
+													my_problem->terms());
+			
+			std::cout << "\n";
+		}
+		std::cout << ")";
+	}
+}
+/**
+ * momo007 实现计算获取所有clause的最小总价值。
+ */
 int getMinSumHueristicValue() {
+
+	int return_val = 0, cur_val;
+	vector<vector<std::pair<int, bool> > > index;
+	getCnfIndex(my_problem->goal(), index, 1);// 第一个clause
+	printGoalCnf(index);
+	for (int i = 0; i < index.size();++i)
+	{
+		cur_val = IPP_MAX_PLAN;// 初始化最大层次，计算clause的最小层
+		for (int j = 0; j < index[i].size(); ++j)
+		{
+			if(index[i][j].second == true)
+			{
+				cur_val = min(cur_val, pos_fact_at_min_level[index[i][j].first]);
+			}
+			else
+			{
+				cur_val = min(cur_val, neg_fact_at_min_level[index[i][j].first]);
+			}
+		}
+		if(cur_val == IPP_MAX_PLAN)
+			return IPP_MAX_PLAN;
+		return_val += cur_val;
+	}
+	printf("%d\n", return_val);
+	return return_val;
+
 	//  conj_goal* cg;
 	//   simple_goal* sg;
 	//   neg_goal* ng;
 	//   disj_goal* dg;
+	// // cout << "Getting PG Heur for " << endl;
+	// // this->display();
 
-	int return_val = 0;
-
-	//  //    cout << "Getting PG Heur for " << endl;
-	// //     this->display();
-
-
-	//   if(sg = dynamic_cast<simple_goal*>(goal_state->getClauses())) {
-	//     return_val = pos_fact_at_min_level[sg->getProp()->ground->getnum()]; //getlevel(sg->getProp()->ground, TRUE);
-	//   }
-	//   else if(ng = dynamic_cast<neg_goal*>(goal_state->getClauses())) {
-	//     if(sg = dynamic_cast<simple_goal*>(ng)) {
-	//       return_val = neg_fact_at_min_level[sg->getProp()->ground->getnum()]; //getlevel(sg->getProp()->ground, FALSE);
-	//     }
-	//   }
-	//   //conj clausalstate
-	//   else if (cg = dynamic_cast<conj_goal*>(goal_state->getClauses())) {
-	//    pc_list<goal*>::iterator i = cg->getGoals()->begin();
-
-	//    for(;i!=cg->getGoals()->end();++i) {
-
-	//      //add up clauses
-
-	//      //    cout << "CHECKING " << endl;
-	//      //(*i)->display(1);
-	//      if(sg = dynamic_cast<simple_goal*>(*i)) {
-	//        return_val += pos_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, TRUE);
-	//      }
-	//      else if(ng = dynamic_cast<neg_goal*>(*i)) {
-	//        if(sg = dynamic_cast<simple_goal*>(ng))
-	//    return_val += neg_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, FALSE);
-	//      }
-	//      else if(dg = dynamic_cast<disj_goal*>(*i)) {
-	//        int min_val = -1;
-	//        int tmp_lev;
-	//        pc_list<goal*>::iterator j = dg->getGoals()->begin();
-	//        for(;j!=dg->getGoals()->end();++j) {
-	//    if(sg = dynamic_cast<simple_goal*>(*j)) {
-	//      tmp_lev = pos_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, TRUE);
-	//      if(min_val == -1 || tmp_lev < min_val)
-	//        min_val = tmp_lev;
-	//    }
-	//    else if (ng = dynamic_cast<neg_goal*>(*j)) {
-	//      if(sg = dynamic_cast<simple_goal*>(ng)){
-	//        tmp_lev = neg_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, FALSE);
-	//        if(min_val == -1 || tmp_lev < min_val)
-	//          min_val = tmp_lev;
-	//      }
-	//    }
-	//        }
-	//        return_val += min_val;
-	//      }
+	// // only one fact
+	// if(sg = dynamic_cast<simple_goal*>(goal_state->getClauses()))
+	// {
+	// 	return_val = pos_fact_at_min_level[sg->getProp()->ground->getnum()]; //getlevel(sg->getProp()->ground, TRUE);
+	// }
+	// // only one neg fact
+	// else if (ng = dynamic_cast<neg_goal *>(goal_state->getClauses()))
+	// {
+	// 	if(sg = dynamic_cast<simple_goal*>(ng)) {
+	// 		return_val = neg_fact_at_min_level[sg->getProp()->ground->getnum()]; //getlevel(sg->getProp()->ground, FALSE);
+	// 	}
+	// }
+	// // CNF
+	// else if (cg = dynamic_cast<conj_goal*>(goal_state->getClauses()))
+	// {
+	// 	// get one clasise
+	// 	pc_list<goal*>::iterator i = cg->getGoals()->begin();
+	// 	// consider each clause
+	// 	for(;i!=cg->getGoals()->end();++i)
+	// 	{
+	// 		//add up clauses
+	//         // cout << "CHECKING " << endl;
+	//     	// (*i)->display(1);
+	//     	if(sg = dynamic_cast<simple_goal*>(*i))
+	// 		{
+	// 			return_val += pos_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, TRUE);
+	// 		}
+	//     	else if(ng = dynamic_cast<neg_goal*>(*i))
+	// 		{
+	//     		if(sg = dynamic_cast<simple_goal*>(ng))
+	// 				return_val += neg_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, FALSE);
+	//     	}
+	// 		// several fact
+	//     	else if(dg = dynamic_cast<disj_goal*>(*i))
+	// 		{
+	//     		int min_val = -1;
+	//     		int tmp_lev;
+	// 			// compute the min fact
+	//     		pc_list<goal*>::iterator j = dg->getGoals()->begin();
+	//     		for(;j!=dg->getGoals()->end();++j)
+	// 			{
+	// 				if(sg = dynamic_cast<simple_goal*>(*j))
+	// 				{
+	// 					tmp_lev = pos_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, TRUE);
+	// 				if(min_val == -1 || tmp_lev < min_val)
+	// 					min_val = tmp_lev;
+	//    				}
+	// 				else if (ng = dynamic_cast<neg_goal*>(*j))
+	// 				{
+	// 					if(sg = dynamic_cast<simple_goal*>(ng))
+	// 					{
+	// 						tmp_lev = neg_fact_at_min_level[sg->getProp()->ground->getnum()];//getlevel(sg->getProp()->ground, FALSE);
+	// 						if(min_val == -1 || tmp_lev < min_val)
+	// 							min_val = tmp_lev;
+	// 					}
+	// 				}
+	// 			}
+	// 			// add the min val for CNF
+	// 			return_val += min_val;
+	// 		}
 	//    }
 	//  }
 
 	// cout << "Val = " << return_val << endl;
 
 	return return_val;
-
-
-
 }
 
 double costOfGS(DdNode* s, int time){
