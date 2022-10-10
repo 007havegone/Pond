@@ -52,7 +52,7 @@ extern DdNode** extractDNFfromBDD(DdNode* node);
 extern DdNode** extractTermsFromMinterm(DdNode* minterm);
 extern void printFact(int f);
 extern char* getFactName(int f);
-extern void printLabel(goal* g);
+extern void printLabel(goal* g);// it is undefined.
 extern void free_fact_info_pair( FactInfoPair *p );
 extern Effect *new_effect();
 extern int are_there_non_exclusive( int time, FactInfo *pos, FactInfo *neg );
@@ -80,9 +80,10 @@ extern  void print_vector( BitVector *, int  );
 extern  BitVector *new_bit_vector(int length);
 extern kGraphInfo** k_graphs;
 extern hash_entry* alt_facts[];
-//extern  goal* get_init_labels(int index, int polarity);
-//extern  goal* and_labels(goal*,FtEdge* conditions, int time);
-//extern  goal* or_labels(FtNode* a, int time);
+extern int getlevel(int index, int polarity);// momo007 2022.09.16
+// extern  goal* get_init_labels(int index, int polarity);
+// extern  goal* and_labels(goal*,FtEdge* conditions, int time);
+// extern  goal* or_labels(FtNode* a, int time);
 extern  DdNode* get_init_labels(int index, int polarity);
 extern  DdNode* and_labels(DdNode*,FtEdge* conditions, int time);
 extern  DdNode* or_labels(FtNode* a, int time);
@@ -870,7 +871,7 @@ int isOneOf(FtNode* a, FtNode* b){
 
 
 void pickKRandomWorlds(DdNode* dd, int k, list<DdNode*>* worlds){
-	//  cout << "picking " << k << " random worlds" << endl;
+	 cout << "picking " << k << " random worlds" << endl;
 	list<DdNode*> cubes;
 	list<DdNode*>::iterator c;
 	DdNode *cube;
@@ -889,7 +890,7 @@ void pickKRandomWorlds(DdNode* dd, int k, list<DdNode*>* worlds){
 		c = cubes.begin();
 		for(int j = 0; j < i; j++)
 			c++;
-		//    printBDD(*c);
+		printBDD(*c);
 		worlds->push_back(*c);
 		cubes.remove(*c);
 	}
@@ -897,7 +898,7 @@ void pickKRandomWorlds(DdNode* dd, int k, list<DdNode*>* worlds){
 	for(c = cubes.begin(); c != cubes.end(); c++)
 		Cudd_RecursiveDeref(manager, *c);
 
-	//  cout << "done"<<endl;
+	 cout << "done picking worlds."<<endl;
 
 }
 
@@ -927,6 +928,289 @@ DdNode* pickKRandomWorlds(DdNode* dd, int k){
 
 #ifdef PPDDL_PARSER
 int build_k_planning_graphs(DdNode* init, DdNode* goal, int& k) {
+	int size = 0;
+	int k_gp_time = 0;
+	int gp_time = 0;
+	int levs = 0;
+	int i = 0;
+	int j;
+
+
+	list<DdNode*> cubes;
+	DdNode *cube;
+	int num_cubes;
+	// 抽样选取初始状态
+	if(RANDOM_SUBSTRATE == RANDOM_STATES ?
+			num_cubes = get_sum(init) :
+			num_cubes = Cudd_CountMinterm(manager,
+					init,
+					Cudd_SupportSize(manager, init)));
+	std::cout << "num_cubes: " << num_cubes << endl;
+
+	int build_num = (NUMBER_OF_MGS < 1.0 ?
+			(NUMBER_OF_MGS == 0.0 ?
+					num_cubes : //all graphs
+	(int)ceil(num_cubes*NUMBER_OF_MGS)) : //build proporation
+	NUMBER_OF_MGS);  //build this number
+
+	std::cout << "build_num: " << build_num << endl;
+
+	pickKRandomWorlds(init, build_num, &cubes);
+
+	gft_vector_length =  ( ( int ) num_alt_facts / gcword_size )+1;
+
+
+	 cout << "|cubes| = " << cubes.size() <<endl;
+
+	num_graphs = 0;
+	// 考虑为这些初始状态计算planning graph
+	while((NUMBER_OF_MGS >= 1.0 &&
+			0 < cubes.size() &&
+			num_graphs < build_num) ||
+			(NUMBER_OF_MGS < 1.0 &&
+					num_graphs < build_num)){
+
+		cube = cubes.front();
+		cubes.remove(cube);
+
+
+		cout << "build mg " << num_graphs << " of " << build_num <<endl;
+		printBDD(cube);
+
+		levs = 0;
+		// MoMo007 2022.09.05 修复build_planning_graph
+		// 根据当个状态, goal,构建graph，返回最终层次levs
+		gp_time = build_planning_graph(cube, goal, levs);
+		k_gp_time += gp_time;
+		// 完成build_planning_graph更新相应的全局变量
+		// 并存储到k_graph进行后续处理
+		k_graphs[num_graphs] = new kGraphInfo(gft_table, levs,
+												gft_mutex_pairs,
+												gall_fts_pointer,
+												gall_ops_pointer,
+												gall_efs_pointer,
+												cube);
+
+		// 考虑graph每一层，配置op,pos/neg facts
+		for( j = 0; j < levs; j++){
+			k_graphs[num_graphs]->op_vector_length_at[j] = gop_vector_length_at[j];
+			k_graphs[num_graphs]->pos_facts_vector_at[j] =
+					copy_bit_vector(gpos_facts_vector_at[j],gft_vector_length  );
+			k_graphs[num_graphs]->neg_facts_vector_at[j] =
+					copy_bit_vector(gneg_facts_vector_at[j], gft_vector_length);
+		}
+		std::cout << "######outside#############\n";
+		// 修复getlevel
+		// 考虑每一个fact，计算该fact所在的最小层数。还差一个接口,getlevel，获取命题为true或false的最小层。
+		for(int l = 0; l < num_alt_facts; l++) {
+			k_graphs[num_graphs]->pos_fact_at_min_level[l] =
+					pos_fact_at_min_level[l];
+		    // cout << "POS " << l << "at" << k_graphs[num_graphs]->pos_fact_at_min_level[l] <<endl;
+			k_graphs[num_graphs]->neg_fact_at_min_level[l] =
+					neg_fact_at_min_level[l];
+		    // cout << "NEG " << l << "at" << k_graphs[num_graphs]->neg_fact_at_min_level[l] <<endl;
+		}
+		// 将全局变量制空
+		gops_with_unactivated_effects_pointer = NULL;
+		gsame_as_prev_flag = FALSE;
+		new_plan = TRUE;
+		gall_ops_pointer = NULL;
+		gprev_level_ops_pointer = NULL;
+		gops_exclusions_count = 0;
+		gop_mutex_pairs = NULL;
+		gall_fts_pointer = NULL;
+		gprev_level_fts_pointer = NULL;
+		gft_mutex_pairs = NULL;
+		gft_table = NULL;
+		Cudd_RecursiveDeref(manager, cube);
+		num_graphs++;  //number of graphs built
+		Cudd_RecursiveDeref(manager, cube);
+	}
+
+	//set max_k_levs
+	// 统计kgraph结构的数据
+	int z = 0;
+	for(int f = 0; f<num_alt_facts; f++){// 从所有图中计算得到最大的min_level
+		max_k_pos_fact_at_min_level[f] = -1;
+		max_k_neg_fact_at_min_level[f] = -1;
+		for(z = 0; z<num_graphs; z++) {
+			if(max_k_pos_fact_at_min_level[f] == -1 ||
+					max_k_pos_fact_at_min_level[f] <
+					k_graphs[z]->pos_fact_at_min_level[f])
+				max_k_pos_fact_at_min_level[f] = k_graphs[z]->pos_fact_at_min_level[f];
+		}
+		for(z = 0; z<num_graphs; z++) {
+			if(max_k_neg_fact_at_min_level[f] == -1 ||
+					max_k_neg_fact_at_min_level[f] <
+					k_graphs[z]->neg_fact_at_min_level[f])
+				max_k_neg_fact_at_min_level[f] = k_graphs[z]->neg_fact_at_min_level[f];
+		}
+	}
+	return k_gp_time;
+
+}
+
+
+int build_planning_graph(DdNode* init, DdNode* goal, int& levs) {
+	BitOperator *tmp;
+	Effect* tmpe, *tmpe1;
+	int okay;
+	int num_ops = 0;
+
+	b_initial_state = init;
+
+	int j = 0;
+
+	FactInfo *tpos = new_FactInfo();// 创建一个bit_vector，并表头Integer置为空。
+	FactInfo *tneg = new_FactInfo();
+	DdNode* support;
+
+
+	support = Cudd_Support(manager, init);// 返回 BDD的变量的合取式
+	Cudd_Ref(support);
+	// 考虑每个命题
+	// printBDD(support);
+	printf("%d\n",dynamic_atoms.size());
+	for(int i = 0; i < num_alt_facts; i++){
+		// 对命题的正负进行编码到二进制FactInfo
+		dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
+		// printBDD(Cudd_bddIthVar(manager, i*2));
+		if(bdd_entailed(manager, support, Cudd_bddIthVar(manager, i*2))){
+			if(Cudd_bddIsVarEssential(manager, init, i*2, 1)){
+				std::cout << "is pos\n";
+				make_entry_in_FactInfo(&tpos, i); //连接到FactInfo List中
+			}
+			else if(Cudd_bddIsVarEssential(manager, init, i*2, 0)){
+				std::cout << "is neg\n";
+				make_entry_in_FactInfo( &tneg, i);
+			}
+			else{// uncertain
+				std::cout << "is uncertain\n";
+				make_entry_in_FactInfo( &tpos, i);
+				make_entry_in_FactInfo( &tneg, i);
+			}
+		}
+		else
+			cout << "not in\n";
+	}
+	Cudd_RecursiveDeref(manager,support);
+	// 那到初始状态所有命题的真假情况
+	gbit_initial_state = new_fact_info_pair( tpos, tneg );
+
+	tpos = new_FactInfo();
+	tneg = new_FactInfo();
+
+	// 类是操作对Goal进行
+	support = Cudd_Support(manager, goal);
+	Cudd_Ref(support);
+	printBDD(goal);
+	for(int i = 0; i < num_alt_facts; i++){
+		dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
+		// printBDD(Cudd_bddIthVar(manager, i*2));
+		if(bdd_entailed(manager, support, Cudd_bddIthVar(manager, i*2))){
+			if(Cudd_bddIsVarEssential(manager, goal, i*2, 1)){
+				make_entry_in_FactInfo( &tpos, i);
+				std::cout << "is pos\n";
+			}
+			else if(Cudd_bddIsVarEssential(manager, goal, i*2, 0)){
+				make_entry_in_FactInfo( &tneg, i);
+				std::cout << "is neg\n";
+			}
+			else{
+				std::cout << "is uncertain\n";
+				make_entry_in_FactInfo( &tpos, i);
+				make_entry_in_FactInfo( &tneg, i);
+			}
+		}
+		else
+			cout << "not in\n";
+	}
+	Cudd_RecursiveDeref(manager,support);
+	// 拿到目标状态所有命题的真假情况,这里和InitLUG是否重复？
+	gbit_goal_state = new_fact_info_pair( tpos, tneg );
+	my_gbit_goal_state = gbit_goal_state;
+	// 预处理 operators，处理后的operator加入到 gbit_operators中
+	while(used_gbit_operators){// 第一次不会进入
+		tmp = used_gbit_operators;
+		used_gbit_operators = used_gbit_operators->next;
+		tmpe = tmp->conditionals;// 获取condtion
+		// 下面将activated condtion不重复的加入到condtion中
+		while( tmp->activated_conditionals){// 存在 activated condition
+			tmpe = tmp->activated_conditionals;// 取出activated condition
+			tmp->activated_conditionals = tmp->activated_conditionals->next;
+			okay = TRUE;
+			tmpe1 = tmp->conditionals;
+			while(tmpe1){// 检测 activated condition是否在condition中
+				if(tmpe1->index == tmpe->index){
+					okay = FALSE;// 标记
+				}
+				tmpe1 = tmpe1->next;
+			}
+			if(okay){// activated condtion未包含在condtion中
+				tmpe->next = tmp->conditionals;// activate前插法加入condtion
+				tmp->conditionals = tmpe; // 成为新的condtion
+			}
+		}
+		// 加该动作加入到 gbit_operators list中
+		tmp->next = gbit_operators;
+		gbit_operators = tmp;
+	}
+	// 遍历gbit_operators
+	tmp = gbit_operators;
+	while(tmp){
+		tmpe = tmp->conditionals;
+		while(tmpe){// 这块没统计前提条件
+			tmpe=tmpe->next;
+		}
+		tmp = tmp->next;
+		num_ops++;// op计数
+	}
+	string strMutex;
+	switch (MUTEX_SCHEME)
+	{
+	case MS_CROSS:
+		strMutex = "MS_CROSS\n";
+		break;
+	case MS_REGULAR:
+		strMutex = "MS_REGULAR\n";
+		break;
+	case MS_NONE:
+		strMutex = "MS_NONE\n";
+		break;
+	case MS_STATIC:
+		strMutex = "MS_STATIC\n";
+		break;
+	}
+	cout << "MUX SCh = " << strMutex;
+	cout << "allow level off:" << ALLOW_LEVEL_OFF << endl;
+	// 根据 init, goal, opt的 BitVector进行构造graph
+	// 此时BitOpVector还有点bug，关于effect的编码
+	int reached_goals =  build_graph(&j, num_alt_facts, ALLOW_LEVEL_OFF, MUTEX_SCHEME );
+
+	graph_levels = j;
+	levs = j;
+	cout <<"LEVELS = " << j << endl;
+	 cout << "YO HERES THE GRAPH" <<endl;
+	    for(int i = 0; i <= j; i++){
+			cout << "LEVEL " << i << endl;
+	    	print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
+	    	print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
+			cout << endl;
+		for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
+	 		if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
+	      		cout << endl<< "-------------------------------------------------" <<endl;
+	    }
+
+	if(!reached_goals) {// 没有到达目标
+		cout << "Goals not reached in PG"<<endl;
+	}
+
+	for(int n = 0; n<num_alt_facts; n++){
+		pos_fact_at_min_level[n] = getlevel(n, TRUE);
+		neg_fact_at_min_level[n] = getlevel(n, FALSE);
+	}
+	return j;
+
 }
 #else
 int build_k_planning_graphs(DdNode* init, DdNode* goal, action_list acts, int& k) {
@@ -1992,7 +2276,9 @@ DdNode* generateUniqueNonDeterLabel(int time, char* opname, int effnum,  int ndn
 int labelEntailed(int lev, DdNode* cs);
 
 #ifdef PPDDL_PARSER
-
+/**
+ * 涉及reward时 getRelaxedConformantCost计算价值用到
+ */
 int countParticles(DdNode* d){
 	int count = 0;
 
@@ -2407,7 +2693,7 @@ int labels_same(int time){
 
 
 
-
+	// 对所有的factNode进行比较，通过则返回true
 	if(time > 0){
 		while(tmpF){
 
@@ -2430,14 +2716,14 @@ int labels_same(int time){
 			double norm, norm1;
 
 
-
+			// 当前fact没有label，考虑下一个fact
 			if(!tmpF->info_at[time] ||
 					!tmpF->info_at[time]->label ||
 					!tmpF->info_at[time]->label->label){
 				tmpF=tmpF->next;
 				continue;
 			}
-
+			// 该fact的上一层没有label，当前层有，label不同返回0
 			if((tmpF->info_at[time] &&
 					(!tmpF->info_at[time-1] ||
 							tmpF->info_at[time-1]->is_dummy ||
@@ -2446,20 +2732,20 @@ int labels_same(int time){
 			}
 
 
-			if(PF_LUG){
+			if(PF_LUG){// in PF_LUG, new_samle = init state BDD
 			  if(RBPF_LUG && tmpF->index == (num_alt_facts-2)){
 			    tmp1 =  tmpF->info_at[time-1]->label->label;
 			    Cudd_Ref(tmp1);
 			    tmp =  tmpF->info_at[time]->label->label;
 			    Cudd_Ref(tmp);
 			  }
-			  else{
+			  else{// 两层都有label
 			    tmp1 = Cudd_bddAnd(manager, tmpF->info_at[time-1]->label->label, new_sampleDD);
 			    Cudd_Ref(tmp1);
 			    tmp = Cudd_bddAnd(manager, tmpF->info_at[time]->label->label, new_sampleDD);
 			    Cudd_Ref(tmp);
 			  }
-				if(tmp1 != tmp){
+				if(tmp1 != tmp){// 两个label不同
 					Cudd_RecursiveDeref(manager, tmp);
 					Cudd_RecursiveDeref(manager, tmp1);
 					return 0;
@@ -2488,22 +2774,23 @@ int labels_same(int time){
 					return FALSE;
 				}
 			}
+			// conformant planning enter
 			else if (!PF_LUG && my_problem->domain().requirements.non_deterministic){
 				if(tmpF->info_at[time]->label->label !=
-						tmpF->info_at[time-1]->label->label){
+						tmpF->info_at[time-1]->label->label){// directly compare two label
 					//	  cout<< "Not"<<endl;
 					return FALSE;
 				}
 
-				if(MUTEX_SCHEME != MS_NONE){
+				if(MUTEX_SCHEME != MS_NONE){// open mutex, compare the mutex
 
 
-					tmpFnxt = tmpF->next;
+					tmpFnxt = tmpF->next;// 判断其他FactNode,其在两层的exclusive mutex情况是否
 					while(tmpFnxt){
-						if((tmpFnxt->positive &&
+						if((tmpFnxt->positive &&// positive fact
 								tmpF->info_at[time]->exclusives->p_exlabel[tmpFnxt->index] !=
 										tmpF->info_at[time-1]->exclusives->p_exlabel[tmpFnxt->index]) ||
-										(!tmpFnxt->positive &&
+										(!tmpFnxt->positive &&// negative fact
 												tmpF->info_at[time]->exclusives->n_exlabel[tmpFnxt->index] !=
 														tmpF->info_at[time-1]->exclusives->n_exlabel[tmpFnxt->index]))
 							return FALSE;
@@ -2525,8 +2812,9 @@ int labels_same(int time){
 			}
 #endif
 			tmpF = tmpF->next;
-		}
+		}// end-while
 	}
+	// at layer 0, directly return false
 	else
 		return FALSE;
 
@@ -3547,7 +3835,7 @@ DdNode* and_labels(DdNode* prevLabel, FtEdge* conditions, int time){
 
   //   if(!conditions)
 	//     cout << "no conditions"<<endl;
-
+  // 考虑每个前提条件BDD，进行前提条件label合取，即所有条件同时满足的label
   for(e1 = conditions;
       e1 &&
 	// #ifdef PPDDL_PARSER
@@ -3610,6 +3898,7 @@ DdNode* and_labels(DdNode* prevLabel, FtEdge* conditions, int time){
       Cudd_RecursiveDeref(manager, tmp);
 //ao         break;
     }
+	// 存在fact没有label，则该operator的label返回0
     else{
       Cudd_RecursiveDeref(manager, final_label);
       // #ifdef PPDDL_PARSER
@@ -3673,9 +3962,10 @@ DdNode*  analytical_label(FtNode* fact, int time){
 	    double pr = 1.0;
 	    
 	    dbn* dbop = action_dbn(*(e1->ef->op->action));
-	    DdNode* rowDD = Cudd_addBddPattern(manager, e1->ef->effect->row);
-	    Cudd_Ref(rowDD);
-	    //	    printBDD(e1->ef->effect->row);
+		assert(e1->ef->effect->row != NULL);
+		DdNode *rowDD = Cudd_addBddPattern(manager, e1->ef->effect->row);
+		Cudd_Ref(rowDD);
+		printBDD(e1->ef->effect->row);
 	    for(std::set<int>::iterator p = parents->begin(); p != parents->end(); p++){
 	      if(*p < 2*num_alt_facts) continue;
 	      std::set<int> *dd_bits = dbop->vars[*p]->dd_bits;
@@ -3829,11 +4119,8 @@ DdNode*  analytical_label(FtNode* fact, int time){
 DdNode* or_labels(FtNode* fact, int time){
   EfEdge* e1;
   DdNode *final_label, *tmp, *fr;
-  // #ifdef PPDDL_PARSER
-  //   final_label = Cudd_ReadZero(manager);
-  // #else
   final_label = Cudd_ReadLogicZero(manager);
-  // #endif
+
   Cudd_Ref(final_label);
   
   Consequent *tmpCons;
@@ -4689,7 +4976,7 @@ void printBDD(DdNode* bdd) {
 // }
 
 
-
+// minterm即能使得公式为true的虽有命题的product的。所有sum of minterm即DNF
 DdNode** extractTermsFromMinterm(DdNode* minterm){
 
 	//   cout << "getting terms for "<< endl;
@@ -4701,7 +4988,7 @@ DdNode** extractTermsFromMinterm(DdNode* minterm){
 	DdNode** result = new DdNode*[(2 << num_uncertain)+1];
 
 
-
+	// 每增加一个uncertain, minterm个数*2
 	for(int j = 0; j < (2 << num_uncertain)+1; j++)
 		result[j] = NULL;
 
@@ -4721,7 +5008,11 @@ DdNode** extractTermsFromMinterm(DdNode* minterm){
 }
 
 
-
+/**
+ * momo007 2022.09.20
+ * 用于 sglevel，首先获取每个terms，随后利用terms计算level，
+ * 最后用所有terms的最小level作为最终结果
+ */
 DdNode** extractDNFfromBDD(DdNode* node) {
 	//   cout << "Extracting DNF from " <<endl;
 	//     if(node)
@@ -4741,13 +5032,13 @@ DdNode** extractDNFfromBDD(DdNode* node) {
 
 	sizeofSupport = Cudd_SupportSize(manager, node);
 	support = new DdNode*[sizeofSupport];
-	sup = Cudd_SupportIndex(manager,node);
+	sup = Cudd_SupportIndex(manager,node);// 每个变量是否存在该公式
 	int i=0,j=0;
 	for (; i < Cudd_ReadSize(manager) && j<sizeofSupport; i++)
 	{
 		if (!sup[i]) continue;
 		//		cout << "var = " << i << " " << j << endl;
-		support[j++] = Cudd_ReadVars(manager,i);
+		support[j++] = Cudd_ReadVars(manager,i);// 记录该变量
 	}
 
 	//  cout << "supports = " << sizeofSupport << endl;
@@ -4760,7 +5051,7 @@ DdNode** extractDNFfromBDD(DdNode* node) {
 	//  sizeofSupports++;
 	//  }
 
-
+	// 计数DNF的term的个数
 	int sizeofResult = Cudd_CountMinterm(manager, node, sizeofSupport);
 	result = new DdNode*[sizeofResult+1];
 
@@ -5787,9 +6078,10 @@ void unionElementLabels(list<LabelledFormula*>* my_list){
 	for(i = my_list->begin(); i != my_list->end(); i++){
 		k = i;
 		k++;
+		// 和后面的Formula进行比较
 		for(j = k ; j != my_list->end(); ){
-			if(*i && *j && (*j)->elt == (*i)->elt){
-				fr = Cudd_bddOr(manager, (*i)->label, (*j)->label);
+			if(*i && *j && (*j)->elt == (*i)->elt){// 如果Fact BDD相同
+				fr = Cudd_bddOr(manager, (*i)->label, (*j)->label);// 合并Label
 				Cudd_Ref(fr);
 				Cudd_RecursiveDeref(manager, (*i)->label);
 				(*i)->label = fr;
@@ -5802,7 +6094,7 @@ void unionElementLabels(list<LabelledFormula*>* my_list){
 					//delete *j;
 					//	  cout << "ddel"<<endl;
 				}
-				i = my_list->begin();
+				i = my_list->begin();// 删除后，需要重置ite
 				k = i;
 				k++;
 				j = k;
@@ -6143,315 +6435,302 @@ double supportCost(int time,
 	//    cout << "cost = "  << cost <<endl;
 	return cost;
 }
-
+/**
+ * momo007 2022.09.22
+ */
 bool supportClause(int time,
 		   LabelledFormula* clause,
-		   //	   list<LabelledEffect*>* supporters,
+		   // list<LabelledEffect*>* supporters,
 		   set<LabelledEffect*>* effects){
-  DdNode* supportingWorlds = Cudd_ReadLogicZero(manager), *tmp,
-    *tmp1, *tmpDD, *fr, *tmp_worlds, *support;
-  LabelledEffect* minSupporter, *le;
-  double minSupport, supportC;
-  EfNode* ef;
-  FtNode* tmp_fact;
-  EfEdge* tmp_adder;
-  // cout << "supporting clause"<<endl;
-  //  list<LabelledEffect*> my_supporters;
-  int ok = FALSE;
-  list<LabelledEffect*>::iterator s, t;
-  list<LabelledEffect*> supporters;
-  list<LabelledElement*> *wlist;
-  Cudd_Ref(supportingWorlds);
-  Cudd_Ref(supportingWorlds);
-  bool reward_var = false;
+	DdNode* supportingWorlds = Cudd_ReadLogicZero(manager),
+		*tmp, *tmp1, *tmpDD, *fr, *tmp_worlds, *support;
+	LabelledEffect* minSupporter, *le;
+	double minSupport, supportC;
+	EfNode* ef;
+	FtNode* tmp_fact;
+	EfEdge* tmp_adder;
+	// cout << "supporting clause"<<endl;
+	//  list<LabelledEffect*> my_supporters;
+	int ok = FALSE;
+	list<LabelledEffect*>::iterator s, t;
+	list<LabelledEffect*> supporters;
+	list<LabelledElement*> *wlist;
+	Cudd_Ref(supportingWorlds);
+	Cudd_Ref(supportingWorlds);
+	bool reward_var = false;
   
-  //  Cudd_RecursiveDeref(manager, support);
+	// Cudd_RecursiveDeref(manager, support);
   
-  //get supporters -- all effects that give a literal in a clause and worlds intersect
+	// get supporters -- all effects that give a literal in a clause and worlds intersect
 
-/*
+	/*
     cout << endl<< "Supporting at time: " <<time   <<endl;
         	printBDD(clause->elt);
         	cout << "in worlds: " <<endl;
         	printBDD(clause->label);*/
-  support = Cudd_Support(manager, clause->elt);
-  Cudd_Ref(support);
-  // printBDD(support);
-  for(int i = 0; i < num_alt_facts; i++){
-    //    for(list<LabelledFormula*>::iterator s = clauses.begin();
-    //s != clauses.end(); s++){
-    tmp_fact = NULL;
-    if(Cudd_bddIsVarEssential(manager, support, 2*i, 1)){
-      fr = Cudd_bddAnd(manager, clause->elt, Cudd_bddIthVar(manager, 2*i));
-      Cudd_Ref(fr);
-      //      printBDD(fr);
-      //cout << "i = " << i <<endl;
-      if(fr != Cudd_ReadLogicZero(manager)){
-	tmp_fact = gft_table[i];
-      }
-      else{
-	tmp_fact = gft_table[NEG_ADR(i)];
-      }
-      Cudd_RecursiveDeref(manager,fr);
-    }
-
-    if(tmp_fact){
-
-      if(tmp_fact->index == num_alt_facts-2 && RBPF_LUG){
-	//     std::cout << "ft: " << tmp_fact->index << std::endl;
-	reward_var = true;
-      }
-      //      if(tmp_fact->index < 2*num_alt_facts-2)
-      //printFact(tmp_fact->index); cout << tmp_fact->positive << " " << tmp_fact->index <<endl;
-      tmp_adder = tmp_fact->adders;
-      while(tmp_adder) {  //adding actions that support
-	//	cout << tmp_adder->ef->op->name <<endl;
-	if(tmp_adder->ef->info_at[time-1] &&
-	   !tmp_adder->ef->info_at[time-1]->is_dummy &&
-	   COMPUTE_LABELS){
-	  // #ifdef PPDDL_PARSER
-	  // 	  fr=unionNDLabels(tmp_adder->ef->info_at[time-1]);
-	  // 	  tmp = Cudd_addBddStrictThreshold(manager, fr, 0.0);
-	  // 	  Cudd_Ref(tmp);
-	  // 	  Cudd_RecursiveDeref(manager,fr);
-	  // 	  fr = tmp;
-	  // 	  Cudd_Ref(fr);
-	  // 	  Cudd_RecursiveDeref(manager,tmp);
-	  // #else
-	  
-	  fr=tmp_adder->ef->info_at[time-1]->label->label;//unionNDLabels(tmp_adder->ef->info_at[time-1]);
-	  Cudd_Ref(fr);
-	  // 	  //#endif
-	  tmpDD = Cudd_bddIntersect(manager, fr, clause->label);//  Cudd_bddAnd(manager, (*j)->label, tmpDD);
-	    //Cudd_bddAnd(manager, fr, clause->label);
-	  //Cudd_bddAnd
-	  Cudd_Ref(tmpDD);
-	  //	   printBDD(fr);
-	  //printBDD(tmpDD);
-	  
-	  
-	  // 	   Cudd_RecursiveDeref(manager,fr);
-	  
-	  //	    Cudd_RecursiveDeref(manager,tmp_worlds);
-	  if(tmpDD != Cudd_ReadLogicZero(manager) && tmpDD != Cudd_ReadZero(manager)){
-	    if(!DO_INCREMENTAL_HEURISTIC){
-	      if(1)
-		fr = Cudd_bddAnd(manager, clause->label,
-				 tmp_adder->ef->info_at[time-1]->label->label);
-	      //tmpDD = Cudd_bddIntersect(manager, clause->label, fr);
-	      else
-		fr = Cudd_underApproxAnd(manager,
-					 clause->label,
-					 tmp_adder->ef->info_at[time-1]->label->label);
-	    }
-	    else{
-	      fr = tmp_adder->ef->info_at[time-1]->label->label;
-	    }
-	    
-	    //	  printBDD(tmp_adder->ef->op->info_at[time-1]->label->label);
-	    //	    	    printBDD(fr);//tmpDD);
-	    //	    Cudd_RecursiveDeref(manager, tmp_worlds);
-	    Cudd_Ref(fr);
-	    
-//   	     	  if(tmp_adder->ef->op->is_noop){
-//   	      	    cout << "NOOP: " << flush; //printFact(tmp_adder->ef->op->preconds->ft->index);
-//   	      	  }
-//   	      	  else
-//   	      	    cout << "OP: " << tmp_adder->ef->op->name <<endl;
-//  		    	  printBDD(fr);
-	    //  	  printBDD(tmp_adder->ef->info_at[time-1]->label->label);
-	    if(  RP_EFFECT_SELECTION == RP_E_S_COVERAGE ){
-	      
-
-	      supporters.push_back(new LabelledEffect(tmp_adder->ef, fr, 0));
-	      //cout << "A";
-	    }
-	    else{
-	      wlist = getCostsAt(time-1, tmp_adder->ef->alt_index, 1);
-	      for(list<LabelledElement*>::iterator j = wlist->begin();
-		  j != wlist->end(); j++){
-		Cudd_RecursiveDeref(manager, tmpDD);
-		tmpDD = Cudd_bddIntersect(manager, fr, (*j)->label);//Cudd_bddAnd(manager, (*j)->label, tmpDD);
-		Cudd_Ref(tmpDD);
-		
-		if(tmpDD != Cudd_ReadLogicZero(manager)){//!bdd_is_one(manager, Cudd_Not(fr))){
-		  Cudd_RecursiveDeref(manager, tmpDD);
-		  if(1)
-		    tmpDD = Cudd_bddAnd(manager, fr, (*j)->label);
-		  else
-		    tmpDD = Cudd_underApproxAnd(manager, fr, (*j)->label);
-		  Cudd_Ref(tmpDD);
-		  
-		  supporters.push_back(new LabelledEffect(tmp_adder->ef, tmpDD, 0));
-	   //  cout << "B";
+	support = Cudd_Support(manager, clause->elt);// 获取clause BDD
+	Cudd_Ref(support);
+	// printBDD(support);
+	for(int i = 0; i < num_alt_facts; i++)// 考虑每个命题
+	{
+		// for(list<LabelledFormula*>::iterator s = clauses.begin(); //s != clauses.end(); s++){
+		tmp_fact = NULL;
+		// 获取fact在table的 FactNode
+		if(Cudd_bddIsVarEssential(manager, support, 2*i, 1))
+		{
+			fr = Cudd_bddAnd(manager, clause->elt, Cudd_bddIthVar(manager, 2*i));
+			Cudd_Ref(fr);
+			// printBDD(fr);
+			// cout << "i = " << i <<endl;
+			tmp_fact = fr != Cudd_ReadLogicZero(manager)? gft_table[i]:gft_table[NEG_ADR(i)];
+      		Cudd_RecursiveDeref(manager,fr);
 		}
-		//Cudd_RecursiveDeref(manager, tmpDD);
-	      }
-	    }
-	    Cudd_RecursiveDeref(manager, fr);
-	  }
-	  else if(fr != Cudd_ReadLogicZero(manager) && fr != Cudd_ReadZero(manager)){
-//	  cout << "NO INTERSECTION WITH:\n";
-//	  	   printBDD(fr);
-	  //	   printBDD(clause->label);
-	  //printBDD(tmpDD);
-	  }
-	  Cudd_RecursiveDeref(manager, tmpDD);
+
+		if(tmp_fact){
+			if(tmp_fact->index == num_alt_facts-2 && RBPF_LUG){
+				// std::cout << "ft: " << tmp_fact->index << std::endl;
+				reward_var = true;
+			}
+			// if(tmp_fact->index < 2*num_alt_facts-2)
+			// printFact(tmp_fact->index); cout << tmp_fact->positive << " " << tmp_fact->index <<endl;
+			tmp_adder = tmp_fact->adders;
+			while(tmp_adder) {  //adding actions that support
+				//	cout << tmp_adder->ef->op->name <<endl;
+				if(tmp_adder->ef->info_at[time-1] && !tmp_adder->ef->info_at[time-1]->is_dummy && COMPUTE_LABELS)
+				{
+					// #ifdef PPDDL_PARSER
+					// 	  fr=unionNDLabels(tmp_adder->ef->info_at[time-1]);
+					// 	  tmp = Cudd_addBddStrictThreshold(manager, fr, 0.0);
+					// 	  Cudd_Ref(tmp);
+					// 	  Cudd_RecursiveDeref(manager,fr);
+					// 	  fr = tmp;
+					// 	  Cudd_Ref(fr);
+					// 	  Cudd_RecursiveDeref(manager,tmp);
+					// #else
+					fr=tmp_adder->ef->info_at[time-1]->label->label;//unionNDLabels(tmp_adder->ef->info_at[time-1]);
+	  				Cudd_Ref(fr);
+					//#endif
+					tmpDD = Cudd_bddIntersect(manager, fr, clause->label);//  Cudd_bddAnd(manager, (*j)->label, tmpDD);
+	    			//Cudd_bddAnd(manager, fr, clause->label);
+					//Cudd_bddAnd
+	  				Cudd_Ref(tmpDD);
+					// printBDD(fr);
+					// printBDD(tmpDD);
+					// Cudd_RecursiveDeref(manager,fr);
+					// Cudd_RecursiveDeref(manager,tmp_worlds);
+					if(tmpDD != Cudd_ReadLogicZero(manager) && tmpDD != Cudd_ReadZero(manager))
+					{
+						if(!DO_INCREMENTAL_HEURISTIC)
+						{
+							if(1)	fr = Cudd_bddAnd(manager, clause->label,
+										tmp_adder->ef->info_at[time-1]->label->label);
+							//tmpDD = Cudd_bddIntersect(manager, clause->label, fr);
+	      					else	fr = Cudd_underApproxAnd(manager, clause->label,
+							  			tmp_adder->ef->info_at[time-1]->label->label);
+	    				}
+						else
+						{
+							fr = tmp_adder->ef->info_at[time-1]->label->label;
+						}
+						// printBDD(tmp_adder->ef->op->info_at[time-1]->label->label);
+						// printBDD(fr);//tmpDD);
+						// Cudd_RecursiveDeref(manager, tmp_worlds);
+						Cudd_Ref(fr);
+	    				
+						// if(tmp_adder->ef->op->is_noop)
+						// {
+						// 	cout << "NOOP: " << flush; //printFact(tmp_adder->ef->op->preconds->ft->index);	
+						// }
+						// else
+						// 	cout << "OP: " << tmp_adder->ef->op->name <<endl;	
+						// printBDD(fr);
+						// printBDD(tmp_adder->ef->info_at[time-1]->label->label);
+						if(RP_EFFECT_SELECTION == RP_E_S_COVERAGE )
+						{
+							supporters.push_back(new LabelledEffect(tmp_adder->ef, fr, 0));
+							//cout << "A";
+						}
+						else
+						{
+							wlist = getCostsAt(time-1, tmp_adder->ef->alt_index, 1);
+							for(list<LabelledElement*>::iterator j = wlist->begin(); 
+									j != wlist->end(); j++){
+								Cudd_RecursiveDeref(manager, tmpDD);
+								tmpDD = Cudd_bddIntersect(manager, fr, (*j)->label);//Cudd_bddAnd(manager, (*j)->label, tmpDD);
+								Cudd_Ref(tmpDD);
+								
+								if(tmpDD != Cudd_ReadLogicZero(manager))
+								{//!bdd_is_one(manager, Cudd_Not(fr))){
+									Cudd_RecursiveDeref(manager, tmpDD);
+									if(1) tmpDD = Cudd_bddAnd(manager, fr, (*j)->label);
+									else tmpDD = Cudd_underApproxAnd(manager, fr, (*j)->label);
+									Cudd_Ref(tmpDD);
+									supporters.push_back(new LabelledEffect(tmp_adder->ef, tmpDD, 0));
+									//  cout << "B";
+								}
+								//Cudd_RecursiveDeref(manager, tmpDD);
+							}// end-for
+						}//end-else
+					Cudd_RecursiveDeref(manager, fr);
+					}//end-if
+					else if(fr != Cudd_ReadLogicZero(manager) && fr != Cudd_ReadZero(manager))
+					{
+						// cout << "NO INTERSECTION WITH:\n";
+						// printBDD(fr);
+						// printBDD(clause->label);
+						// printBDD(tmpDD);
+					}
+	  				Cudd_RecursiveDeref(manager, tmpDD);
+				}//end-if
+				// 存在action支持该fact，将该action的Effect加入到supports中
+				else if(!COMPUTE_LABELS && tmp_adder->ef->info_at[time-1] && !tmp_adder->ef->info_at[time-1]->is_dummy)
+				{
+					//cout << "REALLY " << tmp_adder->ef->op->name <<endl;
+					supporters.push_back(new LabelledEffect(tmp_adder->ef, Cudd_ReadOne(manager), 0));
+					// cout << "C";
+				}
+				tmp_adder=tmp_adder->next;
+			}// end action support loop
+		}// end fact-if
+	}// end fact loop
+	// cout << endl;
+	// Cudd_CheckKeys(manager);
+    // cout <<"|";    fflush(stdout);
+	Cudd_RecursiveDeref(manager, support);
+
+	if(supporters.size() == 0 //&& !RBPF_LUG
+	){
+    	// std::cout << "No supporters" << std::endl;
+    	return false;
 	}
-	else if(!COMPUTE_LABELS && tmp_adder->ef->info_at[time-1] &&
-		!tmp_adder->ef->info_at[time-1]->is_dummy){
-	  //cout << "REALLY " << tmp_adder->ef->op->name <<endl;
-	  supporters.push_back(new LabelledEffect(tmp_adder->ef, Cudd_ReadOne(manager), 0));
-   // cout << "C";
+  
+    // cout << "got |supporters| = " << supporters.size()<<endl;
+  	// 该clause是析取，至少有一个fact满足即可
+	while(supporters.size() > 0 && (supportingWorlds != clause->label || reward_var))
+	{
+		//find min supporter
+		minSupport = DBL_MAX;
+		minSupporter = NULL;
+		// 获取min support Effect
+		for(s = supporters.begin(); s != supporters.end(); s++)
+		{
+			supportC = supportCost(time, clause->label, *s, effects, clause);// MG is return 1
+
+			// if((*s)->elt->op->is_noop)
+			// {
+			// 	cout << "cost of: " <<endl;
+			// 	printFact((*s)->elt->op->preconds->ft->index);
+			// 	cout << " = " << supportC << endl;
+            // }
+            // else
+			// {
+			// 	cout << "cost of: " << ((EfNode*)(*s)->elt)->op->name << " "
+			// 						<< ((EfNode*)(*s)->elt)->effect->outcome
+			// 						<< " = " << supportC << endl;
+			// 	printBDD((*s)->label);
+            // }
+      		if(minSupport > supportC || !minSupporter)
+			{
+				  minSupporter = *s;
+				  minSupport = supportC;
+				if(minSupporter->elt->op->is_noop)
+				{// && minSupport == 0){
+					break;
+				}
+			}
+		}// end-for
+		// cout << "HI"<<endl;
+
+    	//add supporter
+    	tmp1 = Cudd_bddAnd(manager, minSupporter->label, clause->label);
+    	Cudd_Ref(tmp1);
+
+		// printBDD(tmp1);
+
+    	if(1) tmp = Cudd_bddOr(manager, supportingWorlds, tmp1);
+    	else tmp = Cudd_overApproxOr(manager, supportingWorlds, tmp1);
+    
+		Cudd_Ref(tmp);
+		Cudd_RecursiveDeref(manager, supportingWorlds); //over-derefed
+		supportingWorlds = tmp;
+		Cudd_Ref(supportingWorlds);
+		Cudd_RecursiveDeref(manager, tmp);
+
+		ef = ((EfNode*)minSupporter->elt);
+		ef->effect->original->in_rp++;// = TRUE;
+		supporters.remove(minSupporter);
+		// Cudd_Ref(minSupporter->label);
+		delete minSupporter;
+		minSupporter=NULL;
+		// Cudd_Ref(tmp1);
+		le = new LabelledEffect(ef, tmp1,0);
+		// Cudd_RecursiveDeref(manager,tmp1);
+
+		effects->insert(le);// 将该Effect加入到上一层
+    
+    	// if(ef->op->is_noop){
+    	//   cout << "added: noop " << endl; //printFact(ef->op->preconds->ft->index);
+    	// }
+    	// else{
+    	//   cout << "added: " << ef->op->name << " " << minSupport<< endl;
+    	// }
+    
+    	// printBDD(supportingWorlds);
+    
+    	// printBDD(ef->op->b_pre);
+        // printBDD(ef->effect->ant->b);
+		//reduce labels of rest of supporters so no two support in same world
+		list<LabelledEffect*> toDel;
+    	if(!reward_var)
+		{
+    		for(s = supporters.begin(); s != supporters.end(); s++)
+			{
+				// 其他的support effect删除目前min support的label状态
+				tmp = Cudd_bddAnd(manager, (*s)->label, Cudd_Not(le->label));
+				Cudd_Ref(tmp);
+				Cudd_RecursiveDeref(manager, (*s)->label);
+				(*s)->label = tmp;
+				Cudd_Ref((*s)->label);
+				Cudd_RecursiveDeref(manager, tmp);
+      			
+				DdNode *inter = Cudd_bddIntersect(manager, (*s)->label, clause->label);
+				Cudd_Ref(inter);
+				// 没有其他状态可达，可以删除
+				if(inter == Cudd_ReadLogicZero(manager))
+					toDel.push_back(*s);
+				Cudd_RecursiveDeref(manager, inter);
+			}//end-for
+		}//end-if
+		//remove elts with empty labels
+		for(s = toDel.begin(); s != toDel.end(); s++)
+		{
+			// cout << "HOOOv"<<endl;
+			if(*s)
+			{
+				supporters.remove(*s);
+				Cudd_Ref((*s)->label);
+				delete *s;
+			}
+			//cout << "HOOO"<<endl;
+		}
+		//cout << "HOOOq"<<endl;
+	}//end-while support
+  
+	// cout << "after (*^(*^"<<endl;
+	// Cudd_CheckKeys(manager);  fflush(stdout);
+	// cout << "after (*^(*^"<<endl;
+	for(s = supporters.begin(); s != supporters.end(); s++)
+	{
+		if(*s)
+		{
+			Cudd_Ref((*s)->label);
+			delete *s;
+		}
 	}
-	tmp_adder=tmp_adder->next;
-      }
-    }
-  }
-//	cout << endl;
- 
-  //        Cudd_CheckKeys(manager);
-  //   cout <<"|";    fflush(stdout);
-  Cudd_RecursiveDeref(manager, support);
-
-  if(supporters.size() == 0 //&& !RBPF_LUG
-     ){
-//     std::cout << "No supporters" << std::endl;
-    return false;
-  }
-  
-    //cout << "got |supporters| = " << supporters.size()<<endl;
-  while(supporters.size() > 0 && (supportingWorlds != clause->label || reward_var)){
-
-    //find min supporter
-    minSupport = DBL_MAX;
-    minSupporter = NULL;
-    for(s = supporters.begin();
-	s != supporters.end(); s++){
-
-      supportC = supportCost(time, clause->label, *s, effects, clause);
-      
-
-      //       if((*s)->elt->op->is_noop){
-      //      cout << "cost of: " <<endl;
-      // 	printFact((*s)->elt->op->preconds->ft->index);
-      // 	cout << " = " << supportC << endl;
-      //       }
-      //       else{
-      //       cout << "cost of: "
-      //  	  << ((EfNode*)(*s)->elt)->op->name << " "
-      //  	  << ((EfNode*)(*s)->elt)->effect->outcome
-      //  	  << " = " << supportC << endl;
-      //       printBDD((*s)->label);
-      //       }
-      
-      if(minSupport > supportC || !minSupporter){
-	minSupporter = *s;
-	minSupport = supportC;
-				
-	if(minSupporter->elt->op->is_noop){// && minSupport == 0){
-	  break;
-	}
-      }
-    }
-    
-
-    //    cout << "HI"<<endl;
-
-    //add supporter
-    tmp1 = Cudd_bddAnd(manager, minSupporter->label, clause->label);
-    Cudd_Ref(tmp1);
-
-    //    printBDD(tmp1);
-
-    if(1)
-      tmp = Cudd_bddOr(manager, supportingWorlds, tmp1);
-    else
-      tmp = Cudd_overApproxOr(manager, supportingWorlds, tmp1);
-    
-    Cudd_Ref(tmp);
-    Cudd_RecursiveDeref(manager, supportingWorlds); //over-derefed
-    supportingWorlds = tmp;
-    Cudd_Ref(supportingWorlds);
-    Cudd_RecursiveDeref(manager, tmp);
-    
-
-    
-    ef = ((EfNode*)minSupporter->elt);
-    ef->effect->original->in_rp++;// = TRUE;
-    supporters.remove(minSupporter);
-    // Cudd_Ref(minSupporter->label);
-    delete minSupporter;
-    minSupporter=NULL;
-    //    Cudd_Ref(tmp1);
-    le = new LabelledEffect(ef, tmp1,0);
-    //    Cudd_RecursiveDeref(manager,tmp1);
-    
-    effects->insert(le);
-    
-//       if(ef->op->is_noop){
-//         cout << "added: noop " << endl; //printFact(ef->op->preconds->ft->index);
-//       }
-//       else{
-//         cout << "added: " << ef->op->name << " " << minSupport<< endl;
-//       }
-    
-    // 	 printBDD(supportingWorlds);
-    
-    //         printBDD(ef->op->b_pre);
-    //        printBDD(ef->effect->ant->b);
-    //reduce labels of rest of supporters so no two support in same world
-    list<LabelledEffect*> toDel;
-    if(!reward_var){
-
-
-    for(s = supporters.begin();
-	s != supporters.end(); s++){
-      tmp = Cudd_bddAnd(manager, (*s)->label, Cudd_Not(le->label));
-      Cudd_Ref(tmp);
-      Cudd_RecursiveDeref(manager, (*s)->label);
-      (*s)->label = tmp;
-      Cudd_Ref((*s)->label);
-      Cudd_RecursiveDeref(manager, tmp);
-
-      DdNode *inter = Cudd_bddIntersect(manager, (*s)->label, clause->label);
-      Cudd_Ref(inter);
-      if(inter == Cudd_ReadLogicZero(manager))
-	toDel.push_back(*s);
-      Cudd_RecursiveDeref(manager, inter);
-      
-    }
-    }
-    //remove elts with empty labels
-    for(s = toDel.begin();
-	s != toDel.end(); s++){
-      // cout << "HOOOv"<<endl;
-      
-      if(*s){
-	supporters.remove(*s);
-	Cudd_Ref((*s)->label);
-	delete *s;
-      }
-      //cout << "HOOO"<<endl;
-    }
-    //cout << "HOOOq"<<endl;
-  }
-  
-  //   cout << "after (*^(*^"<<endl;
-  //     Cudd_CheckKeys(manager);  fflush(stdout);
-  //    cout << "after (*^(*^"<<endl;
-  for(s = supporters.begin();
-      s != supporters.end(); s++){
-    if(*s){
-      Cudd_Ref((*s)->label);
-      delete *s;
-    }
-  }
-  supporters.clear();
-  Cudd_RecursiveDeref(manager, supportingWorlds);
-  //  cout << "done supporting clause"<<endl;
-  //   cout << "before (*^(*^"<<endl;
-  
+	supporters.clear();
+	Cudd_RecursiveDeref(manager, supportingWorlds);
+	// cout << "done supporting clause"<<endl;
+    // cout << "before (*^(*^"<<endl;
 	return true;
 }
 
@@ -6481,9 +6760,9 @@ bool getSupport(int time,
 	// 创待待查找support operator的目标集合
 	for(list<LabelledFormula*>::iterator s = subgoals->begin();
 			s != subgoals->end(); s++){
-		subgoal = ((DdNode*)(*s)->elt);
+		subgoal = ((DdNode*)(*s)->elt);// 目标fact的BDD
 		Cudd_Ref(subgoal);
-		worlds = (*s)->label;
+		worlds = (*s)->label;// 获取可达states
 		Cudd_Ref(worlds);
 
 		//      DdNode* approx = underApprox(manager, subgoal);
@@ -6539,7 +6818,7 @@ bool getSupport(int time,
 	//cout << "|clauses| = " << clauses.size() <<endl;
 
 	/**
-	 * 这里为和需要移除最大价值的目标
+	 * 直到处理完成全部clause
 	 */
 	while(clauses.size() > 0){
 		//   cout << "|clauses| = " << clauses.size() <<endl;
@@ -6548,6 +6827,7 @@ bool getSupport(int time,
 		//find max cost clause to support first
 		max_cost_clause = NULL;
 		max_clause_cost = -1;
+		// 优先处理max cost clause
 		for(list<LabelledFormula*>::iterator c = clauses.begin();
 				c != clauses.end(); c++){
 			//      if((*c)->cost > max_clause_cost){
@@ -6562,7 +6842,7 @@ bool getSupport(int time,
 
 		//      cout << "["<<flush;
 		//    Cudd_CheckKeys(manager);cout <<"|";    fflush(stdout);
-
+		// 根据effect层获取判断clause是否support
 		if(!supportClause(time, max_cost_clause, effects)){
 //cout << "can't support clause\n";
 			return false;
@@ -6584,10 +6864,11 @@ bool getSupport(int time,
 		/// else
 		//   cout << "adding noop"<<endl;
 		match = FALSE;
+		// 判断该effect是否有action匹配
 		for(set<LabelledAction*>::iterator a = actions->begin();
 				a != actions->end(); a++){
 			if(((OpNode*)(*a)->elt)->alt_index == (*e)->elt->op->alt_index){
-				if(COMPUTE_LABELS){
+				if(COMPUTE_LABELS){//更新该action Node的 label
 					fr = Cudd_bddOr(manager, (*a)->label, (*e)->label);
 					Cudd_Ref(fr);
 					Cudd_RecursiveDeref(manager, (*a)->label);
@@ -6599,7 +6880,7 @@ bool getSupport(int time,
 				break;
 			}
 		}
-		if(!match){// 没有合适的operator
+		if(!match){// 没有合适的operator，创建noop action
 			if(COMPUTE_LABELS)
 				actions->insert(new LabelledAction((*e)->elt->op, (*e)->label, 0));
 			else
@@ -6726,7 +7007,7 @@ RelaxedPlan*  getRelaxedPlan(int levels, DdNode* cs, int support, DdNode* worlds
 		Cudd_Ref(tmp);
 	}
 	else{
-		tmp = worlds;
+		tmp = worlds;// initial set to one
 		Cudd_Ref(tmp);
 	}
 	//    int* permute = new int[2*num_alt_facts];
@@ -7223,13 +7504,13 @@ int getRelaxedPlanHeuristic(){
 	gettimeofday(&rp_tstart,0);
 
 
-	if( HEURISTYPE==HRPUNION )
+	if( HEURISTYPE==HRPUNION )// 每个动作仅取一次
 		merged_plan = new RelaxedPlan(IPP_MAX_PLAN, 0);
-	cout << "|graphs| = " << num_graphs << endl;// 这里恒为0，还未创建1张图，导致后续得到的planning长度为0
-	for (int i = 0; i < num_graphs; i++)
+	cout << "|graphs| = " << num_graphs << endl;
+	for (int i = 0; i < num_graphs; i++)// 考虑每张图
 	{
 		if(num_graphs > 1 || HEURISTYPE==HRPUNION || HEURISTYPE==HRPMAX|| HEURISTYPE==HRPSUM)
-			setKGraphTo(i);// 存在bug，该接口内使用的kgraph未初始化
+			setKGraphTo(i);// 将第i张图数据放到全局变量随后处理
 		cout << "num levs = " << graph_levels <<endl;
 		tmp_plan_length = graph_levels;//getLabelLevel(b_initial_state, NULL);
 
@@ -7340,11 +7621,6 @@ int getRelaxedPlanHeuristic(){
 		return_val = IPP_MAX_PLAN;
 
 
-
-
-
-
-
 	gettimeofday(&rp_tend,0);
 	rp_total += (rp_tend.tv_sec - rp_tstart.tv_sec) * 1000 + (rp_tend.tv_usec-rp_tstart.tv_usec)/1000;
 
@@ -7358,6 +7634,26 @@ int getRelaxedPlanHeuristic(){
 }
 
 #ifdef PPDDL_PARSER
+int getlevel(int index, int polarity){
+	// graph_levels在build_planning_graph中进行了赋值
+	if(polarity)
+	{
+		for (int i = 0; i < graph_levels && gft_vector_length > 0;++i)
+		{
+			if(get_bit(gpos_facts_vector_at[i], gft_vector_length, index))
+				return i;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < graph_levels && gft_vector_length > 0;++i)
+		{
+			if(get_bit(gneg_facts_vector_at[i], gft_vector_length,index))
+				return i;
+		}
+	}
+	return IPP_MAX_PLAN;
+}
 #else
 int getlevel(hash_entry* he, int polarity) {
 	//int ok = FALSE;
@@ -7761,23 +8057,25 @@ double num_states_in_minterm(DdNode* dd){
 	// }
 
 	void generate_BitOperators(const Action *op ){
-		//        cout << "gen bit op for " << endl;
-		//        op->print(cout, my_problem->terms());
-		//        cout << endl;
-
-		DdNode* b_pre = action_preconds[op];
+		cout << "gen bit op for " << endl;
+		op->print(cout, my_problem->terms());
+		cout << endl;
+		cout << flush;
+		DdNode *b_pre = action_preconds[op];
 		Cudd_Ref(b_pre);
 		list<DdNode*> p_cubes;
 		list<double> p_values;
 		BitOperator *tmp;
 		//  Effect *tef;
 		//  OutcomeSet* outcomes = action_outcomes[op];
+		// get each state in belief state in p_cubes
 		get_cubes(b_pre, &p_cubes, &p_values);
-
-
+		int counter = 0;
+		// consider each pre condtion
 		for(list<DdNode*>::iterator i = p_cubes.begin();
 				i != p_cubes.end(); i++){
-			ostringstream os (ostringstream::out);
+			cout << counter++ << endl;
+			ostringstream os(ostringstream::out);
 			op->print(os, (*my_problem).terms());
 			const char* name = (new string(os.str()))->c_str();
 			tmp = new_BitOperator(name);
@@ -7788,7 +8086,7 @@ double num_states_in_minterm(DdNode* dd){
 			//set precondition;
 			tmp->b_pre = *i;
 			Cudd_Ref(tmp->b_pre);
-			if(*i != Cudd_ReadOne(manager)){
+			if(*i != Cudd_ReadOne(manager)){// the precondtion is not empty
 				for(int k = 0; k < num_alt_facts; k++){
 					if(Cudd_bddIsVarEssential(manager,*i , k*2, 1)){
 						make_entry_in_FactInfo( &(tmp->p_preconds), k);
@@ -7801,12 +8099,14 @@ double num_states_in_minterm(DdNode* dd){
 
 			tmp->unconditional = NULL;
 			tmp->conditionals = NULL;
-
+			// insert in to the gbit_operator list
 			tmp->next = gbit_operators;
 			gbit_operators = tmp;
 			gnum_bit_operators++;
 			Cudd_RecursiveDeref(manager, *i);
-
+			// momo007 2022.09.16
+			// default selection is converage will not enter in
+			// in conformant/contingent will generate effect in bulid_graph -> apply_operator
 			if(RP_EFFECT_SELECTION != RP_E_S_COVERAGE ||
 					HEURISTYPE==CORRRP){
 				if(DBN_PROGRESSION){
@@ -8065,9 +8365,9 @@ double num_states_in_minterm(DdNode* dd){
 	}
 
 	void generate_BitOperatorEffects(const Action* op){
-		//   std::cout << "gen bit op eff for " << std::endl;
-		//          op->print(cout, my_problem->terms());
-		//          cout << endl;
+		std::cout << "gen bit op eff for " << std::endl;
+				op->print(cout, my_problem->terms());
+				cout << endl;
 		list<DdNode*> c_cubes;
 		list<double> c_values;
 		BitOperator *tmp;
@@ -8079,29 +8379,33 @@ double num_states_in_minterm(DdNode* dd){
 
 		ddop = groundActionDD(*op);
 
-
-		if(ddop == Cudd_ReadZero(manager) && !LUGTOTEXT){
-			//if action is invalid, then remove it
-			for(tmp = gbit_operators; tmp; tmp = tmp->next){
-				if(tmp->action == op){
+		// 这里是readZero说明原先需要groundActionDD返回ADD
+		/**
+		 * momo007 2022.09.27
+		 * following may contains a bug, always not enter, because ddop is BDD not ADD
+		 */
+		if (ddop == Cudd_ReadZero(manager) && !LUGTOTEXT)
+		{
+			// 后续需要apply的action有相同的，忽略，并设置invalid
+			for(tmp = gbit_operators; tmp; tmp = tmp->next)
+			{
+				if(tmp->action == op)
+				{
 					tmp->valid = 0;
 					return;
 				}
 			}
 		}
 
-
+		// find current action BitOperator
 		for(tmp = gbit_operators; tmp; tmp = tmp->next){
 			//cout << tmp->name;
 			if(tmp->action != op)
 				continue;
-
+			// we have created, pass it
 			if(tmp->unconditional){
-				//      cout << "already did" << endl;
 				break;
 			}
-
-
 
 			//not using unconditional in here! so set to empty effect
 			tmp->unconditional = new_Effect(gnum_cond_effects_pre);
@@ -8112,10 +8416,11 @@ double num_states_in_minterm(DdNode* dd){
 			tmp->unconditional->ant->b = Cudd_ReadLogicZero(manager);//uncond_eff->b_pre;
 			Cudd_Ref(tmp->unconditional->ant->b);
 			///    make_effect_entries( &(tmp->unconditional), tmp->unconditional->cons->b);
-			tmp->unconditional->index = gnum_cond_effects_pre++;
+			gnum_cond_effects_pre++;// in new_EFfect had set the index
 			if(!LUGTOTEXT)
 				num_alt_effs++;
 
+			// set the precondition(a) to the unconditional effect
 			DdNode *i = tmp->b_pre;
 			if(i != Cudd_ReadOne(manager)){
 				for(int k = 0; k < num_alt_facts; k++){
@@ -8127,10 +8432,9 @@ double num_states_in_minterm(DdNode* dd){
 					}
 				}
 			}
-
+			// get the outcome set
 			if(action_outcomes.find(op) == action_outcomes.end())
 				return;
-
 			OutcomeSet* outcomes = action_outcomes[op];
 
 
@@ -8142,21 +8446,21 @@ double num_states_in_minterm(DdNode* dd){
 				NDACTIONS=TRUE;
 
 			for (size_t k = 0; k < n; k++) {
-				//       cout << "outcome " << k << ": "
-				//       << outcomes->probabilities[k] << std::endl;
+				      cout << "outcome " << k << ": " << outcomes->probabilities[k] << std::endl;
 				//        if(Cudd_DebugCheck(manager)){
 				// 	 cout << "DEBUG PROBLEM " << Cudd_ReadDead(manager)  <<endl;
 				// 	 exit(0);
 				//
-
+				// transitionSet save the condtion <-> effect pair
 				for (TransitionSetList::iterator ti =
 						outcomes->transitions[k].begin();
 						ti != outcomes->transitions[k].end(); ti++) {
 
 					c_cubes.clear();
 					c_values.clear();
+					// get the condition state
 					get_cubes((*ti)->condition_bdd(), &c_cubes, &c_values);
-
+					// consider each condition state
 					for(list<DdNode*>::iterator j = c_cubes.begin();
 							j != c_cubes.end(); j++){
 
@@ -8170,7 +8474,7 @@ double num_states_in_minterm(DdNode* dd){
 								//add to outcomes of eff
 								Cudd_RecursiveDeref(manager, effbdd);
 								//set_bit(tef->outcome, k);
-								tef->outcome->insert(k);
+								tef->outcome->insert(k);// 该行代码可以省略？
 								tef->probability_sum +=  outcomes->probabilities[k].double_value();
 								(*tef->probability)[k] = outcomes->probabilities[k].double_value();
 								//cout << "got repeat"<<endl;
@@ -8178,10 +8482,11 @@ double num_states_in_minterm(DdNode* dd){
 								break;
 							}
 						}
+						// 之前已经处理过该effect
 						if(got_repeat)
 							continue;
 
-
+						// 第一次，需要创建effect
 						tef = new_Effect(gnum_cond_effects_pre);
 						tef->op = tmp;
 						if(my_problem->domain().requirements.rewards)
@@ -8192,24 +8497,25 @@ double num_states_in_minterm(DdNode* dd){
 						((TransitionSet*)(*ti))->set_index(tef->index);
 
 						//cout << tef->index << " " << (*ti)->index() << endl;
-
+						// 设定第k个outcome的概率，累计概率
 						(*tef->probability)[k] = outcomes->probabilities[k].double_value();
 						tef->probability_sum +=  outcomes->probabilities[k].double_value();
 						//	  tef->outcome = new_bit_vector(((int)n/gcword_size)+1);
 						//set_bit(tef->outcome, k);
 						tef->outcome->insert(k);
-						tef->ant->b = *j;
+						tef->ant->b = *j;// 设置该effect的前提BDD
 						Cudd_Ref(tef->ant->b);
 						//printBDD(tef->ant->b);
 						//printBDD((*ti)->effect_bdd());
 
-						tef->cons->b = effbdd;
+						tef->cons->b = effbdd;// 设置该effect的结果BDD
 						Cudd_Ref(tef->cons->b);
 						Cudd_RecursiveDeref(manager, effbdd);
-						// 	  printBDD(tef->cons->b);
+						// printBDD(tef->cons->b);
 						//if(tef->cons->b != Cudd_ReadOne(manager)){
-
+						// 设置effect结果FactInfo
 						make_effect_entries( &(tef), tef->cons->b);
+						// 设置effect前提FactInfo
 						if(*j != Cudd_ReadOne(manager)){
 							for(int p = 0; p < num_alt_facts; p++){
 								if(Cudd_bddIsVarEssential(manager,*j, p*2, 1)){
@@ -8226,7 +8532,7 @@ double num_states_in_minterm(DdNode* dd){
 						//  	  print_BitVector(tef->ant->n_conds->vector, gft_vector_length);
 						// 	   	  cout << endl <<  "conds dd" << endl;
 						// 	  printBDD(tef->ant->b);
-
+						// insert into conditional effects
 						tef->next = tmp->conditionals;
 						tmp->conditionals = tef;
 						//gnum_cond_effects_pre++;
@@ -8512,24 +8818,22 @@ double num_states_in_minterm(DdNode* dd){
 			return;
 		}
 
-		uid_block = index / gcword_size;
-		uid_mask = 1 << ( index % gcword_size );
-		i = new_integers( index );
+		uid_block = index / gcword_size;// 所属链表的块索引
+		uid_mask = 1 << ( index % gcword_size ); // 所在块的index掩码
+		i = new_integers( index );//创建integer，前插法
 		//cout <<setbase(2);
 		// if(  !((*f)->vector[uid_block]))
 		//   cout  << "UIDBLCOK " << uid_block << " "<< endl << "UIDMASK " << uid_mask <<endl;
-		if(!(*f)){
+		if(!(*f)){// 未调用newFactInfo进行初始化
 			cout<<"NULL FACTINFO\n";
 			exit(0);
-
 			//      (*f) = new_FactInfo();
 		}
 		//cout << "Vector value = " <<  (*f)->vector[uid_block] << endl;
-		(*f)->vector[uid_block] |= uid_mask;
-
-		i->next = (*f)->indices;
-
-		(*f)->indices = i;
+		(*f)->vector[uid_block] |= uid_mask;// 标记该掩码为1
+		// 前插法
+		i->next = (*f)->indices;// 新的integer的next指向表头的integer
+		(*f)->indices = i;// 更新表头的integer
 
 	}
 
@@ -8550,21 +8854,26 @@ double num_states_in_minterm(DdNode* dd){
 			Cudd_Ref((*e)->cons->b);
 			support = Cudd_Support(manager, (*e)->cons->b);
 			Cudd_Ref(support);
+			// 考虑结果的每个fact
 			for(int i = 0; (i < num_alt_facts); i++){
+				// 仅考虑和support一致的fact
 				if(Cudd_bddIsVarEssential(manager, support, 2*i, 1)){
 					fr1 = Cudd_bddIthVar(manager, 2*i);
 					Cudd_Ref(fr1);
-					fr = Cudd_bddAnd(manager,(*e)->cons->b, fr1);
+					fr = Cudd_bddAnd(manager,(*e)->cons->b, fr1);// 计算所有满足的合取
 					Cudd_Ref(fr);
 					Cudd_RecursiveDeref(manager, fr1);
 
 					fr2 = Cudd_Not(Cudd_bddIthVar(manager, 2*i));
 					Cudd_Ref(fr2);
-					fr3 = Cudd_bddAnd(manager,(*e)->cons->b, fr2);
+					fr3 = Cudd_bddAnd(manager,(*e)->cons->b, fr2);// 计算所有满足的否定合取
 					Cudd_Ref(fr3);
 					Cudd_RecursiveDeref(manager, fr2);
 
-
+					/** 
+					 * momo007 通过计算该fact为true或false的可达状态(同label) 不为空，
+					 * 设置该fact
+					 */
 					if(fr != Cudd_ReadLogicZero(manager)){
 						make_entry_in_FactInfo( &((*e)->cons->p_effects), i);
 					}
@@ -8581,7 +8890,7 @@ double num_states_in_minterm(DdNode* dd){
 
 
 		}
-		else{
+		else{// uncodition effect, only set the consequence
 			(*e)->cons->b = eff;
 			Cudd_Ref((*e)->cons->b);
 		}
