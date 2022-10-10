@@ -434,12 +434,12 @@ int stop_building_graph(int time) {
   //  else if(RBPF_LUG)
   //return false;
 
-	if(ALLOW_LEVEL_OFF) {// 开启level-off
+	if(ALLOW_LEVEL_OFF) {// LUG is enter
 		if(COMPUTE_LABELS) {// label存在则需要相同
 			//  printf("STOP1\n");
 		  
 		  if(( gsame_as_prev_flag && labels_same(time) &&
-		       (RP_EFFECT_SELECTION == RP_E_S_COVERAGE || costLevelOff(time))))
+		       (RP_EFFECT_SELECTION == RP_E_S_COVERAGE || costLevelOff(time))))// 这里需要考虑下后续Lug是否导致横为0
 		    LEVELS_PAST_LEVEL_OFF++;
 		  else
 		    LEVELS_PAST_LEVEL_OFF=0;
@@ -458,7 +458,7 @@ int stop_building_graph(int time) {
 			return gsame_as_prev_flag; //&&(MUTEX_SCHEME==MS_REGULAR || goal_non_mutex(time));
 		}
 	}
-	else {// 没开启level-off, LUG graph
+	else {// MG and SG etc enter
 		if(COMPUTE_LABELS) {
 			//    printf("STOP3\n");
 
@@ -492,6 +492,7 @@ int stop_building_graph(int time) {
 		else if(!COMPUTE_LABELS && HEURISTYPE==CORRRP){
 			return stopCORRGraph(time) && reached_goals;
 		}
+		// MG and SG enter
 		else{
 			//printf("STOP4\n");
 			return gsame_as_prev_flag;
@@ -560,12 +561,12 @@ int  build_graph( int *min_time,
 		if(COMPUTE_LABELS){// 如果需要label
 			tmp = get_init_labels(i->index, TRUE);
 			Cudd_Ref(tmp);
-			ft = new_ft_node( 0, i->index, TRUE, FALSE, new_Label(tmp, 0));
-			ft->info_at[0]->updated =1;
+			ft = new_ft_node( 0, i->index, TRUE, FALSE, new_Label(tmp, 0));// 创建Fact Node同时配置该层的level info
+			ft->info_at[0]->updated =1;// 设置当前层fact更新
 			Cudd_RecursiveDeref(manager, tmp);
 		}
 		else
-			ft = new_ft_node( 0, i->index, TRUE, FALSE, NULL);
+			ft = new_ft_node( 0, i->index, TRUE, FALSE, NULL);// 直接创建FactNode，不用配置Label
 
 		gft_table[i->index] = ft;// factNode存储到table中
 		ft->next = gall_fts_pointer;// factNode前插法加入全局FactNode链表中
@@ -600,13 +601,12 @@ int  build_graph( int *min_time,
 	print_BitVector( gneg_facts_vector_at[0], gft_vector_length); 
 	// done initial fact layer construct.
 
-	// Momo007
-	// if(HEURISTYPE == CORRRP){// this option does not call in our conformant planning
-	// 	instantiateCorrelation();
-	// 	initialStateProbability(initialBDD, b_initial_state);
-	// 	if(USE_CORRELATION)
-	// 		initialStateCorrelation(initialBDD, b_initial_state);
-	// }
+	if(HEURISTYPE == CORRRP){// this option does not call in our conformant planning
+		instantiateCorrelation();
+		initialStateProbability(initialBDD, b_initial_state);
+		if(USE_CORRELATION)
+			initialStateCorrelation(initialBDD, b_initial_state);
+	}
 
 	printf("SET INIT IN GRAPH\n");  fflush(stdout);
 	if ( gcmd_line.display_info ) {
@@ -620,9 +620,7 @@ int  build_graph( int *min_time,
 		printf("call in to min_time loop\n");
 		assert(0);
 		if ( first ) {// 第一次执行
-			reached_goals = are_there_non_exclusive( time,
-					gbit_goal_state->positive,
-					gbit_goal_state->negative );
+			reached_goals = are_there_non_exclusive( time, gbit_goal_state->positive, gbit_goal_state->negative );
 
 			if ( reached_goals) {
 				//if ( gcmd_line.display_info ) {
@@ -644,9 +642,7 @@ int  build_graph( int *min_time,
 
 	for( ; time < IPP_MAX_PLAN; time++ ) {
 		std::cout << "time = " << time << std::endl;
-		reached_goals = are_there_non_exclusive( time,
-				gbit_goal_state->positive,
-				gbit_goal_state->negative );
+		reached_goals = are_there_non_exclusive( time, gbit_goal_state->positive, gbit_goal_state->negative );// 当前目标当当前层满足，同时没有mutex
 
 		if ( reached_goals ) {
 			if ( gcmd_line.display_info && time > 0 && first ) {
@@ -659,12 +655,8 @@ int  build_graph( int *min_time,
 		// 检测是否需要停止
 		if (time == IPP_MAX_PLAN-1 ||
 				(!COMPUTE_LABELS && gsame_as_prev_flag && HEURISTYPE != CORRRP)||
-				(stop_building_graph(time))
-
-				/* ((COMPUTE_LABELS && !ALLOW_LEVEL_OFF) ||
-	  gsame_as_prev_flag) && (!COMPUTE_LABELS || goals_proven(time) )
-	  (gsame_as_prev_flag && goals_proven(time)) */ )break;
-		//   std::cout << "time = " << time << std::endl;
+				(stop_building_graph(time)))
+				break;
 		// 继续迭代生成图
 		build_graph_evolution_step();
 		//   un_update_actions_effects_facts(time);
@@ -675,16 +667,21 @@ int  build_graph( int *min_time,
 		reached_goals = TRUE;
 
 	*min_time = time;// 记录MG中的min_time，最小需要level
-
+	// clear the update for next call
 	un_update_actions_effects_facts(time);
 
 
-
+	/**
+	 * momo007 2022.09.30
+	 * Following code contain bug.
+	 * But now use this one is ok.
+	 */
 	if(COMPUTE_LABELS){
 		//    if(time == 0)
 		//std::cout << "did reach goals?"<<std::endl;
 		//  std::cout << "REACHED GOALS " << proven_goals << " " << reached_goals <<std::endl;
-		return proven_goals;//goals_proven(time);
+		// return proven_goals;//goals_proven(time);
+		return reached_goals;
 	}
 	else{
 		return reached_goals;
@@ -1381,7 +1378,7 @@ void mark_operator_labels(int time) {
 	//  printf("-------Marking Op Labels at time: %d -------------------\n", time);
 	//  Cudd_CheckKeys(manager);fflush(stdout);
 
-	//for all ops
+	//for all opNodes
 	for ( i1= gall_ops_pointer; i1; i1=i1->next ) {
 		if(i1->info_at[time]  ) {
 
@@ -1398,9 +1395,9 @@ void mark_operator_labels(int time) {
 			/*       }  */
 
 
-			//and preconds
-			if(i1->preconds && i1->info_at[time]->updated
-			) {
+			// use the precond label to config the OpNode label
+			if(i1->preconds && i1->info_at[time]->updated)
+			{
 
 				// 	if(i1->is_noop){
 				// 	  std::cout << (i1->preconds->ft->positive? "pos": "neg" ) << " noop ";
@@ -1422,12 +1419,14 @@ void mark_operator_labels(int time) {
 					Cudd_RecursiveDeref(manager, tmp1);
 				}
 				//	printBDD(tmp);
-
+				// 当前OpNode没有label，利用BDD创建label
 				if(!i1->info_at[time]->label)
 					i1->info_at[time]->label = new_Label(tmp, 0);
+				// 存在label且BDD相同，说明该OpNode的label没有变化, 重置为0
 				else if(i1->info_at[time]->label->label == tmp){
 					i1->info_at[time]->updated = 0;
 				}
+				// 存在label但BDD不同，更新
 				else{
 					i1->info_at[time]->label->label = tmp;
 					Cudd_Ref(i1->info_at[time]->label->label);
@@ -1437,12 +1436,20 @@ void mark_operator_labels(int time) {
 				// 	   	printBDD(i1->info_at[time]->label->label);
 				Cudd_RecursiveDeref(manager, tmp);
 			}
-			else{
+			/**
+			 * momo007 2022.09.26 maybe a bug
+			 * 下面两种情况分类有点问题?
+			 * if失败包括: empty precond or precond is false
+			 */
+			else
+			{
 				if(PF_LUG || my_problem->domain().requirements.non_deterministic){
+					// 先创建没有成立的label为所有初始状态（相当于empty precond）
 					if(!i1->info_at[time]->label)
 						i1->info_at[time]->label = new_Label(initialBDD,
 								//b_initial_state,
 								0);
+					// 有label，且前提成立，还是empty precond?
 					else if(i1->info_at[time]->updated){
 						Cudd_RecursiveDeref(manager, i1->info_at[time]->label->label);
 						i1->info_at[time]->label->label=initialBDD;
@@ -2755,150 +2762,146 @@ void particle_filter_layer(int time){
 }
 
 #endif
-
+/**
+ * momo007 2022.09.27 this maybe contains bugs about the NDLabel
+ */
 void mark_effect_lables(int time){
-  OpNode *i1;
-  EfNode *e1;
-  FtNode *f1;
-  FtEdge *pres;
-  int ndnum, ndnum1, ndnum2, k, ndlow, ndhigh;
-  int condnum, effType, ok;
-  Label* tmp = NULL;
-  Label* tmp1 = NULL;
-  DdNode* tmpD, *tmpD1, *allEffForm, *condEffForm, *fr, *oldLabel;
-  Consequent* conseq, *conseq1;
-  Label* newNonDeter;
-  Label* tmpnewNonDeter;
-  Label* precond_labels;
-  int DONDLABELS;
-
-  i1 = gall_ops_pointer;
-
+	OpNode *i1;
+	EfNode *e1;
+	FtNode *f1;
+	FtEdge *pres;
+	int ndnum, ndnum1, ndnum2, k, ndlow, ndhigh;
+	int condnum, effType, ok;
+	Label* tmp = NULL;
+	Label* tmp1 = NULL;
+	DdNode* tmpD, *tmpD1, *allEffForm, *condEffForm, *fr, *oldLabel;
+	Consequent* conseq, *conseq1;
+	Label* newNonDeter;
+	Label* tmpnewNonDeter;
+	Label* precond_labels;
+	int DONDLABELS;	
+	i1 = gall_ops_pointer;
 
 
-  //Need to loop through effects and collect new labels
-  //created by non-deterministic effects
+
+	//Need to loop through effects and collect new labels
+	//created by non-deterministic effects
 
 
-  ndnum1 = 0;
-  //for all ops
-  for (; i1; i1=i1->next ) {
-    if(i1->info_at[time] && i1->info_at[time]->updated
-       ) {
-      precond_labels = i1->info_at[time]->label;
-      for(int t = 0; t < 2; t++){
-	if(t == 0)
-	  e1=i1->unconditional;
-	else
-	  e1=i1->conditionals;
-	for(; e1; e1=e1->next) {
-	  if(e1->info_at[time]){
-	    //	      	      printf("Getting label for eff of %s, outcome:  %d \n", i1->name, e1->effect->outcome);
-	    if(e1->info_at[time]->is_dummy){
-	      //printf("uncond is dummy\n");
-	      // #ifdef PPDDL_PARSER
-	      // 		e1->info_at[time]->label = new_Label(Cudd_ReadZero(manager), 0);
-	      // #else
-	      e1->info_at[time]->label = new_Label(Cudd_ReadLogicZero(manager), 0);
+	ndnum1 = 0;
+	//for all ops
+	for (; i1; i1=i1->next ) {
+		if(i1->info_at[time] && i1->info_at[time]->updated) {
+      		precond_labels = i1->info_at[time]->label;// 获取OpNode的前提
+    		for(int t = 0; t < 2; t++){// 利用循环处理uncon和cond eff
+				if(t == 0)
+	  				e1=i1->unconditional;
+				else
+	  				e1=i1->conditionals;
+				for(; e1; e1=e1->next) {
+	  				if(e1->info_at[time]){
+	    	      		// printf("Getting label for eff of %s, outcome:  %d \n", i1->name, e1->effect->outcome);
+						if(e1->info_at[time]->is_dummy){
+	      					// printf("uncond is dummy\n");
+// #ifdef PPDDL_PARSER
+	      					// e1->info_at[time]->label = new_Label(Cudd_ReadZero(manager), 0);
+// #else
+	      					e1->info_at[time]->label = new_Label(Cudd_ReadLogicZero(manager), 0);
 
-	      //#endif
-	    }
-	    else if(e1->effect){
-	      conseq = e1->effect->cons;
-	      ndnum = 0;
-	      tmp1 = NULL;
-	      tmp = NULL;
-	      while(conseq){
-		if(e1->info_at[time]->label){
-		  oldLabel = e1->info_at[time]->label->label;
-		}
-		else
-		  oldLabel = Cudd_ReadLogicZero(manager);
-		Cudd_Ref(oldLabel);
+//#endif
+	    				}
+	    				else if(e1->effect){
+	      					conseq = e1->effect->cons;
+	      					ndnum = 0;
+	    					tmp1 = NULL;
+	    					tmp = NULL;
+	      					while(conseq){
+								if(e1->info_at[time]->label){
+		  							oldLabel = e1->info_at[time]->label->label;
+								}
+								else
+		  							oldLabel = Cudd_ReadLogicZero(manager);
+								Cudd_Ref(oldLabel);
 
 
-		if(t == 0) {//uncond
-		  //		    std::cout << "uncond" <<std::endl;
-		  tmp = new_Label(fr=precond_labels->label, 0);//new_Label(and_labels(precond_labels->label, e1->conditions, time));
-		  //Cudd_Ref(fr);
-		}
-		else{ //cond
-		  fr = and_labels(precond_labels->label, e1->conditions, time);
-		  Cudd_Ref(fr);
-		  //    printBDD(fr);
-		  tmp = new_Label(fr, 0);
-		  Cudd_RecursiveDeref(manager, fr);
-		  
-		}
-		if(e1->is_nondeter) {
-		  ndnum1++;
-		}
+								if(t == 0) {//uncond
+		  		    				// std::cout << "uncond" <<std::endl;
+		  							tmp = new_Label(fr=precond_labels->label, 0);//new_Label(and_labels(precond_labels->label, e1->conditions, time));
+		  							// Cudd_Ref(fr);
+								}
+								else{ //cond
+									fr = and_labels(precond_labels->label, e1->conditions, time);
+									Cudd_Ref(fr);
+									// printBDD(fr);
+									tmp = new_Label(fr, 0);
+									Cudd_RecursiveDeref(manager, fr);
+								}
+								if(e1->is_nondeter) {
+		  							ndnum1++;
+								}
+								Cudd_Ref(tmp->label);
 		
-		Cudd_Ref(tmp->label);
-		
-		if(ndnum == 0){
-		  //for some reason this first case needs
-		  //to always be entered if not doing incrm
-		  //sag -- shoudl be fixed.
-		  if(LUG_FOR != INCREMENTAL
-		     || !e1->info_at[time]->label){
-		    e1->info_at[time]->label = tmp;
-		    tmp1=tmp;
-		    tmp->next = NULL;
-		  }
-		  else if(e1->info_at[time]->label->label == tmp->label){
-		    e1->info_at[time]->updated = 0;
-		  }
-		  else{
-		    if(PF_LUG){//make sure that don't add samples back
-		      tmpD = Cudd_bddOr(manager, oldLabel, new_sampleDD);
-		      Cudd_Ref(tmpD);
-		      tmpD1 = Cudd_bddAnd(manager, tmp->label, tmpD);
-		      Cudd_Ref(tmpD1);
-		      Cudd_RecursiveDeref(manager, tmp->label);
-		      Cudd_RecursiveDeref(manager, tmpD);
-		      tmp->label = tmpD1;
-		      Cudd_Ref(tmp->label);
-		      Cudd_RecursiveDeref(manager, tmpD1);
-		    }
+								if(ndnum == 0){// 确定性effect
+		  						//for some reason this first case needs
+		  						//to always be entered if not doing incrm
+		  						//sag -- shoudl be fixed.
+									if(LUG_FOR != INCREMENTAL || !e1->info_at[time]->label){
+										e1->info_at[time]->label = tmp;
+										tmp1=tmp;
+										tmp->next = NULL;
+									}
+									else if(e1->info_at[time]->label->label == tmp->label){
+										e1->info_at[time]->updated = 0;
+									}
+		  							else{
+		    							if(PF_LUG){//make sure that don't add samples back
+		    								tmpD = Cudd_bddOr(manager, oldLabel, new_sampleDD);
+		    								Cudd_Ref(tmpD);
+		    								tmpD1 = Cudd_bddAnd(manager, tmp->label, tmpD);
+		    								Cudd_Ref(tmpD1);
+		    								Cudd_RecursiveDeref(manager, tmp->label);
+		    								Cudd_RecursiveDeref(manager, tmpD);
+		    								tmp->label = tmpD1;
+		    								Cudd_Ref(tmp->label);
+		      								Cudd_RecursiveDeref(manager, tmpD1);
+										}
 		    
-		    e1->info_at[time]->label->label = tmp->label;
-		    Cudd_Ref(e1->info_at[time]->label->label);
-		    delete tmp;
-		  }
+										e1->info_at[time]->label->label = tmp->label;
+										Cudd_Ref(e1->info_at[time]->label->label);
+										delete tmp;
+									}
 		  
 		  
 		  //  		    e1->info_at[time]->label = tmp;
 		  //  		    tmp1=tmp;
 		  //  		    tmp->next = NULL;
-		}
-		else {
-		  tmp1->next = tmp;
-		  tmp1 = tmp;
-		  tmp->next = NULL;
-		}
-		if(!e1->is_nondeter)
-		  break;
-		conseq=conseq->next;
-		ndnum++;
-	      }
-	    }
-	  }
-	}
+								}
+								else {// 非确定性effect
+									tmp1->next = tmp;
+									tmp1 = tmp;
+									tmp->next = NULL;
+								}
+								if(!e1->is_nondeter) break;
+								conseq=conseq->next;// 非确定effect，继续遍历conseq
+								ndnum++;
+							}// end-while
+						}
+					}
+				}
 			}
-    }
-  }
-  //    std::cout << "HI"<<std::endl;
-  //process Non-deterministic labels
+		}
+	}
+    // std::cout << "HI"<<std::endl;
+  	// process Non-deterministic labels
 #ifdef PPDDL_PARSER
-  if(my_problem->domain().requirements.probabilistic_effects){
-    if(PF_LUG){
-      particle_filter_layer(time);
-    }
-    else{
-      mark_probabilitic_effect_labels(time);
-    }
-  }
+	if(my_problem->domain().requirements.probabilistic_effects){
+    	if(PF_LUG){
+      		particle_filter_layer(time);
+    	}
+    	else{
+      		mark_probabilitic_effect_labels(time);
+    	}
+	}
 #else
   
   DONDLABELS = //TRUE;//
@@ -3382,17 +3385,17 @@ void build_graph_evolution_step( void )
 	//if(  Cudd_DebugCheck(manager)){  std::cout << "DEBUG PROBLEM " << Cudd_ReadDead(manager)  <<std::endl;     }
 
 	//  printf("enter build graph evo step \n");
-	/* when replanning due to rifo failure, set time back to zero
-     in first function call */
+	/* when replanning due to rifo failure, 
+		set time back to zero in first function call */
 	if ( new_plan )
 	{
-		//    printf("NEW GRAPH\n");
+		// printf("NEW GRAPH\n");
 		time = 0;
 		new_plan = FALSE;
 	}
 
-	//	printf("BUILD EVO STEP %d \n", time); fflush(stdout);
-	//	    Cudd_CheckKeys(manager);
+	// printf("BUILD EVO STEP %d \n", time); fflush(stdout);
+	// Cudd_CheckKeys(manager);
 	// 赋值t到t+1层次，假设所有的effect没有变化
 	gpos_facts_vector_at[time+1] = copy_bit_vector( gpos_facts_vector_at[time],
 			gft_vector_length );
@@ -3421,10 +3424,11 @@ void build_graph_evolution_step( void )
 	// 为第2层开始，配置op和effect level info
 	for ( i = gall_ops_pointer; (i && time > 0); i = i->next ) {
 		// 上一层设置了level info且更新，当前层设置level info和更新
-		if(i->info_at[time-1]  && i->info_at[time-1]->updated
-		){
+		if(i->info_at[time-1]  && i->info_at[time-1]->updated)
+		{
 			// 当前层level-info为空	
-			if(!i->info_at[time]){
+			if(!i->info_at[time])
+			{
 				i->info_at[time] = new_op_level_info();
 				i->info_at[time]->updated = 1;
 			}
@@ -3432,16 +3436,19 @@ void build_graph_evolution_step( void )
 			if(i->unconditional &&
 					i->unconditional->info_at[time-1] &&
 					i->unconditional->info_at[time-1]->updated &&
-					!i->unconditional->info_at[time]){
+					!i->unconditional->info_at[time])
+			{
 
 				i->unconditional->info_at[time] = new_ef_level_info(time);
 				i->unconditional->info_at[time]->updated = 1;
 			}
 			// 考虑当前的每个condtion，当前level-info为空
-			for ( j = i->conditionals; j; j = j->next ) {
+			for ( j = i->conditionals; j; j = j->next )
+			{
 				if(j->info_at[time-1] &&
 						j->info_at[time-1]->updated &&
-						!j->info_at[time]){
+						!j->info_at[time])
+				{
 					j->info_at[time] = new_ef_level_info(time);
 					j->info_at[time]->updated = 1;
 					// 传递dummy
@@ -3458,7 +3465,7 @@ void build_graph_evolution_step( void )
 				}
 			}
 		}
-	}
+	}// end-for opNode configuration
 
 
 	/* eigentlich ineffizient; unterscheidung wegen dummys noetig, die beim
@@ -3466,11 +3473,11 @@ void build_graph_evolution_step( void )
 	 *
 	 * EFFIZIENTER: extra verkettung fuer dummys erstellen.
 	 */
-	// 考虑每个pos/neg fact
+	// config the fact node in next level
 	for ( k=0; k<2*gnum_relevant_facts; k++ ) {
 		if ( (l = gft_table[k]) == NULL ) continue;
 		// 创建fact的level info
-		l->info_at[time+1] = new_ft_level_info( l );// 设the status of the fact node in next level
+		l->info_at[time+1] = new_ft_level_info( l );
 		l->info_at[time+1]->updated = 1;
 		// 传递下一层dummy
 		if ( l->info_at[time]->is_dummy ) {
@@ -3508,33 +3515,34 @@ void build_graph_evolution_step( void )
 	//	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPERATORS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
 
 	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs@@@@@@@@@@@@@@@@@@@@\n");
+	// 先处理含未激活effect的op
 	op = gops_with_unactivated_effects_pointer;
 	while ( op && apply_all_effects( time, op ) ) {
 
 		tmp_op = op;
-		op = op->thread;
-		tmp_op->thread = NULL;
+		op = op->thread;// 继续处理unactivated ops(在apply_operator中用thread构建了链表)
+		tmp_op->thread = NULL;// remove from list
 	}
 
 	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs again@@@@@@@@@@@@@@@@@@@@\n");
 	gops_with_unactivated_effects_pointer = op;
-	prev_op = op;
+	prev_op = op;// 第一个处理失败的op list
 	if ( op ) op = op->thread;
 	while ( op ) {
-		if ( apply_all_effects( time, op ) ) {
-			prev_op->thread = op->thread;
+		if ( apply_all_effects( time, op ) ) {// 处理成功
+			prev_op->thread = op->thread;// 移除该op
 			tmp_op = op;
-			op = op->thread;
-			tmp_op->thread = NULL;
-		} else {
-			prev_op = prev_op->thread;
-			op = op->thread;
+			op = op->thread;// 考虑下一个
+			tmp_op->thread = NULL;// 处理成功，取消thread
+		} else {// 处理失败
+			prev_op = prev_op->thread;// 保留在list中
+			op = op->thread;// 考虑下一个unactivated
 		}
 	}
 
 	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ effs@@@@@@@@@@@@@@@@@@@@\n");
 
-	o = gbit_operators;
+	o = gbit_operators;// 在initLUG中创建了gbit_operators
 	while ( o && apply_operator( time, o ) ) {/*momo007 2022.09.16 apply_operator有bug或operator创建本生有bug*/
 		tmp = o;
 		o = o->next;// gbit_operator中移除加入到 used_gbit_operators
@@ -3552,43 +3560,39 @@ void build_graph_evolution_step( void )
 
 	gbit_operators = o;
 
-	prev = o;
+	prev = o;// 处理失败的BitOperator
 
 	if ( o ) o = o->next;
 
 	while ( o ) {
-		if ( apply_operator( time, o ) ) {
-			prev->next = o->next;
-
-
+		if ( apply_operator( time, o ) ) {// 处理成功
+			prev->next = o->next;// 移除该op
 			tmp = o;
-			o = o->next;
+			o = o->next;// 下次处理下一个
 
-			tmp->next = used_gbit_operators;
+			tmp->next = used_gbit_operators;// 处理成功的op加入到used
 			used_gbit_operators = tmp;
 			/*  printf("op2\n"); */
 			/*      exit(0); */
 			//free_partial_operator( tmp );
-		} else {
+		} else {// 处理失败
 
-			if(!o->valid){
-				prev->next = o->next;
+			if(!o->valid){// invalid,说明redundant
+				prev->next = o->next;// 移除
 				o = o->next;
 				//free_partial_operator( o );
 
 			}
-			else{
-				prev = prev->next;
+			else{// 不是重复
+				prev = prev->next;// 保留在gbit_operator
 				o = o->next;
 			}
-
-
-
 		}
 	}
 
 	update_actions_effects_facts(time);
 
+	// 设置 BitVector的长度,有余数需要考虑+1
 	gop_vector_length_at[time] = ( ( int ) gops_count / gcword_size );
 	if ( ( gops_count % gcword_size ) > 0 ) gop_vector_length_at[time]++;
 
@@ -3597,11 +3601,9 @@ void build_graph_evolution_step( void )
 		gef_vector_length_at[time] = ( ( int ) gnum_cond_effects_pre / gcword_size );
 		if ( ( gnum_cond_effects_pre % gcword_size ) > 0 ) gef_vector_length_at[time]++;
 	}
-
-	/* bei allen anwendbaren ops nachschauen, ob die dummy effekte
-	 * inzwischen einziehbar sind!
-	 *
-	 * ja->markierungen des effekts und der geaddeten facts umstellen!
+	/**
+	 * 检查所有适用的ops，判断effect是否是dummy.
+	 * 修改effect和添加的fact
 	 */
 	if(COMPUTE_LABELS) {
 	  //	  printf("@@@@@@@@@@@@@@@@@@@@MARKING OPERATOR LABELS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
@@ -3621,34 +3623,36 @@ void build_graph_evolution_step( void )
 
 	if(MUTEX_SCHEME!=MS_NONE){
 		printf("@@@@@@@@@@@@@@@@@@@@FINDING MUTEX OPS@@@@@@@@@@@@@@@@@@@@\n");
-		find_mutex_ops( time );
+		find_mutex_ops( time );// 查找所有的mutex ops pair?
 	}
 	// print_mutex_ops(time);
 
-
+	/***
+	 * momo007 这里先进行label标记，在查找label和下面情况相反
+	 */
 	if(MUTEX_SCHEME!=MS_REGULAR &&
 			MUTEX_SCHEME!=MS_STATIC &&
 			COMPUTE_LABELS==TRUE){
-		//      printf("@@@@@@@@@@@@@@@@@@@@INSERTING EFFECTS@@@@@@@@@@@@@@@@@@@@\n");
-		//     insert_potential_effects( time );
+		// printf("@@@@@@@@@@@@@@@@@@@@INSERTING EFFECTS@@@@@@@@@@@@@@@@@@@@\n");
+		// insert_potential_effects( time );
 		if(COMPUTE_LABELS) {
 			//dan
-		  //		  printf("@@@@@@@@@@@@@@@@@@@@MARKING EFFECT LABELS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
+		  	// printf("@@@@@@@@@@@@@@@@@@@@MARKING EFFECT LABELS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
 
 			mark_effect_lables(time);
 			if(!COST_REPROP &&  RP_EFFECT_SELECTION != RP_E_S_COVERAGE){
 				cost_prop_efs(time);
-				//	 	 printCosts(1, time);
+				// printCosts(1, time);
 			}
 		}
 
 		if(COMPUTE_LABELS) {
-		  //		  printf("@@@@@@@@@@@@@@@@@@@@MARKING FACT LABELS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
-		  mark_fact_labels(time+1);
+			// printf("@@@@@@@@@@@@@@@@@@@@MARKING FACT LABELS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
+			mark_fact_labels(time+1);
 			//nad
 			if(!COST_REPROP &&  RP_EFFECT_SELECTION != RP_E_S_COVERAGE){
 				cost_prop_facts(time+1);
-				//   	    printCosts(2, time+1);
+				// printCosts(2, time+1);
 			}
 			//	  printf("Reordering\n");
 			//   Cudd_ReduceHeap(
@@ -3730,7 +3734,7 @@ void build_graph_evolution_step( void )
 		}
 	}
 
-
+	// fact没有增加，mutex没有增加，设置停止迭代标志
 	if ( facts_count == gfacts_count &&
 			exclusions_count == gexclusions_count ) {
 		gsame_as_prev_flag = TRUE;
@@ -3775,7 +3779,10 @@ void build_graph_evolution_step( void )
 
 
 
-
+/**
+ * momo007 2022.09.26
+ * Following code need refactor, use the make_noop() to remove the redundant code
+ */
 void apply_noops( int time )
 
 {
@@ -3821,31 +3828,26 @@ void apply_noops( int time )
 		//       name = getFactName(ft->index);
 		//       std::cout << name << std::endl;
 		//     }
-		tmp_eff = new_Effect(num_alt_effs + ft->index + abs(ft->positive-1)*num_alt_facts);
-		tmp_eff->outcome->insert(0);
+		name = getFactName(ft->index);
+		tmp_eff = new_Effect(num_alt_effs + ft->index + abs(ft->positive - 1) * num_alt_facts);
+		tmp_eff->outcome->insert(0);// 这里添加一个 outcome，设置概率为1
 		(*tmp_eff->probability)[0] = 1.0;
 		tmp_eff->probability_sum = 1.0;
 
 		a = new_bit_vector( gft_vector_length );
 		b = new_bit_vector( gft_vector_length );
-		// 创建 p -> p的effect
+		// 创建 p -> p的effect, 将fact自身作为前提和结果创建effect
 		if ( ft->positive ) {
 			a[ft->uid_block] |= ft->uid_mask;// 标记当前fact
 			tmp_eff->cons->p_effects->vector[ft->uid_block] |= ft->uid_mask;// 添加到pos consequence
 			tmp_eff->cons->p_effects->indices = new_integers(ft->index);
 			tmp_eff->ant->p_conds->vector[ft->uid_block] |= ft->uid_mask;// 添加到pos antedent
 			tmp_eff->ant->p_conds->indices = new_integers(ft->index);
-#ifdef PPDDL_PARSER
+
 			tmp_eff->cons->b = Cudd_bddIthVar(manager, 2*ft->index );//设置bdd
 			Cudd_Ref(tmp_eff->cons->b);
 			tmp_eff->ant->b = Cudd_bddIthVar(manager, 2*ft->index );//设置bdd
 			Cudd_Ref(tmp_eff->ant->b);
-#else
-			tmp_eff->cons->b = Cudd_bddIthVar(manager, 2*ft->index );
-			Cudd_Ref(tmp_eff->cons->b);
-			tmp_eff->ant->b = Cudd_bddIthVar(manager, 2*ft->index );
-			Cudd_Ref(tmp_eff->ant->b);
-#endif
 
 
 		} else {
@@ -3859,13 +3861,10 @@ void apply_noops( int time )
 			tmp_eff->ant->b = Cudd_Not(Cudd_bddIthVar(manager, 2*ft->index ));//添加bdd
 			Cudd_Ref(tmp_eff->ant->b);
 		}
-
-		// 创建OpNode,目前的接口名字是空的，需要调整
+		// 使用name, 正负fact vector, fact BDD,以及index创建 NoopNode
 		/*        printf("About to make noop an op node\n"); */
-		noop = new_op_node( time,name /* NULL */, TRUE,
-				a, b, tmp_eff->ant->b,
-				num_alt_acts + ft->index +
-				abs(ft->positive-1)*num_alt_facts+1 );
+		noop = new_op_node( time,name, TRUE, a, b, tmp_eff->ant->b,
+							num_alt_acts + ft->index + abs(ft->positive-1)*num_alt_facts+1 );
 		noop->info_at[time]->updated = 1;
 		noop->action = NULL;
 		free_bit_vector(a);
@@ -3877,7 +3876,9 @@ void apply_noops( int time )
 		/*     tmp_cons->n_effects->vector = b; */
 
 		//printf("about to make noop an ef node\n");
-		tmp = new_ef_node( time, noop, tmp_eff, num_alt_effs + ft->index + abs(ft->positive-1)*num_alt_facts/* a, b */ );// add the effect Node to the OpNode
+		// add the effect Node to the OpNode
+		// 里面创建的EffectNode没有设置condition,仅设置了 effect,上一行代码将effect的condition设置到了OpNode上
+		tmp = new_ef_node( time, noop, tmp_eff, num_alt_effs + ft->index + abs(ft->positive-1)*num_alt_facts/* a, b */ );
 		tmp->info_at[time]->updated = 1;
 		free_Effect(tmp_eff);
 
@@ -3894,8 +3895,10 @@ void apply_noops( int time )
 			/*        tmp->info_at[time]->label = ft->info_at[time]->label; */
 			/*      else */
 			/*        tmp->info_at[time]->label = NULL; */
+			// 将Fact的label传递给EfNode
 			tmp->info_at[time]->label = new_Label(ft->info_at[time]->label->label, 0);
 		}
+		// 将FtNode的mutex传递给EfNode
 		if(MUTEX_SCHEME!=MS_NONE){
 			for(int r = 0; r < gft_vector_length; r++){
 				tmp->info_at[time]->exclusives->pos_exclusives[r] |=
@@ -3918,7 +3921,7 @@ void apply_noops( int time )
 		// }
 		tmp->all_next = gall_efs_pointer;// insert effect node to effectNode list
 		gall_efs_pointer = tmp;
-		noop->unconditional = tmp;// noop set the unconditional effect
+		noop->unconditional = tmp;// noop set the unconditional effect(because the con(eff) have move to OpNode)
 		noop->next = gall_ops_pointer;// insert opNode to opNode list
 		gall_ops_pointer = noop;
 		noop->is_noop = TRUE;
@@ -3931,7 +3934,13 @@ void apply_noops( int time )
 }
 
 //extern DdNode* labelBDD(DdNode*, DdNode*, int);
-
+/**
+ * 1. 判断effect是否有mutex
+ * 2. 创建BitOperatorEffect
+ * 3. 根据BitOPerator+ BitOperatorEffect 创建OpNode
+ * 4. Apply all Effect(创建，连接EfNode)
+ * 5. Check the failure OpNode, add to gops_with_unactivated_effects_pointer
+ */
 int apply_operator( int time, BitOperator *op ) {
 
 
@@ -3974,19 +3983,20 @@ int apply_operator( int time, BitOperator *op ) {
 	if(DBN_PROGRESSION){
 		generate_BitOperatorEffectsFromDBN(op->action);
 	}
-	else{
+	else{// conformant/contingent
 		generate_BitOperatorEffects(op->action);
 	}
-
-	//  generate_BitOperatorEffects(op->action);
+	// this operator is redundant, just ignore
+	// generate_BitOperatorEffects(op->action);
 	if(!op->valid)
 		return FALSE;
 
 
 	op_node = new_op_node( time, op->name, FALSE,
-			op->p_preconds->vector,
-			op->n_preconds->vector,
-			op->b_pre, op->alt_index);
+						   op->p_preconds->vector,
+						   op->n_preconds->vector,
+						   op->b_pre, op->alt_index);
+
 	op_node->info_at[time]->updated = 1;
 	op_node->action = op->action;
 	op_node->nonDeter = op->nonDeter;
@@ -3994,12 +4004,12 @@ int apply_operator( int time, BitOperator *op ) {
 	for ( j=0; j<MAX_VARS; j++ ) {
 		op_node->inst_table[j] = op->inst_table[j];
 	}
-	op_node->next = gall_ops_pointer;
-	gall_ops_pointer = op_node;
-
+	op_node->next = gall_ops_pointer;// insert into list
+	gall_ops_pointer = op_node; 
+	// From BitOperator, we link the fact layer and operator layer
 	for ( i=op->p_preconds->indices; i; i=i->next ) {
-		insert_ft_edge( &(op_node->preconds), gft_table[i->index] );
-		insert_op_edge( &(gft_table[i->index]->preconds), op_node );
+		insert_ft_edge( &(op_node->preconds), gft_table[i->index] );// use FtNode create the FtEdge, fact->op
+		insert_op_edge( &(gft_table[i->index]->preconds), op_node );// use OpNode create the OpEdge, op->fact
 		// set_bit(ant->p_conds, i->index);
 	}
 	/*   copy_contents_of_FactInfo(&(tmp_eff->ant->p_conds), op->p_preconds ); */
@@ -4011,6 +4021,10 @@ int apply_operator( int time, BitOperator *op ) {
 	}
 	/*    copy_contents_of_FactInfo(&(tmp_eff->ant->n_conds), op->n_preconds ); */
 	// tmp_eff->ant->n_conds->vector = copy_bit_vector(op->n_preconds->vector, gft_vector_length);
+	/**
+	 * momo007 2022.09.27
+	 * Following code can reduce, op->uncondtional is alway not empty in if structure
+	 */
 	if(op->unconditional){
 		//    printf("about to Make uncond ef\n");
 		//  ant->n_conds->vector |= op->unconditional->ant->n_conds->vector;
@@ -4042,6 +4056,10 @@ int apply_operator( int time, BitOperator *op ) {
 	//     ef_node->info_at[time]->exclusives->n_exlabel = n_exlabel;
 	//     //}
 	//   }
+	/** momo007 2022.09.27
+	 * the ef_node must be not empty
+	 */
+	assert(ef_node != NULL);
 	op_node->unconditional = ef_node;
 	ef_node->all_next = gall_efs_pointer;
 	gall_efs_pointer = ef_node;
@@ -4058,11 +4076,11 @@ int apply_operator( int time, BitOperator *op ) {
 		conseq = //ef_node->effect->cons;//
 				op->unconditional->cons;
 		while(conseq){
-
+			// 考虑每个结果fact
 			for ( i = /* op->unconditional->cons */conseq->p_effects->indices; i; i=i->next )
 			{
 
-				if ( (ft_node = gft_table[i->index]) == NULL ) {
+				if ( (ft_node = gft_table[i->index]) == NULL ) {// first present, insert into layer
 
 					ft_node = new_ft_node( time+1, i->index, TRUE, FALSE, NULL );
 					ft_node->info_at[time+1]->updated = 1;
@@ -4071,7 +4089,7 @@ int apply_operator( int time, BitOperator *op ) {
 					gft_table[i->index] = ft_node;
 					(gpos_facts_vector_at[time+1])[ft_node->uid_block] |= ft_node->uid_mask;
 				}
-				insert_ef_edge( &(ft_node->adders), ef_node );
+				insert_ef_edge( &(ft_node->adders), ef_node );// double link effect -> fact
 				insert_ft_edge( &(ef_node->effects), ft_node );
 			}
 
@@ -4093,10 +4111,10 @@ int apply_operator( int time, BitOperator *op ) {
 	}
 	/*   else */
 	/*     printf("NULL\n"); */
-
+	// initial, all the condition effect is unactivated (not apply)
 	op_node->unactivated_effects = op->conditionals;
 
-
+	// 存在effect没有apply成功，使用thread将OpNode加入到unactive effect op list中
 	if ( !apply_all_effects( time, op_node ) ) {
 		op_node->thread = gops_with_unactivated_effects_pointer;
 		gops_with_unactivated_effects_pointer = op_node;
@@ -4114,77 +4132,56 @@ int apply_operator( int time, BitOperator *op ) {
 
 
 int apply_all_effects( int time, OpNode *op_node )
-
 {
 
 	Effect *j, *tmp, *prev;
-	// printf("Applying all effects of: %s\n", op_node->name);
 
-	/* FEHLER!!
+	/* ERROR!!
 	 *
-	 * ...genau ueberpruefen, was ge freet werden darf!!
+	 * Apply the effect, and check if can be release.
 	 */
 	j = op_node->unactivated_effects;
+	// apply the unactivated effect and remove and add it (if success) into activated conditional effect
 	while ( j && apply_effect( time, j, op_node ) ) {
 		tmp = j;
 		j = j->next;
-		/*   printf("j = %d\n", j->index); */
-		//     printf("tmp0 = %d\n", tmp->index);
 		tmp->next = tmp->op->activated_conditionals;
 		tmp->op->activated_conditionals = tmp;
-		/*  printf("effect1\n"); */
-		/*     exit(0); */
-		//if ( 1 ) free_partial_effect( tmp );
 	}
+	// if all success, j is nullptr, or j is the effect which is exclusive
 	op_node->unactivated_effects = j;
-	prev = j;
-	if ( j ) j = j->next;
+	prev = j;// record this effect
+	if ( j ) j = j->next;// consider next effect
 	while ( j ) {
 		if ( apply_effect( time, j, op_node ) ) {
-			prev->next = j->next;
+			prev->next = j->next;// update the unactivated effect list
 			tmp = j;
-			j = j->next;
-
-
-			/* tmp->next = NULL; */
-			/*    if(prev) */
-			/* 	printf("prev = %d\n", prev->index); */
-
-			/*       if(j) */
-			/* 	printf("j = %d\n", j->index); */
-
-			/*         printf("tmp1 = %d\n", tmp->index);  */
-
-			tmp->next = tmp->op->activated_conditionals;
+			j = j->next;// consider next effect
+			tmp->next = tmp->op->activated_conditionals;// add to the activated effect
 			tmp->op->activated_conditionals = tmp;
 
-
-			/*  printf("effect2\n"); */
-			/*     exit(0); */
-			//if ( 1 ) free_partial_effect( tmp );
 		} else {
-			/*      printf("effect3\n");  */
-			/*     exit(0); */
 			prev = prev->next;
 			j = j->next;
 		}
 	}
-
-
-	//  printf("exiting apply all effs\n");
+	// 所有的effect apply成功
 	if ( op_node->unactivated_effects == NULL ) {
-		//  printf("exiting apply all effs T\n");
+		printf("exiting apply all effs T\n");
 		return TRUE;
-	} else {
-
-		/*   printf("op_node->unactivated_effects = %d\n", op_node->unactivated_effects->index);  */
-		/*     printf("exiting apply all effs F\n");  */
+	} else {// 输出apply失败的effect
+		printf("op_node->unactivated_effects = %d\n", op_node->unactivated_effects->index);
+		printf("exiting apply all effs F\n");
 		return FALSE;
 	}
 
 }
 
-
+/**
+ * momo007 2022.09.26 待检查
+ * ef,使用ef更新graph
+ * op_node，该effect所属的OpNode
+ */
 int apply_effect( int time, Effect *ef, OpNode *op_node )
 
 {
@@ -4891,7 +4888,9 @@ void integrate_potential_effects( int time )
 
 
 
-
+/**
+ * 判断当前目标在time layer是否满足同时没有出现mutex
+ */
 int are_there_non_exclusive( int time, FactInfo *pos, FactInfo *neg )
 
 {
@@ -4906,15 +4905,15 @@ int are_there_non_exclusive( int time, FactInfo *pos, FactInfo *neg )
 	 * hier lieber einzeln die fakten auslesen!!
 	 * genauso eins weiter unten in get_them..
 	 */
-	a = pos->vector;// 当前成立的pos
-	b = gpos_facts_vector_at[time];// 当前层满足的pos
+	a = pos->vector;
+	b = gpos_facts_vector_at[time];
 
 	for ( r = 0; r < gft_vector_length; r++ ) {
 		// printf("r = %d\n", r);
 		// print_BitVector(a, r);
 		// print_BitVector(b, r);
 
-		if ( a[r] != (a[r] & b[r]) ) {// a当前仅当满足b要求满足的
+		if ( a[r] != (a[r] & b[r]) ) {// 至少满足目标需要的pos facts
 			//  printf("exit are there non exclusive -- not ok\n");
 			return FALSE;
 		}
@@ -4927,7 +4926,7 @@ int are_there_non_exclusive( int time, FactInfo *pos, FactInfo *neg )
 	for ( r = 0; r < gft_vector_length; r++ ) {
 		//printf("B\n");
 
-		if ( a[r] != (a[r] & b[r]) ) {
+		if ( a[r] != (a[r] & b[r]) ) {// 满足当前目标需要满足的neg facts
 			//printf("1exit are there non exclusive -- not ok\n");
 			return FALSE;
 		}
@@ -4976,7 +4975,9 @@ int are_there_non_exclusive( int time, FactInfo *pos, FactInfo *neg )
 
 }
 /**
- * momo007 2022.09.16 待阅读
+ * momo007 2022.09.16
+ * 目前仅考虑fact和effect的mutex，没有考虑effect的mutex，
+ * 如果effect 之间mutex导致没有world可以使用，利用label值为0，能够保证逻辑正确性。
  */
 int get_them_non_exclusive( int time,
 		FactInfo *pos, FactInfo *neg,
@@ -5033,7 +5034,10 @@ int get_them_non_exclusive( int time,
 
 
 	return TRUE;
-
+	/**
+	 * 下面的代码将导致effect之间mutex从而无法执行，因此不考虑，即使没有效果可以应用的world，
+	 * 目前不修复下面代码，直接允许该effect，通过label将保证逻辑正确，在effect的label会设置为false，表示无法执行。
+	 */
 	//executing the code below will prevent effect inclusion if there
 	//is a world where a mutex among conditions, rather than fix this
 	//code the structure allows the effect even if there is no world
