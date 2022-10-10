@@ -423,7 +423,7 @@ struct _BitOperator{
   DdNode* b_pre; // BDD precodition
   Effect *unconditional;// IPP的无条件Effect list
   Effect *conditionals;// IPP的条加Effect list
-  Effect *activated_conditionals;// ??
+  Effect *activated_conditionals;// activated condtional effect(成功使用的effect)
   struct _BitOperator *next;
 
 };
@@ -485,10 +485,10 @@ struct _OpNode{
   unsigned int uid_mask;
 
   int nonDeter;
-  FtEdge *preconds;/* a list of pointers to the nodes for its preconds */
+  FtEdge *preconds;/* a list of pointers to the nodes for its preconds, set by insert_ft_edge() */
   EfNode *unconditional;
   EfNode *conditionals;
-  DdNode *b_pre;
+  DdNode *b_pre;// set in new_op_node(), if noop, set condition as effect fact
 
   int is_noop;/* is it a noop ? (used in printing out the plan) */
 
@@ -504,7 +504,7 @@ struct _OpNode{
   struct _OpNode *next;/* ops are globally stored as a list */
 
   Effect *unactivated_effects;
-  struct _OpNode *thread;
+  struct _OpNode *thread;/* use to link the list: gops_with_unactivated_effects_pointer*/
 
 };
 
@@ -631,12 +631,12 @@ struct _FtLevelInfo{
   double probability; //used in correlation graph
   OpArray is_goal_for;
 
-  FtExclusion* exclusives;
+  FtExclusion* exclusives;// 记录的Fact mutex
 
   EfEdge *relaxedPlanEdges;// plan由effect的fact形成，efNode中存储了op
 
   BitVector *adders;
-  EfExclusion* adders_exclusives;
+  EfExclusion* adders_exclusives;// 和实现该Fact的Effect互斥的Effect
 
   MemoNode *memo_start;
 
