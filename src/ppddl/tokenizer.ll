@@ -67,6 +67,7 @@ problem											return make_string(yytext, PROBLEM);
 :predicates									return PREDICATES;
 :observations								return OBSERVABLES;
 :observation								return OBSERVATION;
+:observe                    return OBSERVE;
 :functions									return FUNCTIONS;
 :strips											return STRIPS;
 :typing											return TYPING;

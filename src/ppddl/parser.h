@@ -117,7 +117,8 @@
      CASE = 333,
      GOTO = 334,
      DONE = 335,
-     ANTI_COMMENT = 336
+     ANTI_COMMENT = 336,
+     OBSERVE = 337
    };
 #endif
 /* Tokens.  */
@@ -200,7 +201,7 @@
 #define GOTO 334
 #define DONE 335
 #define ANTI_COMMENT 336
-
+#define OBSERVE 337
 
 
 

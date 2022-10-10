@@ -291,6 +291,7 @@ static void set_default_metric();
 %token LE GE NAME VARIABLE NUMBER HORIZON DISC
 %token ILLEGAL_TOKEN PLANTIME PLAN FORPROBLEM IF THEN ELSE CASE GOTO DONE
 %token ANTI_COMMENT
+%token OBSERVE
 // data types that semantic value may have
 %union {
     Assignment::AssignOp setop;
@@ -745,7 +746,7 @@ action_body2 : action_body3
              | effect              
              ;
 
-action_body3 : /* empty */
+action_body3 : /* empty */ { std::cout << "empty observations\n"; }
              | observations
              ;
 
@@ -759,7 +760,8 @@ effect : EFFECT eff_formula { action->set_effect(*$2); }
 	and 
 	) 
 */
-observations : OBSERVATION '(' and  observation_defs ')' {action->set_observation(*$4);}
+observations : OBSERVE '(' observation_defs ')'{action->set_observation(*$3);}
+             | OBSERVATION '(' and  observation_defs ')' {action->set_observation(*$4);}
              | OBSERVATION  '(' observation_defs ')' {action->set_observation(*$3); // cout << "parse ob"<<endl;
 };
 
@@ -843,10 +845,11 @@ assign_op : assign { $$ = Assignment::ASSIGN_OP; }
 observation_defs : observation_defs observation {$$->add_entry($2); }
                  | observation {$$ = new Observation(); $$->add_entry($1); }
                  ;
-
+/* momo007: add the last case */
 observation : '('  formula  probability probability ')' {$$ = make_observation(*$2, *$3, *$4);} 
 | '('  formula  formula probability ')' {$$ = make_observation(*$2, *$3 , *$4); } 
 |  '(' when formula '(' probabilistic prob_effs ')' ')' {$$ = make_observation(*$3, *$6); $6->setObservation();} 
+|  formula { $$ = make_observation(*$1,Rational(0.5),Rational(0.5));}
             ;
 
 //observation_cpt : observation_cpt observation_row {$$->add_cpt_entry($2); }
@@ -1916,6 +1919,7 @@ static const Atom* make_atom() {
             yyerror("too many parameters passed to predicate `"
                 + domain->predicates().name(atom_predicate) + "'");
         } else if (domain->predicates().arity(atom_predicate) > n) {
+            std::cout << "need " << domain->predicates().arity(atom_predicate) << " but " << n << std::endl;
             yyerror("too few parameters passed to predicate `"
                 + domain->predicates().name(atom_predicate) + "'");
         }
