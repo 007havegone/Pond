@@ -321,7 +321,39 @@ bool AOStar::new_action_transition(StateNode* node, ActionNode* action, DdNode* 
 
 bool AOStar::new_sensing_transition(StateNode* cur, const ActionNode* act, DdNode* c1, DdNode* c2)
 {
-    
+    bool lExist = StateNode::generated.count(c1) != 0;
+    bool rExist = StateNode::generated.count(c2) != 0;
+    short lstatus = lExist ? StateNode::generated[c1]->m_status : -1;
+    short rstatus = rExist ? StateNode::generated[c2]->m_status : -1;
+    if (lExist && lstatus == DEAD ||
+        rExist && rstatus == DEAD)
+    {
+        // TO.DO. release memory of c1 and c2.
+        return false;
+    }
+
+    if( lExist && (lstatus == ISOLATED || lstatus == OUT_ISOLATED) ||
+        rExist && (lstatus == OUT_ISOLATED || rstatus == OUT_ISOLATED))
+    {
+        // TO.DO release memory of c1 and c1.
+        std::cout << "ISOLATION, IGNORE SENSING";
+        return false;
+    }
+
+    if(lExist == false)
+    {
+        // TO.DO
+    }
+    else
+    {
+
+    }
+
+    if(rExist == false)
+    {
+        // TO.DO
+    }
+    return true;
 }
 StateNode* AOStar::first_unexpanded()
 {
