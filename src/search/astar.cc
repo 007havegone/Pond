@@ -79,6 +79,7 @@ bool AStar::step(){
 		ActionNode *actNode = new ActionNode();
 		actNode->act = (*a).first;
 		actNode->PrevState = next;// 状态结点连接动作结点
+		actNode->ActionNo = (*a).first->id();
 		next->NextActions->push_back(actNode);
 	}
 	// 拓展结点个数+1
@@ -129,6 +130,7 @@ bool AStar::step(){
 			// momo007 here need to extra code to link the stateNode and ActionNode
 			action->NextState = new StateDistribution();
 			action->NextState->State = child;
+			action->NextState->Next = NULL;
 			child->PrevActions->push_back(action);
 			/** 至此，两个状态结点和动作结点完美连接，还差parent即next的bestAction
 			 * 和child的bestPrevaction
