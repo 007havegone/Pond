@@ -40,6 +40,12 @@ typedef std::list<ActionNode*> ActionNodeList;
 
 struct goal;
 
+const short UNEXPANDED = 20;
+const short EXPANDED = 21;
+const short GOAL_REACHABLE = 22;
+const short ISOLATED = 23;
+const short OUT_ISOLATED = 24;
+const short DEAD = 25;
 /* declaration of structures */
 class StateNode {
 public:
@@ -116,6 +122,8 @@ public:
   ActionNodeList*           NextActions;
   ActionNodeList*           PrevActions;
   ActionNode*               BestPrevAction;
+  short                     m_status;// momo007 stateNode status
+  int                       m_active_in_transitions = 1;//momo007
 
   int processSuccessors(std::list<StateNode*>* states, std::list<StateNode*>* fh_states);
   bool isGoal();

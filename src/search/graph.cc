@@ -84,6 +84,7 @@ StateNode::StateNode(){
 //	PrevActions = new ActionNodeList();
 //	NextActions = new ActionNodeList();		// Messes up StateNode::expand
 	BestPrevAction = NULL;
+	m_status = UNEXPANDED;
 }
 
 StateNode::~StateNode(){
@@ -415,7 +416,7 @@ void StateNode::expand(){
 					v++;
 					kl++;
 				}
-
+				// sensor action
 				if(successors.size() > 1 &&  num_relevant_obs >= 2 || successors.size() == 1 && num_relevant_obs == 1){
 					if(!processSuccessors(&states, &h_states)){
 						for(stateDist = actionNode->NextState; stateDist != NULL; ){
