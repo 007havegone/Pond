@@ -10,14 +10,23 @@
             "name": "POND program launch",
             "cwd": "${workspaceFolder}",
             "type": "cppdbg",
-            "program": "${workspaceFolder}/src/pondbeta",
+            "program": "${workspaceFolder}/src/pond",
             "args": [
-                "${workspaceFolder}/src/d5.pddl",
-                "${workspaceFolder}/src/p5.pddl",
+                "${workspaceFolder}/test/d5.pddl",
+                "${workspaceFolder}/test/p5.pddl",
                 "-s",
                 "astar",
                 "-h",
-                "sgsum"
+                "card",
+                // "sgrp",
+                // "lugrp",
+                // "mgrpm",
+                // "mgrpu",
+                // "mgrps",
+                // "-pmg",
+                // "0.5"
+                // ">",
+                // "${workspaceFolder}/test/debug.txt"
             ]
         }
     ]
