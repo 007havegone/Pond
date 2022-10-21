@@ -1091,7 +1091,7 @@ void createInitLayer(DdNode* init){
 	b_initial_state = init;
 	initialBDD = init;
 	printf("tmp bdd is\n");
-	printBDD(tmp);
+	// printBDD(tmp);
 	// Cudd_Ref(b_initial_state);
 	//Cudd_Ref(initialBDD);
 
@@ -2559,17 +2559,17 @@ double build_forward_get_h(DdNode* init,
 			reached_goals = build_graph(&j, num_alt_facts, ALLOW_LEVEL_OFF, MUTEX_SCHEME );
 			
 			// display the planning graph info
-			cout << "YO HERES THE GRAPH:" << reached_goals <<endl;
-			for(int i = 0; i <= j; i++)
-			{
-				cout << "LEVEL " << i << endl;
-				print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
-				print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
-				cout << endl;
-				for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
-					if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
-						cout << endl<< "-------------------------------------------------" <<endl;
-			}// end-for
+			// cout << "YO HERES THE GRAPH:" << reached_goals <<endl;
+			// for(int i = 0; i <= j; i++)
+			// {
+			// 	cout << "LEVEL " << i << endl;
+			// 	print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
+			// 	print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
+			// 	cout << endl;
+			// 	for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
+			// 		if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
+			// 			cout << endl<< "-------------------------------------------------" <<endl;
+			// }// end-for
 			//    cout << "got " <<  j << endl;
 			graph_levels = j;
 			for(int i=0; i< num_alt_facts; ++i)
@@ -2741,7 +2741,7 @@ double build_forward_get_h(DdNode* init,
 
 			if(HEURISTYPE == LUGRP){// SG + RP, 抽取action的个数
 
-				printBDD((*i)->dd);
+				// printBDD((*i)->dd);
 				if(LUG_FOR == NODE)
 					j = graph_levels;
 				else

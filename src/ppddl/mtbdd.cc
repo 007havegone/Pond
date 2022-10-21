@@ -520,7 +520,7 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * by the atom.
 		 * primed代表状态变量加了'，即后即状态变量。
 		 */
-		std::cout << "atom = " << state_variables[af] << std::endl;
+		// std::cout << "atom = " << state_variables[af] << std::endl;
 		if(dynamic_atoms.find((state_variables[af])) == dynamic_atoms.end())
 			return Cudd_ReadOne(manager);// 该变量不是dynamic,忽略,直接返回true.
 
@@ -1066,7 +1066,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * these outcomes are the outcomes for the conjunctive effect.
 		 */
 		//    cout << "HI CJE"<<endl;
-		std::cout << "conjunction Effect outcome sta\n";
+		// std::cout << "conjunction Effect outcome sta\n";
 		size_t n = ce->size();
 		if (n > 0) {
 			effect_outcomes(outcomes, condition_bdd, ce->conjunct(0));
@@ -1123,7 +1123,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 			outcomes.transitions.back().push_back(t);
 		}
 		//      cout << "BYE CJE"<<endl;
-		std::cout << "conjunction Effect outcome done\n";
+		// std::cout << "conjunction Effect outcome done\n";
 		return;
 	}
 
@@ -1136,7 +1136,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		 * the outcomes of the effect.
 		 */
 		//     cout << "HI CE"<<endl;
-		std::cout << "conditional Effect outcome sta\n";
+		// std::cout << "conditional Effect outcome sta\n";
 		DdNode *ddf = formula_bdd(we->condition());
 		DdNode* ddc = Cudd_bddAnd(dd_man, condition_bdd, ddf);
 		Cudd_Ref(ddc);
@@ -1144,7 +1144,7 @@ static void effect_outcomes(OutcomeSet& outcomes,
 		effect_outcomes(outcomes, ddc, we->effect());
 		Cudd_RecursiveDeref(dd_man, ddc);
 		//     cout << "BYE CE"<<endl;
-		std::cout << "conditional Effect outcome done\n";
+		// std::cout << "conditional Effect outcome done\n";
 		return;
 	}
 
@@ -2230,13 +2230,13 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		ddc = event_preconds[&action];//formula_bdd(action.precondition());
 	Cudd_Ref(ddc);
 
-	 std::cout << "getting outcomes" << std::endl;
+	//  std::cout << "getting outcomes" << std::endl;
 	effect_outcomes(*outcomes, ddc, action.effect());
-	 std::cout << "got outcomes" <<std::endl;
+	//  std::cout << "got outcomes" <<std::endl;
 
 	if(!LUGTOTEXT)
 	{
-		std::cout << "!LUG TO TEXT\n";
+		// std::cout << "!LUG TO TEXT\n";
 		ensure_mutex(*outcomes); // 进行outcome转换的互斥优化
 	}
 	else{
@@ -2250,10 +2250,10 @@ std::pair<DdNode*, DdNode*> action_mtbdds(const Action& action,
 		}
 		num_alt_effs++;//for unconditional
 	}
-	std::cout << "done mutex" << std::endl;
+	// std::cout << "done mutex" << std::endl;
 
 	if(!event){
-		std::cout << "store the action outcome bdd into table\n";
+		// std::cout << "store the action outcome bdd into table\n";
 		action_outcomes.insert(std::pair<const Action*, OutcomeSet*>(&action, outcomes));
 
 	}
@@ -3174,7 +3174,9 @@ DdNode* groundActionDD(const Action& action){
 	//  const Problem& problem, DdNode* ddgp, DdNode* ddng,   DdNode* col_cube){
 
 	std::cout << "lookup: ";
-	action.print(std::cout, (*my_problem).terms()); std::cout << std::endl;
+	action.print(std::cout, (*my_problem).terms());
+	std::cout << std::endl
+			  << std::flush;
 	// 忽略该分支
 	if(0 && DBN_PROGRESSION){
 		action_dbn(action);

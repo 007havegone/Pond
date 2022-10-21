@@ -524,12 +524,12 @@ int  build_graph( int *min_time,
 	proven_goals = FALSE;
 	MUTEX_SCHEME=MUTEX_SCHEMES;// config the mutex
 
-	printMemInfo();
+	// printMemInfo();
 
 	printf("MUX = %d, LEVOFF = %d\n", MUTEX_SCHEME, ALLOW_LEVEL_OFF);
 
 	std::cout <<"\n\nenter build graph\n" << std::flush;
-	printBDD(b_initial_state);
+	// printBDD(b_initial_state);
 	// clear the layers
 	for(j=0;j<IPP_MAX_PLAN;j++){
 		gpos_facts_vector_at[j]=NULL;
