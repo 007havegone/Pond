@@ -124,6 +124,7 @@ public:
   ActionNode*               BestPrevAction;
   short                     m_status;// momo007 stateNode status
   int                       m_active_in_transitions = 1;//momo007
+  int                       m_depth;//momo007 
 
   int processSuccessors(std::list<StateNode*>* states, std::list<StateNode*>* fh_states);
   bool isGoal();

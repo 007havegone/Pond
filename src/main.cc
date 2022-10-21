@@ -33,6 +33,7 @@ using namespace std;
 #include "alao_star.h"
 #include "exph.h"
 #include "movalfn.h"
+#include "aostar.h"
 
 #ifdef PPDDL_PARSER
 #include "allheaders.h"
@@ -171,7 +172,8 @@ int main(int argc, char *argv[])
 					else if (strcmp(argv[i], "aostar") == 0)
 					{
 						cout << "AO* Search" << endl;
-						search = new LAOStar();
+						// search = new LAOStar();
+						search = new AOStar();
 					}
 					else if (strcmp(argv[i], "molao") == 0)
 					{
@@ -374,7 +376,7 @@ int main(int argc, char *argv[])
 						COMPUTE_LABELS = FALSE;
 						USE_CORRELATION = FALSE;
 					}
-					if (strcmp(argv[i], "slugrp") == 0)
+					if (strcmp(argv[i], "slugrp") == 0)// sensor LUG relaxed planning graph
 					{
 						cout << "USING SLUGRP" << endl;
 						HEURISTYPE = SLUGRP;
@@ -712,7 +714,6 @@ int main(int argc, char *argv[])
 			     }
 			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
-
 			/** 
 			 * momo 007 2022.05.26 
 			 * not used */
@@ -755,7 +756,7 @@ int main(int argc, char *argv[])
 					cout << "SWITCHING TO AO* SEARCH" << endl;
 					if (search != NULL)
 						delete search;
-					search = new LAOStar();
+					search = new AOStar();
 				}
 			}
 
