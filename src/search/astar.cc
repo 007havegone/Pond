@@ -23,7 +23,7 @@ void AStar::setup(StateNode* start){
 	StepSearch::setup(start);// 设置初始状态
 	closed.clear();// 清空两个表
 	open.clear();
-
+	open.key_comp().init(StateComparator::HEUR);// 默认使用HEUR
 	next = start;
 	next->PrevActions = NULL;
 	next->BestPrevAction = NULL; //最佳action值为空
