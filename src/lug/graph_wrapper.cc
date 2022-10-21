@@ -1022,7 +1022,6 @@ int build_k_planning_graphs(DdNode* init, DdNode* goal, int& k) {
 		gprev_level_fts_pointer = NULL;
 		gft_mutex_pairs = NULL;
 		gft_table = NULL;
-		Cudd_RecursiveDeref(manager, cube);
 		num_graphs++;  //number of graphs built
 		Cudd_RecursiveDeref(manager, cube);
 	}
@@ -1189,17 +1188,17 @@ int build_planning_graph(DdNode* init, DdNode* goal, int& levs) {
 
 	graph_levels = j;
 	levs = j;
-	cout <<"LEVELS = " << j << endl;
-	 cout << "YO HERES THE GRAPH" <<endl;
-	    for(int i = 0; i <= j; i++){
-			cout << "LEVEL " << i << endl;
-	    	print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
-	    	print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
-			cout << endl;
-		for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
-	 		if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
-	      		cout << endl<< "-------------------------------------------------" <<endl;
-	    }
+	// cout <<"LEVELS = " << j << endl;
+	//  cout << "YO HERES THE GRAPH" <<endl;
+	//     for(int i = 0; i <= j; i++){
+	// 		cout << "LEVEL " << i << endl;
+	//     	print_BitVector(gpos_facts_vector_at[i],gft_vector_length);
+	//     	print_BitVector(gneg_facts_vector_at[i],gft_vector_length);
+	// 		cout << endl;
+	// 	for(OpNode* k = gall_ops_pointer; (k) ; k=k->next)
+	//  		if(k->info_at[i] && k->name && !k->is_noop )cout << k->name << endl;
+	//       		cout << endl<< "-------------------------------------------------" <<endl;
+	//     }
 
 	if(!reached_goals) {// 没有到达目标
 		cout << "Goals not reached in PG"<<endl;
