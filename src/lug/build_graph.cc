@@ -526,7 +526,7 @@ int  build_graph( int *min_time,
 
 	// printMemInfo();
 
-	printf("MUX = %d, LEVOFF = %d\n", MUTEX_SCHEME, ALLOW_LEVEL_OFF);
+	// printf("MUX = %d, LEVOFF = %d\n", MUTEX_SCHEME, ALLOW_LEVEL_OFF);
 
 	std::cout <<"\n\nenter build graph\n" << std::flush;
 	// printBDD(b_initial_state);
@@ -536,9 +536,9 @@ int  build_graph( int *min_time,
 		gneg_facts_vector_at[j]=NULL;
 		gnum_cond_effects_at[j]=0;
 	}
-	printf("gnum_relevant_facts = %d \n", num_facts);
+	// printf("gnum_relevant_facts = %d \n", num_facts);
 	gnum_relevant_facts = num_facts;
-	printf("Num releveant facts = %d \n" ,gnum_relevant_facts );
+	// printf("Num releveant facts = %d \n" ,gnum_relevant_facts );
 	// 创建正负FactNode的table
 	gft_table = ( FtNode_pointer * ) calloc( gnum_relevant_facts * 2, sizeof( FtNode_pointer ) );
 
@@ -572,8 +572,8 @@ int  build_graph( int *min_time,
 		ft->next = gall_fts_pointer;// factNode前插法加入全局FactNode链表中
 		gall_fts_pointer = ft;
 		(gpos_facts_vector_at[0])[ft->uid_block] |= ft->uid_mask;// 该层记录该命题
-		dynamic_atoms[i->index]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
-		std::cout << std::endl;
+		// dynamic_atoms[i->index]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+		// std::cout << std::endl;
 	}
 	std::cout << "negative:\n";
 	for ( i = gbit_initial_state->negative->indices; i; i = i->next ) {
@@ -591,14 +591,14 @@ int  build_graph( int *min_time,
 		ft->next = gall_fts_pointer;
 		gall_fts_pointer = ft;
 		(gneg_facts_vector_at[0])[ft->uid_block] |= ft->uid_mask;
-		dynamic_atoms[i->index]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
-		std::cout << std::endl;
+		// dynamic_atoms[i->index]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+		// std::cout << std::endl;
 	}
 
 	free_fact_info_pair( gbit_initial_state );
-	printf("The initial fact vector is:\n");
-	print_BitVector(gpos_facts_vector_at[0], gft_vector_length);
-	print_BitVector( gneg_facts_vector_at[0], gft_vector_length); 
+	// printf("The initial fact vector is:\n");
+	// print_BitVector(gpos_facts_vector_at[0], gft_vector_length);
+	// print_BitVector( gneg_facts_vector_at[0], gft_vector_length); 
 	// done initial fact layer construct.
 
 	if(HEURISTYPE == CORRRP){// this option does not call in our conformant planning
@@ -3514,7 +3514,7 @@ void build_graph_evolution_step( void )
 
 	//	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPERATORS@@@@@@@@@@@@@@@@@@@@\n");fflush(stdout);
 
-	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs@@@@@@@@@@@@@@@@@@@@\n");
+	// printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs@@@@@@@@@@@@@@@@@@@@\n");
 	// 先处理含未激活effect的op
 	op = gops_with_unactivated_effects_pointer;
 	while ( op && apply_all_effects( time, op ) ) {
@@ -3524,7 +3524,7 @@ void build_graph_evolution_step( void )
 		tmp_op->thread = NULL;// remove from list
 	}
 
-	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs again@@@@@@@@@@@@@@@@@@@@\n");
+	// printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ unact effs again@@@@@@@@@@@@@@@@@@@@\n");
 	gops_with_unactivated_effects_pointer = op;
 	prev_op = op;// 第一个处理失败的op list
 	if ( op ) op = op->thread;
@@ -3540,7 +3540,7 @@ void build_graph_evolution_step( void )
 		}
 	}
 
-	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ effs@@@@@@@@@@@@@@@@@@@@\n");
+	// printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ effs@@@@@@@@@@@@@@@@@@@@\n");
 
 	o = gbit_operators;// 在initLUG中创建了gbit_operators
 	while ( o && apply_operator( time, o ) ) {/*momo007 2022.09.16 apply_operator有bug或operator创建本生有bug*/
@@ -3556,7 +3556,7 @@ void build_graph_evolution_step( void )
 
 	}
 
-	printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ effs2@@@@@@@@@@@@@@@@@@@@\n");
+	// printf("@@@@@@@@@@@@@@@@@@@@APPLYING OPS w/ effs2@@@@@@@@@@@@@@@@@@@@\n");
 
 	gbit_operators = o;
 
@@ -3622,7 +3622,7 @@ void build_graph_evolution_step( void )
 
 
 	if(MUTEX_SCHEME!=MS_NONE){
-		printf("@@@@@@@@@@@@@@@@@@@@FINDING MUTEX OPS@@@@@@@@@@@@@@@@@@@@\n");
+		// printf("@@@@@@@@@@@@@@@@@@@@FINDING MUTEX OPS@@@@@@@@@@@@@@@@@@@@\n");
 		find_mutex_ops( time );// 查找所有的mutex ops pair?
 	}
 	// print_mutex_ops(time);
@@ -4167,11 +4167,11 @@ int apply_all_effects( int time, OpNode *op_node )
 	}
 	// 所有的effect apply成功
 	if ( op_node->unactivated_effects == NULL ) {
-		printf("exiting apply all effs T\n");
+		// printf("exiting apply all effs T\n");
 		return TRUE;
 	} else {// 输出apply失败的effect
-		printf("op_node->unactivated_effects = %d\n", op_node->unactivated_effects->index);
-		printf("exiting apply all effs F\n");
+		// printf("op_node->unactivated_effects = %d\n", op_node->unactivated_effects->index);
+		// printf("exiting apmakeply all effs F\n");
 		return FALSE;
 	}
 

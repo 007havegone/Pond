@@ -3173,10 +3173,10 @@ dbn* action_dbn(const Action& action){
 DdNode* groundActionDD(const Action& action){
 	//  const Problem& problem, DdNode* ddgp, DdNode* ddng,   DdNode* col_cube){
 
-	std::cout << "lookup: ";
-	action.print(std::cout, (*my_problem).terms());
-	std::cout << std::endl
-			  << std::flush;
+	// std::cout << "lookup: ";
+	// action.print(std::cout, (*my_problem).terms());
+	// std::cout << std::endl
+	//			 << std::flush;
 	// 忽略该分支
 	if(0 && DBN_PROGRESSION){
 		action_dbn(action);

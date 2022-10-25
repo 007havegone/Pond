@@ -872,7 +872,7 @@ int RelaxedPlan::getRelaxedNumEffects(){
 	int num_effs = 0;
 	std::set<LabelledAction*>::iterator j;
 	EfNode* tmp_ef;
-	//   cout << "PLan length = " << plan_length<<endl;
+	  cout << "PLan graph level = " << plan_length<<endl;
 	for(int i = 0; (i < plan_length ); i++){
 		j = action_levels[i]->begin();
 		for(;j!=action_levels[i]->end();++j){
@@ -892,7 +892,7 @@ int RelaxedPlan::getRelaxedNumEffects(){
 			}
 		}
 	}
-	//   cout << "Num Effs in RP: " << num_effs << endl;
+	cout << "Num Effs in RP: " << num_effs << endl;
 	return num_effs;
 }
 void RelaxedPlan::unsetEffectRPFlags(){
@@ -1139,13 +1139,13 @@ double costNonNoopsCombineWorlds(set<LabelledAction*>* ops){
 }
 int RelaxedPlan::getRelaxedConformantNumActions() {
 	int num_acts = 0;
-	   cout << "PLan length = " << plan_length<<endl;
+	   cout << "PLan graph level = " << plan_length<<endl;
 	//    this->display();
 	for(int i = 0; i < plan_length; i++)
 
 		num_acts += numNonNoopsCombineWorlds(action_levels[i]);// 统计该层不重复noop action个数
 
-	/*     cout << "Num Acts in RP: " << num_acts << endl; */
+	cout << "Num Acts in RP: " << num_acts << endl;
 	return num_acts;
 }
 

@@ -1072,25 +1072,27 @@ int build_planning_graph(DdNode* init, DdNode* goal, int& levs) {
 	printf("%d\n",dynamic_atoms.size());
 	for(int i = 0; i < num_alt_facts; i++){
 		// 对命题的正负进行编码到二进制FactInfo
-		dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
+		// dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
 		// printBDD(Cudd_bddIthVar(manager, i*2));
 		if(bdd_entailed(manager, support, Cudd_bddIthVar(manager, i*2))){
 			if(Cudd_bddIsVarEssential(manager, init, i*2, 1)){
-				std::cout << "is pos\n";
+				// std::cout << "is pos\n";
 				make_entry_in_FactInfo(&tpos, i); //连接到FactInfo List中
 			}
 			else if(Cudd_bddIsVarEssential(manager, init, i*2, 0)){
-				std::cout << "is neg\n";
+				// std::cout << "is neg\n";
 				make_entry_in_FactInfo( &tneg, i);
 			}
 			else{// uncertain
-				std::cout << "is uncertain\n";
+				// std::cout << "is uncertain\n";
 				make_entry_in_FactInfo( &tpos, i);
 				make_entry_in_FactInfo( &tneg, i);
 			}
 		}
-		else
-			cout << "not in\n";
+		else{
+			// cout << "not in\n";
+		}
+			
 	}
 	Cudd_RecursiveDeref(manager,support);
 	// 那到初始状态所有命题的真假情况
@@ -1104,25 +1106,26 @@ int build_planning_graph(DdNode* init, DdNode* goal, int& levs) {
 	Cudd_Ref(support);
 	printBDD(goal);
 	for(int i = 0; i < num_alt_facts; i++){
-		dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
+		// dynamic_atoms[i]->print(cout, my_problem->domain().predicates(),my_problem->domain().functions(), my_problem->terms());
 		// printBDD(Cudd_bddIthVar(manager, i*2));
 		if(bdd_entailed(manager, support, Cudd_bddIthVar(manager, i*2))){
 			if(Cudd_bddIsVarEssential(manager, goal, i*2, 1)){
 				make_entry_in_FactInfo( &tpos, i);
-				std::cout << "is pos\n";
+				// std::cout << "is pos\n";
 			}
 			else if(Cudd_bddIsVarEssential(manager, goal, i*2, 0)){
 				make_entry_in_FactInfo( &tneg, i);
-				std::cout << "is neg\n";
+				// std::cout << "is neg\n";
 			}
 			else{
-				std::cout << "is uncertain\n";
+				// std::cout << "is uncertain\n";
 				make_entry_in_FactInfo( &tpos, i);
 				make_entry_in_FactInfo( &tneg, i);
 			}
 		}
-		else
-			cout << "not in\n";
+		else{
+			// cout << "not in\n";
+		}
 	}
 	Cudd_RecursiveDeref(manager,support);
 	// 拿到目标状态所有命题的真假情况,这里和InitLUG是否重复？
@@ -7510,7 +7513,7 @@ int getRelaxedPlanHeuristic(){
 	{
 		if(num_graphs > 1 || HEURISTYPE==HRPUNION || HEURISTYPE==HRPMAX|| HEURISTYPE==HRPSUM)
 			setKGraphTo(i);// 将第i张图数据放到全局变量随后处理
-		cout << "num levs = " << graph_levels <<endl;
+		// cout << "num levs = " << graph_levels <<endl;
 		tmp_plan_length = graph_levels;//getLabelLevel(b_initial_state, NULL);
 
 		if(tmp_plan_length == IPP_MAX_PLAN){// 无法到达目标
@@ -7565,7 +7568,7 @@ int getRelaxedPlanHeuristic(){
 				k_graphs[i]->relaxed_plan = NULL;
 			}
 			k_graphs[i]->relaxed_plan = tmp_plan;
-		}
+		}// end muti-graph
 		// 单个graph,直接赋值
 		else{
 			set_merged = TRUE;
@@ -8364,9 +8367,9 @@ double num_states_in_minterm(DdNode* dd){
 	}
 
 	void generate_BitOperatorEffects(const Action* op){
-		std::cout << "gen bit op eff for " << std::endl;
-				op->print(cout, my_problem->terms());
-				cout << endl;
+		// std::cout << "gen bit op eff for " << std::endl;
+				// op->print(cout, my_problem->terms());
+				// cout << endl;
 		list<DdNode*> c_cubes;
 		list<double> c_values;
 		BitOperator *tmp;
