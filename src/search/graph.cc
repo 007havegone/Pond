@@ -1182,23 +1182,21 @@ bool StateComparator::operator() (StateNode *lhs, StateNode *rhs) const{
 	if(mode == F_VAL && lhs->f != rhs->f)// F-value比较f
 		return (lhs->f < rhs->f);
 
-	if(mode == PR_REACH && lhs->prReached != rhs->prReached)// PR_REACH比较达到该节点的概率
-		return (lhs->prReached > rhs->prReached);
+	// if(mode == PR_REACH && lhs->prReached != rhs->prReached)// PR_REACH比较达到该节点的概率
+	// 	return (lhs->prReached > rhs->prReached);
 
-	if(mode == EXP_EGS)// EXP_EGS比较拓展到达目标的期望值
-	{
-		double lhs_exp_ps = lhs->prReached * (pow(0.99, lhs->h));
-		double rhs_exp_ps = rhs->prReached * (pow(0.99, rhs->h));
-		if(lhs_exp_ps != rhs_exp_ps)
-			return (lhs_exp_ps > rhs_exp_ps);
-		if(lhs->f != rhs->f)
-			return (lhs->f < rhs->f);
-	}
-	// 不涉及概率时，没有作用
-	// if(lhs->goalSatisfaction != rhs->goalSatisfaction)
-	// 	return (lhs->goalSatisfaction > rhs->goalSatisfaction);
-
-	if(lhs->randPriority != rhs->randPriority)
+	// if(mode == EXP_EGS)// EXP_EGS比较拓展到达目标的期望值
+	// {
+	// 	double lhs_exp_ps = lhs->prReached * (pow(0.99, lhs->h));
+	// 	double rhs_exp_ps = rhs->prReached * (pow(0.99, rhs->h));
+	// 	if(lhs_exp_ps != rhs_exp_ps)
+	// 		return (lhs_exp_ps > rhs_exp_ps);
+	// 	if(lhs->f != rhs->f)
+	// 		return (lhs->f < rhs->f);
+	// }
+	if(lhs->goalSatisfaction != rhs->goalSatisfaction)
+		return (lhs->goalSatisfaction > rhs->goalSatisfaction);
+	if (lhs->randPriority != rhs->randPriority)
 		return (lhs->randPriority < rhs->randPriority);
 
 	return lhs < rhs;	// In case this comparator is used for a set
