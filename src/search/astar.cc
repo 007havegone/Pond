@@ -95,13 +95,17 @@ bool AStar::step(){
 			continue;
 		}
 		// 计算得到后继状态结点
-		pair<const Action *const, DdNode *> act_pair(action->act, preBdd);// 动作及其前提条件pair
-		DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
-		// Cudd_Ref(successor);
-		
+		action->act->print(std::cout, my_problem->terms());
+		// pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
+		// DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
+		DdNode *successor = progress(next->dd, action->act);
+		// std::cout << "std::\n";
+		// printBDD(successor);
+		// std::cout << "new::\n";
+		// printBDD(successor2);
+		// assert(0);
 		// 后继状态为空
 		// momo007 修复该bug
-		// if(successor == Cudd_ReadZero(manager))
 		if(bdd_is_zero(manager,successor))
 		{
 			std::cout << "meet zero successor states\n";

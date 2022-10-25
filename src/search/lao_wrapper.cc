@@ -28,6 +28,7 @@
 #include "simulator/monitor.h"  // for BDDtoITEString
 #include "float.h"
 #include "solve.h"
+#include <typeinfo>
 
 using namespace __gnu_cxx;
 using namespace std;
@@ -1038,6 +1039,200 @@ DdNode* stateBackward(DdManager *m,DdNode *f)
 	return op1;
 }
 
+DdNode* or_merge(list<DdNode*> states)
+{
+	DdNode *res = Cudd_ReadLogicZero(manager);
+	DdNode *temp = NULL;
+	for (list<DdNode *>::iterator ite = states.begin(); ite != states.end(); ++ite)
+	{
+		temp = Cudd_bddOr(manager, res, *ite);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, res);
+		res = temp;
+	}
+	return res;
+}
+DdNode* update(DdNode* state, list<DdNode*> eff)
+{
+	DdNode *temp;
+	for (list<DdNode *>::iterator ite = eff.begin(); ite != eff.end(); ++ite)
+	{
+		if(bdd_entailed(manager, state, *ite))
+		{
+			continue;
+		}
+		else if(bdd_entailed(manager, state, Cudd_Not(*ite)))
+		{
+			state = Cudd_bddRestrict(manager, state, Cudd_Not(*ite));
+			// printBDD(state);
+			temp = Cudd_bddAnd(manager, state, *ite);
+			Cudd_Ref(temp);
+			Cudd_RecursiveDeref(manager, state);
+			state = temp;
+			// printBDD(state);
+		}
+		else
+		{
+			temp = Cudd_bddAnd(manager, state, *ite);
+			Cudd_Ref(temp);
+			Cudd_RecursiveDeref(manager, state);
+			state = temp;
+		}
+	}
+	return state;
+}
+
+map<DdNode *, set<DdNode *> > SEmap;
+void partition(DdNode *ps, const pEffect& effect)
+{
+	const SimpleEffect *se = dynamic_cast<const SimpleEffect *>(&effect);
+	if(se != NULL)
+	{
+		if(SEmap.find(ps) == SEmap.end())
+		{
+			SEmap[ps] = set<DdNode *>();
+		}
+		DdNode *effBDD = formula_bdd(se->atom(), false);
+		bool is_true = typeid(*se) == typeid(AddEffect);
+		if(! is_true)
+		{
+			effBDD = Cudd_Not(effBDD);
+			Cudd_Ref(effBDD);
+		}
+		// printBDD(effBDD);
+		if (SEmap[ps].find(effBDD) == SEmap[ps].end())
+		{
+			SEmap[ps].insert(effBDD);
+		}
+		return;
+	}
+	const ConjunctiveEffect *ce = dynamic_cast<const ConjunctiveEffect *>(&effect);
+	if(ce != NULL)
+	{
+		size_t n = ce->size();
+		for (size_t i = 0; i < n;++i)
+		{
+			partition(ps, ce->conjunct(i));
+		}
+		return;
+	}
+	assert(0);
+}
+void partition(list<DdNode*> &ps,const pEffect& effect)
+{
+	// 1. simple efffect
+	// all ps add the eff
+	const SimpleEffect *se = dynamic_cast<const SimpleEffect *>(&effect);
+	if(se != NULL)
+	{
+		for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end();++ite)
+		{
+			if(SEmap.find(*ite) == SEmap.end())
+			{
+				SEmap[*ite] = set<DdNode *>();
+			}
+			DdNode *effBDD = formula_bdd(se->atom(),false);
+			bool is_true = typeid(*se) == typeid(AddEffect);
+			if (!is_true)
+			{
+				effBDD = Cudd_Not(effBDD);
+				Cudd_Ref(effBDD);
+			}
+			if (SEmap[*ite].find(effBDD) == SEmap[*ite].end())
+			{
+				SEmap[*ite].insert(effBDD);
+			}
+		}
+		return;
+	}
+	// 2. conditional effect
+	const ConditionalEffect *cde = dynamic_cast<const ConditionalEffect *>(&effect);
+	if(cde != NULL)
+	{
+		list<DdNode *> temp = ps;// create a temp
+		DdNode *preBDD = formula_bdd(cde->condition(), false);
+		bool flag = false;
+		// 考虑每个state
+		for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
+		{
+			// sat, only consider current state
+			if(bdd_entailed(manager, *ite, preBDD))
+			{
+				partition(*ite, cde->effect());
+			}
+			// unsat, pass this state
+			else if(bdd_entailed(manager, *ite, Cudd_Not(preBDD)))
+			{
+				continue;
+			}
+			// unknown, split the state
+			else
+			{
+				flag = true;
+				DdNode *t1 = Cudd_bddAnd(manager, *ite, preBDD);
+				Cudd_Ref(t1);
+				Cudd_RecursiveDeref(manager, *ite);
+				DdNode *t2 = Cudd_bddAnd(manager,*ite, Cudd_Not(preBDD));
+				Cudd_Ref(t2);
+				Cudd_RecursiveDeref(manager, *ite);
+				temp.remove(*ite);
+				temp.push_back(t1);
+				temp.push_back(t2);
+				SEmap[t1] = SEmap[*ite];
+				SEmap[t2] = SEmap[*ite];
+				SEmap.erase(*ite);// do not consider this state
+				partition(t1, cde->effect());// only add to the entiable one
+			}
+		}
+		if(flag)
+			ps = temp;
+		return;
+	}
+	// 3. conjuntion effect
+	//   do for each conjunct
+	const ConjunctiveEffect *ce = dynamic_cast<const ConjunctiveEffect *>(&effect);
+	if(ce != NULL)
+	{
+		size_t n = ce->size();
+		for (size_t i = 0; i < n; ++i)
+		{
+			// for each effect, may change the set ps (split the state),
+			// and next time the new set ps will pass to the partition
+			partition(ps, ce->conjunct(i));
+		}
+		return;
+	}
+	assert(0);
+}
+/**
+ * momo007 2022.10.24 BDD-based progress
+ */
+DdNode* progress(DdNode* parent, const Action* a)
+{
+	SEmap.clear();
+	list<DdNode *> ps; // the belief state after partition
+	ps.push_back(parent);
+	// TO.DO partition
+	// 1. consider each precondtion
+	// 2. partion the state and update te Effect set.
+	// 3. update the Belief state respectively.
+	partition(ps, a->effect());
+	for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
+	{
+		// printf("before update:\n");
+		// printBDD(*ite);
+		// for (set<DdNode *>::iterator i = SEmap[*ite].begin(); i != SEmap[*ite].end(); i++)
+		// {
+		// 	printBDD(*i);
+		// }
+		*ite = update(*ite, list<DdNode *>(SEmap[*ite].begin(), SEmap[*ite].end()));
+		// printf("done after\n");
+		// printBDD(*ite);
+	}
+	DdNode *res = or_merge(ps);
+	// printBDD(res);
+	return res;
+}
 /**
  * momo007 2022.05.11 动作节点进行更新
  */
@@ -1064,15 +1259,24 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 		// 获取action的BDD，核心实现，涉及到axioms
 		DdNode *t = groundActionDD(*(a->first));
 		Cudd_Ref(t);
-		if(verbosity>2)
+		if (verbosity > 2)
 		{
 			std::cout << "print action BDD\n";
 			printBDD(t);
+			if((a->first)->hasObservation())
+			{
+				int i = 0;
+				for (std::list<DdNode *>::iterator ite = action_observations[a->first]->begin(); ite != action_observations[a->first]->end(); ++ite)
+				{
+					printf("obs: %d\n", i++);
+					printBDD(*ite);
+				}
+			}
 		}
 
 		// 动作的BDD为空
 		if(t == Cudd_ReadZero(manager) || t == Cudd_ReadLogicZero(manager)){
-			std::cout << "action " << a->first->name() << "BDD is zeor\n";
+			std::cout << "action " << a->first->name() << "BDD is zero\n";
 			if (my_problem->domain().requirements.probabilistic)
 				return Cudd_ReadZero(manager);
 			else if(my_problem->domain().requirements.non_deterministic)
