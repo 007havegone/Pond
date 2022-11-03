@@ -1039,33 +1039,40 @@ DdNode* stateBackward(DdManager *m,DdNode *f)
 	return op1;
 }
 
-DdNode* or_merge(list<DdNode*> states)
+DdNode* or_merge(list<DdNode*>& states)
 {
 	DdNode *res = Cudd_ReadLogicZero(manager);
+	Cudd_Ref(res);
 	DdNode *temp = NULL;
 	for (list<DdNode *>::iterator ite = states.begin(); ite != states.end(); ++ite)
 	{
 		temp = Cudd_bddOr(manager, res, *ite);
 		Cudd_Ref(temp);
-		Cudd_RecursiveDeref(manager, res);
 		res = temp;
 	}
 	return res;
 }
-DdNode* update(DdNode* state, list<DdNode*> eff)
+// done
+map<DdNode *, set<DdNode *> > SEmap;
+DdNode* update(DdNode* state,set<DdNode*>::iterator sta, set<DdNode*>::iterator end)
 {
 	DdNode *temp;
-	for (list<DdNode *>::iterator ite = eff.begin(); ite != eff.end(); ++ite)
+	for (;sta != end;++sta)
 	{
-		if(bdd_entailed(manager, state, *ite))
+		// printBDD(*sta);
+		if (bdd_entailed(manager, state, *sta))
 		{
 			continue;
 		}
-		else if(bdd_entailed(manager, state, Cudd_Not(*ite)))
+		else if(bdd_entailed(manager, state, Cudd_Not(*sta)))
 		{
-			state = Cudd_bddRestrict(manager, state, Cudd_Not(*ite));
+			DdNode *nsta = Cudd_Not(*sta);
+			Cudd_Ref(nsta);
+			temp = Cudd_bddRestrict(manager, state, nsta);
+			Cudd_Ref(temp);
+			state = temp;
 			// printBDD(state);
-			temp = Cudd_bddAnd(manager, state, *ite);
+			temp = Cudd_bddAnd(manager, state, *sta);
 			Cudd_Ref(temp);
 			Cudd_RecursiveDeref(manager, state);
 			state = temp;
@@ -1073,7 +1080,7 @@ DdNode* update(DdNode* state, list<DdNode*> eff)
 		}
 		else
 		{
-			temp = Cudd_bddAnd(manager, state, *ite);
+			temp = Cudd_bddAnd(manager, state, *sta);
 			Cudd_Ref(temp);
 			Cudd_RecursiveDeref(manager, state);
 			state = temp;
@@ -1082,7 +1089,6 @@ DdNode* update(DdNode* state, list<DdNode*> eff)
 	return state;
 }
 
-map<DdNode *, set<DdNode *> > SEmap;
 void partition(DdNode *ps, const pEffect& effect)
 {
 	const SimpleEffect *se = dynamic_cast<const SimpleEffect *>(&effect);
@@ -1092,17 +1098,19 @@ void partition(DdNode *ps, const pEffect& effect)
 		{
 			SEmap[ps] = set<DdNode *>();
 		}
-		DdNode *effBDD = formula_bdd(se->atom(), false);
 		bool is_true = typeid(*se) == typeid(AddEffect);
-		if(! is_true)
-		{
-			effBDD = Cudd_Not(effBDD);
-			Cudd_Ref(effBDD);
-		}
-		// printBDD(effBDD);
+		DdNode *effBDD = is_true ? formula_bdd(se->atom(), false):Cudd_Not(formula_bdd(se->atom(), false));
+		Cudd_Ref(effBDD);
 		if (SEmap[ps].find(effBDD) == SEmap[ps].end())
 		{
 			SEmap[ps].insert(effBDD);
+		}
+		else// exist
+		{
+			if(is_true)
+				Cudd_Deref(effBDD);
+			else
+				Cudd_RecursiveDeref(manager, effBDD);
 		}
 		return;
 	}
@@ -1131,16 +1139,19 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 			{
 				SEmap[*ite] = set<DdNode *>();
 			}
-			DdNode *effBDD = formula_bdd(se->atom(),false);
 			bool is_true = typeid(*se) == typeid(AddEffect);
-			if (!is_true)
-			{
-				effBDD = Cudd_Not(effBDD);
-				Cudd_Ref(effBDD);
-			}
+			DdNode *effBDD = is_true ? formula_bdd(se->atom(), false):Cudd_Not(formula_bdd(se->atom(), false));
+			Cudd_Ref(effBDD);
 			if (SEmap[*ite].find(effBDD) == SEmap[*ite].end())
 			{
 				SEmap[*ite].insert(effBDD);
+			}
+			else
+			{
+				if(is_true)
+					Cudd_Deref(effBDD);
+				else
+					Cudd_RecursiveDeref(manager, effBDD);
 			}
 		}
 		return;
@@ -1171,20 +1182,28 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 				flag = true;
 				DdNode *t1 = Cudd_bddAnd(manager, *ite, preBDD);
 				Cudd_Ref(t1);
-				Cudd_RecursiveDeref(manager, *ite);
+				// Cudd_RecursiveDeref(manager, *ite);
 				DdNode *t2 = Cudd_bddAnd(manager,*ite, Cudd_Not(preBDD));
 				Cudd_Ref(t2);
-				Cudd_RecursiveDeref(manager, *ite);
-				temp.remove(*ite);
+				// Cudd_RecursiveDeref(manager, *ite);
 				temp.push_back(t1);
 				temp.push_back(t2);
-				SEmap[t1] = SEmap[*ite];
-				SEmap[t2] = SEmap[*ite];
-				SEmap.erase(*ite);// do not consider this state
+				temp.remove(*ite);
+				if(SEmap.find(*ite) != SEmap.end())
+				{
+					SEmap[t1] = SEmap[*ite];
+					SEmap[t2] = SEmap[*ite];
+					// for (set<DdNode *>::iterator it = SEmap[t1].begin(); it != SEmap[t1].end(); it++)
+					// {
+					// 	Cudd_Ref(*it);
+					// }
+					SEmap.erase(*ite);			 // do not consider this state
+				}
+				// Cudd_RecursiveDeref(manager, *ite);
 				partition(t1, cde->effect());// only add to the entiable one
 			}
 		}
-		if(flag)
+		if (flag)
 			ps = temp;
 		return;
 	}
@@ -1209,28 +1228,49 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
  */
 DdNode* progress(DdNode* parent, const Action* a)
 {
+	// release the memory
+	// for (map<DdNode *, set<DdNode *> >::iterator ite = SEmap.begin(); ite != SEmap.end(); ite++)
+	// {
+	// 	for (set<DdNode *>::iterator ite2 = (*ite).second.begin(); ite2 != (*ite).second.end(); ite2++)
+	// 	{
+	// 		Cudd_RecursiveDeref(manager, *ite2);
+	// 	}
+	// }
 	SEmap.clear();
-	list<DdNode *> ps; // the belief state after partition
+	list<DdNode *> ps;
 	ps.push_back(parent);
+	// printBDD(parent);
 	// TO.DO partition
 	// 1. consider each precondtion
 	// 2. partion the state and update te Effect set.
 	// 3. update the Belief state respectively.
+	// 4. merge states to get the successor belief state
 	partition(ps, a->effect());
 	for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
 	{
 		// printf("before update:\n");
 		// printBDD(*ite);
-		// for (set<DdNode *>::iterator i = SEmap[*ite].begin(); i != SEmap[*ite].end(); i++)
+		// if(SEmap.find(*ite) != SEmap.end())
+		// 	for (set<DdNode *>::iterator i = SEmap[*ite].begin(); i != SEmap[*ite].end(); i++)
+		// 	{
+		// 		printBDD(*i);
+		// 	}
+		// else
 		// {
-		// 	printBDD(*i);
-		// }
-		*ite = update(*ite, list<DdNode *>(SEmap[*ite].begin(), SEmap[*ite].end()));
+		// 	std::cout << "Empty effect set" << std::endl;
+		// }	
+		if(SEmap.find(*ite) == SEmap.end() || SEmap[*ite].size() == 0)
+			continue;
+		*ite = update(*ite,SEmap[*ite].begin(),SEmap[*ite].end());
 		// printf("done after\n");
 		// printBDD(*ite);
+		
 	}
 	DdNode *res = or_merge(ps);
-	// printBDD(res);
+	for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
+	{
+		Cudd_RecursiveDeref(manager, *ite);
+	}
 	return res;
 }
 /**

@@ -12,7 +12,7 @@
 using namespace std;
 
 extern double gWeight;
-
+int debugCnt = 0;
 AStar::AStar()
 : StepSearch(ASTAR){
 }
@@ -29,8 +29,6 @@ void AStar::setup(StateNode* start){
 	next->BestPrevAction = NULL; //最佳action值为空
 	next->NextActions = NULL;
 	open.insert(next); // 插入节点next
-
-	first = true;//第一次调用
 }
 /**
  * 返回true，说明需要继续搜索
@@ -38,11 +36,6 @@ void AStar::setup(StateNode* start){
  */
 bool AStar::step(){
 	assert(next != NULL);
-
-	if(first){
-		first = false;
-		return true;
-	}
 	if(open.empty() || next->isGoal()){
 		cout << "\t[sNo = " << next->StateNo << "]\t[g = " << next->g << "]\t[h = " << next->h << "]\t[t = " << next->goalSatisfaction << "]\t[pr =" << next->prReached  << "]"<< endl;
 		if(open.empty())
@@ -84,6 +77,7 @@ bool AStar::step(){
 	}
 	// 拓展结点个数+1
 	expandedNodes++;
+	std::cout << "######:" << expandedNodes << std::endl;
 	// 考虑每个动作，计算后继状态，同时链接起来
 	for (ActionNodeList::iterator act_it = next->NextActions->begin(); act_it != next->NextActions->end(); act_it++)
 	{
@@ -95,10 +89,13 @@ bool AStar::step(){
 			continue;
 		}
 		// 计算得到后继状态结点
-		action->act->print(std::cout, my_problem->terms());
+		// debugCnt++;
+		// std::cout << "######:" << debugCnt << std::endl;
+		// action->act->print(std::cout, my_problem->terms());
 		// pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
 		// DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
 		DdNode *successor = progress(next->dd, action->act);
+		// Cudd_Ref(successor);
 		// std::cout << "std::\n";
 		// printBDD(successor);
 		// std::cout << "new::\n";
@@ -148,7 +145,10 @@ bool AStar::step(){
 			StateNode::generated[successor] = child;
 		}
 		else
+		{
 			child = StateNode::generated[successor];
+			Cudd_RecursiveDeref(manager, successor);
+		}
 
 		assert(child != NULL);
 		double new_g = next->g + action->Cost;// A* Heuristic

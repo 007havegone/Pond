@@ -714,8 +714,8 @@ int main(int argc, char *argv[])
 			     }
 			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
-			/** 
-			 * momo 007 2022.05.26 
+			/**
+			 * momo 007 2022.05.26
 			 * not used */
 			// if (RBPF_PROGRESSION)
 			// {
@@ -740,7 +740,7 @@ int main(int argc, char *argv[])
 			// 	delete[] variables;
 			// }
 
-			printBDD(b_initial_state);
+			// printBDD(b_initial_state);
 			cout << "Grounding/Instantiation Time: " << ((float)(clock() - groundingStartTime) / CLOCKS_PER_SEC) << endl;
 			cout << "==================================\n";
 			
@@ -850,7 +850,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			std::cout << 'call search()\n';
+			std::cout << "call search()\n";
 			search->search();
 		}
 			
