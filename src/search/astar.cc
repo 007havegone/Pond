@@ -12,7 +12,7 @@
 using namespace std;
 
 extern double gWeight;
-int debugCnt = 0;
+
 AStar::AStar()
 : StepSearch(ASTAR){
 }
@@ -23,7 +23,8 @@ void AStar::setup(StateNode* start){
 	StepSearch::setup(start);// 设置初始状态
 	closed.clear();// 清空两个表
 	open.clear();
-	open.key_comp().init(StateComparator::HEUR);// 默认使用HEUR
+	// open.key_comp().init(StateComparator::HEUR);// 默认使用HEUR
+	open.key_comp().init(StateComparator::F_VAL);
 	next = start;
 	next->PrevActions = NULL;
 	next->BestPrevAction = NULL; //最佳action值为空
@@ -41,8 +42,8 @@ bool AStar::step(){
 		if(open.empty())
 			cout << "Dead end!\n";
 		if(next->isGoal()){
-			printf("goal BDD is :");
-			printBDD(next->dd);
+			// printf("goal BDD is :");
+			// printBDD(next->dd);
 			cout << "Found branch!\n";
 			printBestPlan();//输出最佳方案
 		}
@@ -69,6 +70,11 @@ bool AStar::step(){
 	for(map<const Action*, DdNode*>::iterator a = action_preconds.begin(); a != action_preconds.end(); a++){
 		if((*a).first->name().compare("noop_action") == 0)
 			continue;
+		DdNode *preBdd = action_preconds.find((*a).first)->second;
+		if(bdd_isnot_one(manager, bdd_imply(manager, next->dd,preBdd)))
+		{
+			continue;
+		}
 		ActionNode *actNode = new ActionNode();
 		actNode->act = (*a).first;
 		actNode->PrevState = next;// 状态结点连接动作结点
@@ -77,24 +83,27 @@ bool AStar::step(){
 	}
 	// 拓展结点个数+1
 	expandedNodes++;
-	std::cout << "######:" << expandedNodes << std::endl;
+	// std::cout << "######:" << expandedNodes << std::endl;
 	// 考虑每个动作，计算后继状态，同时链接起来
 	for (ActionNodeList::iterator act_it = next->NextActions->begin(); act_it != next->NextActions->end(); act_it++)
 	{
 		ActionNode *action = *act_it;
 		DdNode *preBdd = action_preconds.find(action->act)->second;
-		if (bdd_isnot_one(manager, bdd_imply(manager, next->dd, preBdd))) // action满足前提条件
-		{
-			// 后续考虑将该动作节点删除
-			continue;
-		}
 		// 计算得到后继状态结点
-		// debugCnt++;
+		debugCnt++;
 		// std::cout << "######:" << debugCnt << std::endl;
 		// action->act->print(std::cout, my_problem->terms());
-		// pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
-		// DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
-		DdNode *successor = progress(next->dd, action->act);
+		pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
+		DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
+		// DdNode *successor = progress(next->dd, action->act);
+		// if(successor1 != successor)
+		// {
+		// 	printBDD(next->dd);
+		// 	action->act->print(std::cout, my_problem->terms());
+		// 	printBDD(successor);
+		// 	printBDD(successor1);
+		// 	assert(false);
+		// }
 		// Cudd_Ref(successor);
 		// std::cout << "std::\n";
 		// printBDD(successor);
