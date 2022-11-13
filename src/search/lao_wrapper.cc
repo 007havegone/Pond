@@ -1048,12 +1048,30 @@ DdNode* or_merge(list<DdNode*>& states)
 	{
 		temp = Cudd_bddOr(manager, res, *ite);
 		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, *ite);
 		res = temp;
 	}
 	return res;
 }
 // done
+struct DdNodePair
+{
+	DdNodePair()
+	{
+		f = NULL;
+		s = NULL;
+	}
+	DdNodePair(DdNode* d1, DdNode* d2)
+	{
+		f = d1;
+		s = d2;
+	}
+	DdNode *f;
+	DdNode *s;
+};
+
 map<DdNode *, set<DdNode *> > SEmap;
+map<DdNode *, vector<DdNodePair> > SEmapOneof; // 处理unknown命题
 DdNode* update(DdNode* state,set<DdNode*>::iterator sta, set<DdNode*>::iterator end)
 {
 	DdNode *temp;
@@ -1084,9 +1102,83 @@ DdNode* update(DdNode* state,set<DdNode*>::iterator sta, set<DdNode*>::iterator 
 			Cudd_Ref(temp);
 			Cudd_RecursiveDeref(manager, state);
 			state = temp;
+			// printBDD(state);
 		}
 	}
 	return state;
+}
+
+vector<int> unknownSet;
+DdNode* updateOne(DdNode* state, DdNode* fact)
+{
+	DdNode *temp, *nsta;
+	if(bdd_imply(manager, state,fact))
+	{
+		return state;
+	}
+	if(bdd_imply(manager, state, Cudd_Not(fact)))
+	{
+		nsta = Cudd_Not(fact);
+		temp = Cudd_bddRestrict(manager, state, nsta);
+		Cudd_Ref(temp);
+		state = temp;
+	}
+	// always need to update the state with fact
+	temp = Cudd_bddAnd(manager, state, fact);
+	Cudd_Ref(temp);
+	Cudd_RecursiveDeref(manager, state);
+	state = temp;
+	return state;
+}
+// 实现一个01全排序算法，更新后，合并state
+// 当前在第i个DdNode的第j个位置,后续将DdNodePair拓展
+void updateUnkown(DdNode *state, DdNode *&res, const vector<DdNodePair> &unkEff, int cur)
+{
+	DdNode *temp;
+	if (cur == unkEff.size())
+	{
+		// 更新
+		for (int i = 0; i < unkEff.size();++i)
+		{
+			// std::cout << unknownSet[i] << " ";
+			state = unknownSet[i] == 0 ? updateOne(state, unkEff[i].f) : updateOne(state, unkEff[i].s);
+			// printBDD(state);
+		}
+		// std::cout << std::endl;
+		temp = Cudd_bddOr(manager, res, state);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, res);
+		res = temp;
+		// printBDD(res);
+		return;
+	}
+	unknownSet[cur] = 0;
+	updateUnkown(state, res, unkEff, cur + 1);
+	Cudd_Ref(state);
+	unknownSet[cur] = 1;
+	updateUnkown(state, res, unkEff, cur + 1);
+}
+void addUnknownEffect(DdNode *ps, const ProbabilisticEffect* pe)
+{
+	std::cout << "unknown effect" << std::endl;
+	const SimpleEffect *t1 = dynamic_cast<const SimpleEffect*>(&pe->effect(0));
+	const SimpleEffect *t2 = dynamic_cast<const SimpleEffect *>(&pe->effect(1));
+	// t1->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+	// t2->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+	if (t1 == NULL || t2 == NULL)
+		throw Exception("No support this kind of unknown effect");
+	bool is_true = typeid(*t1) == typeid(AddEffect);
+	DdNode *effBDD = is_true ? formula_bdd(t1->atom(), false):Cudd_Not(formula_bdd(t1->atom(), false));
+	if(SEmapOneof.find(ps) == SEmapOneof.end())
+	{
+		SEmapOneof[ps] = vector<DdNodePair>();
+	}
+	DdNodePair pair;
+	pair.f = effBDD;
+	is_true = typeid(*t2) == typeid(AddEffect);
+	effBDD = is_true ? formula_bdd(t2->atom(), false) : Cudd_Not(formula_bdd(t2->atom(), false));
+	pair.s = effBDD;
+	SEmapOneof[ps].push_back(pair);
 }
 
 void partition(DdNode *ps, const pEffect& effect)
@@ -1100,17 +1192,13 @@ void partition(DdNode *ps, const pEffect& effect)
 		}
 		bool is_true = typeid(*se) == typeid(AddEffect);
 		DdNode *effBDD = is_true ? formula_bdd(se->atom(), false):Cudd_Not(formula_bdd(se->atom(), false));
-		Cudd_Ref(effBDD);
 		if (SEmap[ps].find(effBDD) == SEmap[ps].end())
 		{
 			SEmap[ps].insert(effBDD);
 		}
 		else// exist
 		{
-			if(is_true)
-				Cudd_Deref(effBDD);
-			else
-				Cudd_RecursiveDeref(manager, effBDD);
+			Cudd_RecursiveDeref(manager, effBDD);
 		}
 		return;
 	}
@@ -1122,6 +1210,12 @@ void partition(DdNode *ps, const pEffect& effect)
 		{
 			partition(ps, ce->conjunct(i));
 		}
+		return;
+	}
+	const ProbabilisticEffect *pe = dynamic_cast<const ProbabilisticEffect *>(&effect);
+	if(pe!= NULL)
+	{
+		addUnknownEffect(ps, pe);
 		return;
 	}
 	assert(0);
@@ -1141,17 +1235,13 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 			}
 			bool is_true = typeid(*se) == typeid(AddEffect);
 			DdNode *effBDD = is_true ? formula_bdd(se->atom(), false):Cudd_Not(formula_bdd(se->atom(), false));
-			Cudd_Ref(effBDD);
 			if (SEmap[*ite].find(effBDD) == SEmap[*ite].end())
 			{
 				SEmap[*ite].insert(effBDD);
 			}
 			else
 			{
-				if(is_true)
-					Cudd_Deref(effBDD);
-				else
-					Cudd_RecursiveDeref(manager, effBDD);
+				Cudd_RecursiveDeref(manager, effBDD);
 			}
 		}
 		return;
@@ -1193,11 +1283,22 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 				{
 					SEmap[t1] = SEmap[*ite];
 					SEmap[t2] = SEmap[*ite];
-					// for (set<DdNode *>::iterator it = SEmap[t1].begin(); it != SEmap[t1].end(); it++)
-					// {
-					// 	Cudd_Ref(*it);
-					// }
+					for (set<DdNode *>::iterator it = SEmap[t1].begin(); it != SEmap[t1].end(); it++)
+					{
+						Cudd_Ref(*it);
+					}
 					SEmap.erase(*ite);			 // do not consider this state
+				}
+				if(SEmapOneof.find(*ite) != SEmapOneof.end())
+				{
+					SEmapOneof[t1] = SEmapOneof[*ite];
+					SEmapOneof[t2] = SEmapOneof[*ite];
+					for (vector<DdNodePair>::iterator it = SEmapOneof[t1].begin(); it != SEmapOneof[t1].end(); it++)
+					{
+						Cudd_Ref(it->f);
+						Cudd_Ref(it->s);
+					}
+					SEmapOneof.erase(ite);
 				}
 				// Cudd_RecursiveDeref(manager, *ite);
 				partition(t1, cde->effect());// only add to the entiable one
@@ -1221,56 +1322,104 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 		}
 		return;
 	}
+	const ProbabilisticEffect *pe = dynamic_cast<const ProbabilisticEffect *>(&effect);
+	if(pe != NULL)
+	{
+		std::cout << pe->size() << std::endl;
+		for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
+		{
+			// std::cout << "prob" << pe->probability(i);
+			// pe->effect(i).print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+			// std::cout << std::flush;
+			addUnknownEffect(*ite, pe);
+		}
+		return;
+	}
 	assert(0);
 }
 /**
  * momo007 2022.10.24 BDD-based progress
  */
-DdNode* progress(DdNode* parent, const Action* a)
+int dt = 0;
+DdNode *progress(DdNode *parent, const Action *a)
 {
-	// release the memory
-	// for (map<DdNode *, set<DdNode *> >::iterator ite = SEmap.begin(); ite != SEmap.end(); ite++)
-	// {
-	// 	for (set<DdNode *>::iterator ite2 = (*ite).second.begin(); ite2 != (*ite).second.end(); ite2++)
-	// 	{
-	// 		Cudd_RecursiveDeref(manager, *ite2);
-	// 	}
-	// }
-	SEmap.clear();
-	list<DdNode *> ps;
-	ps.push_back(parent);
-	// printBDD(parent);
+	dt++;
 	// TO.DO partition
 	// 1. consider each precondtion
 	// 2. partion the state and update te Effect set.
 	// 3. update the Belief state respectively.
 	// 4. merge states to get the successor belief state
+	// release the memory
+	for (map<DdNode *, set<DdNode *> >::iterator ite = SEmap.begin(); ite != SEmap.end(); ite++)
+	{
+		for (set<DdNode *>::iterator ite2 = (*ite).second.begin(); ite2 != (*ite).second.end(); ite2++)
+		{
+			Cudd_RecursiveDeref(manager, *ite2);
+		}
+	}
+	for (map<DdNode *, vector<DdNodePair> >::iterator ite = SEmapOneof.begin(); ite != SEmapOneof.end(); ite++)
+	{
+		for (vector<DdNodePair>::iterator ite2 = (*ite).second.begin(); ite2 != (*ite).second.end();ite2++)
+		{
+			Cudd_RecursiveDeref(manager, ite2->f);
+			Cudd_RecursiveDeref(manager, ite2->s);
+		}
+	}
+	SEmap.clear();
+	SEmapOneof.clear();
+	list<DdNode *> ps;
+	ps.push_back(parent);
+	// printBDD(parent);
+	// std::cout << a->name() << std::endl;
 	partition(ps, a->effect());
+	DdNode *backup;
 	for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
 	{
+
 		// printf("before update:\n");
 		// printBDD(*ite);
 		// if(SEmap.find(*ite) != SEmap.end())
+		// {
 		// 	for (set<DdNode *>::iterator i = SEmap[*ite].begin(); i != SEmap[*ite].end(); i++)
-		// 	{
 		// 		printBDD(*i);
-		// 	}
+		// }
 		// else
 		// {
 		// 	std::cout << "Empty effect set" << std::endl;
-		// }	
-		if(SEmap.find(*ite) == SEmap.end() || SEmap[*ite].size() == 0)
-			continue;
-		*ite = update(*ite,SEmap[*ite].begin(),SEmap[*ite].end());
+		// }
+		// if(SEmapOneof.find(*ite) != SEmapOneof.end())
+		// {
+		// 	for (vector<DdNodePair>::iterator i = SEmapOneof[*ite].begin(); i != SEmapOneof[*ite].end();++i)
+		// 	{
+		// 		std::cout << "first BDD is\n";
+		// 		printBDD(i->f);
+		// 		std::cout << "second BDD is\n";
+		// 		printBDD(i->s);
+		// 	}
+		// }
+		backup = *ite;
+		if (SEmap.find(*ite) != SEmap.end() && SEmap[*ite].size() != 0)
+		{
+			Cudd_Ref(backup);
+			*ite = update(*ite, SEmap[*ite].begin(), SEmap[*ite].end());
+		}
 		// printf("done after\n");
+		// printBDD(*ite);
+		if(SEmapOneof.find(backup) != SEmapOneof.end() && SEmapOneof[backup].size() !=0)
+		{
+			DdNode *res = Cudd_ReadLogicZero(manager);
+			Cudd_Ref(res);
+			unknownSet = vector<int>(SEmapOneof[backup].size());
+			updateUnkown(*ite, res, SEmapOneof[backup], 0);
+			*ite = res;
+		}
+		// printf("done unknown\n");
 		// printBDD(*ite);
 		
 	}
 	DdNode *res = or_merge(ps);
-	for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
-	{
-		Cudd_RecursiveDeref(manager, *ite);
-	}
+	std::cout << "after or_merge operator()\n";
+	// printBDD(res);
 	return res;
 }
 /**
@@ -1295,7 +1444,7 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 	}
 	// case2:
 	else{
-		std::cout << "progress mode: bdd\n";
+		// std::cout << "progress mode: bdd\n";
 		// 获取action的BDD，核心实现，涉及到axioms
 		DdNode *t = groundActionDD(*(a->first));
 		Cudd_Ref(t);
@@ -1335,7 +1484,7 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 			std::cout << "After perform the action\n";
 			printBDD(result);	
 		}
-		std::cout << "@@@@@@@@@@@@@@@@@@@@@@\n";
+		// std::cout << "@@@@@@@@@@@@@@@@@@@@@@\n";
 		// 定义了event，进一步更新
 		// DdNode *ex_result;
 		// if(event_preconds.size() > 0){
@@ -2083,7 +2232,7 @@ DdNode * progress(DdNode *image,DdNode *parent){
 	}
 	// 非确定性更新
 	else if(my_problem->domain().requirements.non_deterministic){
-		std::cout << "bdd progress\n";
+		// std::cout << "bdd progress\n";
 		// 计算 parent /\ image，随后对 current state variable进行遗忘
 		tmp1 = Cudd_bddAndAbstract(manager,parent, image,current_state_cube);
 		Cudd_Ref(tmp1);
