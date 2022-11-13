@@ -10,8 +10,8 @@ globals.cc -- All the main global definitions. */
 #include "float.h"
 
 int allowed_time =-1;//10000000;
-
-// using node to represente the state variable 
+int debugCnt = 0;
+// using node to represente the state variable
 DdNode ** current_state_vars;// 当前状态变量列表
 DdNode ** next_state_vars;// 后继状态变量列表
 DdNode ** aux_state_vars;// 辅助状态变量

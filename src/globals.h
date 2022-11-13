@@ -178,7 +178,7 @@ class label_symbol
 };
 
 #include "ppddl/allheaders.h"
-
+extern int debugCnt;
 extern bool OPTIMIZE_REWARDS;
 extern bool OPTIMIZE_PROBABILITY;
 extern const Action* terminalAction;
