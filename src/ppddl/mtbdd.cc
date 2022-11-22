@@ -3165,7 +3165,36 @@ dbn* action_dbn(const Action& action){
 	//action_dbns[&action]->get_dds();
 
 }
-
+DdNode* getObservationDD(const Action& action){
+	assert(action.hasObservation());
+	if(action_observations.count(&action) > 0){
+		return action_observations[&action]->front();
+	}
+	std::list<DdNode*>* ddos = NULL; 
+	int err = 0;
+	action.setProbabilityFromExpressions(my_problem);
+	try{
+		std::cout << "start Observation BDD()\n";
+		ddos = observation_mtbdds(action, *my_problem);
+		std::cout << "done Observation BDD()\n";
+	} catch (std::logic_error& e) {
+		err = 1;
+	}
+	if(!err){
+		if(ddos && ddos->size() > 0){
+			OBSERVABILITY = OBS_PART;
+			action_observations.insert(std::make_pair(&action, ddos));
+			ddos = NULL;
+		}
+	}
+	else{
+		std::cout << "ERROR, pruning: ";
+		if(LUGTOTEXT)
+			num_alt_effs++;//for dummy unconditional effect index
+		return Cudd_ReadZero(manager);
+	}
+	return action_observations[&action]->front();
+}
 /**
  * momo007 2022.05.12 获取动作的BDD
  * 
