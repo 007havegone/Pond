@@ -3372,7 +3372,7 @@ void print_mutex_facts(int time){
 
 void build_graph_evolution_step( void )
 {
-	printf(".");fflush(stdout);
+	// printf(".");fflush(stdout);
 	static int time = 0;// 仅第一次调用为0
 	int facts_count = gfacts_count, exclusions_count = gexclusions_count;
 	BitOperator *o, *prev, *tmp;
