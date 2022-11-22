@@ -7606,7 +7606,7 @@ int getRelaxedPlanHeuristic(){
 			delete k_graphs[i]->relaxed_plan;
 
 			// cout << "Num acts " << tmp << endl;
-			if(tmp < return_val )// 更新最大值
+			if(tmp > return_val )// 更新最大值
 				return_val = tmp;
 
 			if(HEURISTYPE==HRPSUM)// 累加
