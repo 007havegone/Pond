@@ -1084,9 +1084,7 @@ DdNode* update(DdNode* state,set<DdNode*>::iterator sta, set<DdNode*>::iterator 
 		}
 		else if(bdd_entailed(manager, state, Cudd_Not(*sta)))
 		{
-			DdNode *nsta = Cudd_Not(*sta);
-			Cudd_Ref(nsta);
-			temp = Cudd_bddRestrict(manager, state, nsta);
+			temp = Cudd_bddRestrict(manager, state, Cudd_Not(*sta));
 			Cudd_Ref(temp);
 			state = temp;
 			// printBDD(state);
@@ -1098,11 +1096,24 @@ DdNode* update(DdNode* state,set<DdNode*>::iterator sta, set<DdNode*>::iterator 
 		}
 		else
 		{
+			DdNode *part1 = Cudd_bddAnd(manager, state, *sta);
+			Cudd_Ref(part1);
+			DdNode *part2 = Cudd_bddAnd(manager, state, Cudd_Not(*sta));
+			Cudd_Ref(part2);
+			Cudd_RecursiveDeref(manager, state);
+			temp = Cudd_bddRestrict(manager, part2, Cudd_Not(*sta));
+			Cudd_Ref(temp);
+			Cudd_RecursiveDeref(manager, part2);
+			state = temp;
 			temp = Cudd_bddAnd(manager, state, *sta);
 			Cudd_Ref(temp);
 			Cudd_RecursiveDeref(manager, state);
 			state = temp;
-			// printBDD(state);
+			temp = Cudd_bddOr(manager, state, part1);
+			Cudd_Ref(temp);
+			Cudd_RecursiveDeref(manager, part1);
+			Cudd_RecursiveDeref(manager, state);
+			state = temp;
 		}
 	}
 	return state;
@@ -1112,22 +1123,44 @@ vector<int> unknownSet;
 DdNode* updateOne(DdNode* state, DdNode* fact)
 {
 	DdNode *temp, *nsta;
-	if(bdd_imply(manager, state,fact))
+	DdNode *p1, *p2;
+	// printBDD(fact);
+	if (bdd_entailed(manager, state, fact))
 	{
+		// std::cout << "bdd_entail\n";
 		return state;
 	}
-	if(bdd_imply(manager, state, Cudd_Not(fact)))
+	if(bdd_entailed(manager, state, Cudd_Not(fact)))
 	{
-		nsta = Cudd_Not(fact);
-		temp = Cudd_bddRestrict(manager, state, nsta);
+		temp = Cudd_bddRestrict(manager, state, Cudd_Not(fact));
 		Cudd_Ref(temp);
 		state = temp;
+		temp = Cudd_bddAnd(manager, state, fact);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, state);
+		state = temp;
 	}
-	// always need to update the state with fact
-	temp = Cudd_bddAnd(manager, state, fact);
-	Cudd_Ref(temp);
-	Cudd_RecursiveDeref(manager, state);
-	state = temp;
+	else
+	{
+		// split two part and merge
+		p1 = Cudd_bddAnd(manager, state, fact);
+		Cudd_Ref(p1);
+		p2 = Cudd_bddAnd(manager, state, Cudd_Not(fact));
+		Cudd_Ref(p2);
+		Cudd_RecursiveDeref(manager, state);
+		temp = Cudd_bddRestrict(manager, p2, Cudd_Not(fact));
+		Cudd_Ref(temp);
+		state = temp;
+		temp = Cudd_bddAnd(manager, state, fact);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, state);
+		state = temp;
+		temp = Cudd_bddOr(manager, state, p1);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, p1);
+		Cudd_RecursiveDeref(manager, state);
+		state = temp;
+	}
 	return state;
 }
 // 实现一个01全排序算法，更新后，合并state
@@ -1160,11 +1193,12 @@ void updateUnkown(DdNode *state, DdNode *&res, const vector<DdNodePair> &unkEff,
 }
 void addUnknownEffect(DdNode *ps, const ProbabilisticEffect* pe)
 {
-	std::cout << "unknown effect" << std::endl;
+	// std::cout << "unknown effect" << std::endl;
 	const SimpleEffect *t1 = dynamic_cast<const SimpleEffect*>(&pe->effect(0));
 	const SimpleEffect *t2 = dynamic_cast<const SimpleEffect *>(&pe->effect(1));
 	// t1->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
 	// t2->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+	// printf("\n");
 	if (t1 == NULL || t2 == NULL)
 		throw Exception("No support this kind of unknown effect");
 	bool is_true = typeid(*t1) == typeid(AddEffect);
@@ -1178,6 +1212,7 @@ void addUnknownEffect(DdNode *ps, const ProbabilisticEffect* pe)
 	is_true = typeid(*t2) == typeid(AddEffect);
 	effBDD = is_true ? formula_bdd(t2->atom(), false) : Cudd_Not(formula_bdd(t2->atom(), false));
 	pair.s = effBDD;
+	assert(pair.s != pair.f);
 	SEmapOneof[ps].push_back(pair);
 }
 
@@ -1298,7 +1333,7 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 						Cudd_Ref(it->f);
 						Cudd_Ref(it->s);
 					}
-					SEmapOneof.erase(ite);
+					SEmapOneof.erase(*ite);
 				}
 				// Cudd_RecursiveDeref(manager, *ite);
 				partition(t1, cde->effect());// only add to the entiable one
@@ -1325,7 +1360,7 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 	const ProbabilisticEffect *pe = dynamic_cast<const ProbabilisticEffect *>(&effect);
 	if(pe != NULL)
 	{
-		std::cout << pe->size() << std::endl;
+		// std::cout << pe->size() << std::endl;
 		for (list<DdNode *>::iterator ite = ps.begin(); ite != ps.end(); ++ite)
 		{
 			// std::cout << "prob" << pe->probability(i);
@@ -1365,6 +1400,7 @@ DdNode *progress(DdNode *parent, const Action *a)
 			Cudd_RecursiveDeref(manager, ite2->s);
 		}
 	}
+	Cudd_Ref(parent);
 	SEmap.clear();
 	SEmapOneof.clear();
 	list<DdNode *> ps;
@@ -1418,7 +1454,7 @@ DdNode *progress(DdNode *parent, const Action *a)
 		
 	}
 	DdNode *res = or_merge(ps);
-	std::cout << "after or_merge operator()\n";
+	// std::cout << "after or_merge operator()\n";
 	// printBDD(res);
 	return res;
 }
