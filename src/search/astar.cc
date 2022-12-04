@@ -96,14 +96,15 @@ bool AStar::step(){
 		pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
 		DdNode *successor = progress(&act_pair, next->dd);// 计算后继状态
 		// DdNode *successor = progress(next->dd, action->act);
-		// if(successor1 != successor)
-		// {
-		// 	printBDD(next->dd);
-		// 	action->act->print(std::cout, my_problem->terms());
-		// 	printBDD(successor);
-		// 	printBDD(successor1);
-		// 	assert(false);
-		// }
+		DdNode *successor1 = definability_progress(next->dd, action->act);
+		if(successor1 != successor)
+		{
+			printBDD(next->dd);
+			action->act->print(std::cout, my_problem->terms());
+			printBDD(successor);
+			printBDD(successor1);
+			assert(false);
+		}
 		// Cudd_Ref(successor);
 		// std::cout << "std::\n";
 		// printBDD(successor);

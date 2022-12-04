@@ -259,7 +259,9 @@ extern std::map<const Action*, std::pair<DdNode*, DdNode*>* > event_affects;
 extern std::map<const Action*, DdNode*> event_rewards;
  /* exhaustive conditional effects, ala SGP -- dan */
 extern std::map<const Action*, OutcomeSet*> event_outcomes;
-
+/*conditional definability, euqiv BDD*/
+extern std::map<int, std::vector<DdNode*>* > equivBDD;
+extern std::map<int,DdNode *> unit_cube;
 /**
  * A set of state transitions.
  * 一个transitionSet包括了con(e)的BDD和修改的atom

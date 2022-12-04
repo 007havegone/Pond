@@ -167,7 +167,9 @@ std::map<const Action*, std::pair<DdNode*, DdNode*>* > event_affects;
 std::map<const Action*, DdNode*> event_rewards;
 /* exhaustive conditional effects, ala SGP -- dan */
 std::map<const Action*, OutcomeSet*> event_outcomes;
-
+/*conditional definability, euqiv BDD*/
+std::map<int, std::vector<DdNode*>* > equivBDD;
+std::map<int,DdNode *> unit_cube;
 
 #endif
 

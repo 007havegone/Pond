@@ -1458,6 +1458,232 @@ DdNode *progress(DdNode *parent, const Action *a)
 	// printBDD(res);
 	return res;
 }
+std::map<const Action *, set<DdNode *> > act_affect_bdd;
+
+void getDdNodeFromEffect(const Action* act, const pEffect& effect)
+{
+	// 1. simple efffect
+	const SimpleEffect *se = dynamic_cast<const SimpleEffect *>(&effect);
+	if(se != NULL)
+	{
+		if(act_affect_bdd.find(act) == act_affect_bdd.end())
+		{
+			act_affect_bdd[act] = set<DdNode *>();
+		}
+		DdNode *effBDD = formula_bdd(se->atom(), false);
+		if (act_affect_bdd[act].find(effBDD) == act_affect_bdd[act].end())
+		{
+			act_affect_bdd[act].insert(effBDD);
+		}
+		else
+		{
+			Cudd_RecursiveDeref(manager, effBDD);
+		}
+		return;
+	}
+	// 2. conditional effect
+	const ConditionalEffect *cde = dynamic_cast<const ConditionalEffect *>(&effect);
+	if(cde != NULL)
+	{
+		getDdNodeFromEffect(act, cde->effect());
+		return;
+	}
+	// 3. conjuntion effect
+	const ConjunctiveEffect *ce = dynamic_cast<const ConjunctiveEffect *>(&effect);
+	if(ce != NULL)
+	{
+		size_t n = ce->size();
+		for (size_t i = 0; i < n; ++i)
+		{
+			getDdNodeFromEffect(act, ce->conjunct(i));
+		}
+		return;
+	}
+	// 4. oneof effect
+	const ProbabilisticEffect *pe = dynamic_cast<const ProbabilisticEffect *>(&effect);
+	if(pe != NULL)
+	{		
+		// getDdNodeFromEffect(act, pe->effect());
+		return;
+	}
+	assert(0);
+}
+
+
+void definability_extract(const Action* act)
+{
+	if(equivBDD.find(act->id()* num_alt_facts) != equivBDD.end())
+		return;
+	act->print(std::cout, my_problem->terms());
+	DdNode *T = groundActionDD(*act); // 获取T
+	if(T == Cudd_ReadZero(manager) || T == Cudd_ReadLogicZero(manager))
+	{
+		return;
+	}
+	Cudd_Ref(T);
+	std::cout << "The action axioms T is:\n";
+	// printBDD(T);
+	DdNode *p;
+	DdNode *snc, *wsc, *temp;
+	DdNode *cube;
+	int act_shift = act->id() * num_alt_facts;
+	// dynamic_atoms
+	getDdNodeFromEffect(act, act->effect());// 获取当前action影响的effect
+	for (int i = 0; i < dynamic_atoms.size(); ++i)
+	{
+		p = formula_bdd(*dynamic_atoms[i],false);// 获取当前状态变量
+		if(act_affect_bdd[act].find(p) == act_affect_bdd[act].end())// 当前没有出现在effect中，跳过
+			continue;
+		snc = Cudd_bddRestrict(manager, T, p);
+		Cudd_Ref(snc);
+		temp = Cudd_bddExistAbstract(manager, snc, current_state_cube);
+		Cudd_Ref(temp);
+		// Cudd_RecursiveDeref(manager, snc);
+		snc = temp;
+		wsc = Cudd_bddRestrict(manager, T, Cudd_Not(p));
+		Cudd_Ref(wsc);
+		temp = Cudd_bddExistAbstract(manager, wsc, current_state_cube);
+		Cudd_Ref(temp);
+		// Cudd_RecursiveDeref(manager, wsc);
+		wsc = temp;
+		temp = Cudd_Not(wsc);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, wsc);
+		wsc = temp;
+		// std::ostream& os, const PredicateTable& predicates,
+		//   const FunctionTable& functions,
+		//   const TermTable& terms
+		// dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+		// std::cout << "SNC:\n"
+		// 		  << std::flush;
+		// printBDD(snc);
+		// std::cout << "WSC:\n" << std::flush;
+		// printBDD(wsc);
+		vector<DdNode *>* bdds = new vector<DdNode*>();
+		if (bdd_entailed(manager, T, Cudd_bddOr(manager, Cudd_Not(snc), wsc)))
+		{
+			// std::cout << "definability exist\n";
+			bdds->push_back(snc);
+			equivBDD[act_shift+i] = bdds;
+		}
+		else
+		{
+			// std::cout << "conditional definability exist\n";
+			bdds->push_back(snc);
+			bdds->push_back(wsc);
+			equivBDD[act_shift+i] = bdds;
+		}
+	}
+	Cudd_RecursiveDeref(manager, T);
+}
+
+void preprocessCubeUnit()
+{
+	DdNode **nlist = new DdNode *[1];
+	for (int i = 0; i < num_alt_facts;++i)
+	{
+		nlist[0] = Cudd_bddIthVar(manager, 2 * i);
+		Cudd_Ref(nlist[0]);
+		unit_cube[i] = Cudd_bddComputeCube(manager, nlist, 0, 1);
+		Cudd_Ref(unit_cube[i]);
+		Cudd_RecursiveDeref(manager, nlist[0]);
+	}
+	delete []nlist;
+}
+DdNode *definability_progress(DdNode *parent, const Action *a)
+{
+	Cudd_Ref(parent);
+	DdNode *temp;
+	DdNode *part1, *part2, *temp1, *temp2;
+	int act_shift = a->id() * num_alt_facts;
+	DdNode **cv = new DdNode*[act_affect_bdd[a].size()];
+	DdNode **nv = new DdNode*[act_affect_bdd[a].size()];
+	int k = 0;
+	bool flag = false;
+	// 考虑每个state varibale, 进行替换
+	for (int i = 0; i < dynamic_atoms.size();++i)
+	{
+		if(equivBDD.find(act_shift+i) == equivBDD.end())
+			continue;
+		flag = true;
+		cv[k] = formula_bdd(*dynamic_atoms[i], false);
+		nv[k++] = formula_bdd(*dynamic_atoms[i],true);
+		if (equivBDD[act_shift + i]->size() == 1)
+		{
+			// printBDD((*equivBDD[act_shift+i])[0]);
+			temp = Cudd_bddCompose(manager, parent, (*equivBDD[act_shift+i])[0], i*2);
+			Cudd_Ref(temp);
+			// temp1 = Cudd_bddExistAbstract(manager, temp, unit_cube[i]);
+			// Cudd_Ref(temp1);
+			// Cudd_RecursiveDeref(manager, parent);
+			// temp = temp1;
+		}
+		else
+		{
+			DdNode *p = formula_bdd(*dynamic_atoms[i], false);
+			// printBDD((*equivBDD[act_shift+i])[0]);
+			// printBDD((*equivBDD[act_shift+i])[1]);
+			part1 = Cudd_bddRestrict(manager, parent, p);
+			Cudd_Ref(part1);
+			// printBDD(part1);
+			part2 = Cudd_bddRestrict(manager, parent, Cudd_Not(p));
+			Cudd_Ref(part2);
+			// printBDD(part2);
+			temp1 = Cudd_bddAnd(manager, part1, (*equivBDD[act_shift + i])[0]);
+			Cudd_Ref(temp1);
+			Cudd_RecursiveDeref(manager, part1);
+			part1 = temp1;
+			// printBDD(part1);
+			temp2 = Cudd_bddAnd(manager, part2, Cudd_Not((*equivBDD[act_shift + i])[1]));
+			Cudd_Ref(temp2);
+			Cudd_RecursiveDeref(manager, part2);
+			part2 = temp2;
+			// printBDD(part2);
+			// temp1 = Cudd_bddCompose(manager, parent, (*equivBDD[act_shift + i])[0], i);
+			// temp2 = Cudd_bddCompose(manager, parent, Cudd_Not((*equivBDD[act_shift+i])[1]), i);
+			if(bdd_is_zero(manager, part1))
+			{
+				temp = part2;
+			}
+			else if(bdd_is_zero(manager, part2))
+			{
+				temp = part1;
+			}
+			else
+			{
+				temp = Cudd_bddOr(manager, part1, part2);
+				Cudd_Ref(temp);
+				Cudd_RecursiveDeref(manager, part1);
+				Cudd_RecursiveDeref(manager, part2);
+				// printBDD(temp);
+			}
+		}
+		// printBDD(temp);
+		parent = temp;
+	}
+	if(flag)
+	{
+		for (int i = 0; i < act_affect_bdd[a].size();++i)
+		{
+			printBDD(cv[i]);
+			printBDD(nv[i]);
+		}
+		printBDD(parent);
+		// here, each action select the right variable map to get the successor state.
+		temp = Cudd_bddSwapVariables(manager, parent, cv, nv, act_affect_bdd[a].size());
+		Cudd_Ref(temp);
+		// Cudd_RecursiveDeref(manager,parent);
+		parent = temp;
+	}
+	else
+	{
+		parent = Cudd_ReadLogicZero(manager);
+	}
+	// printBDD(parent);
+	delete[] cv;
+	delete[] nv;
+	return parent;
+}
 /**
  * momo007 2022.05.11 动作节点进行更新
  */
@@ -1483,6 +1709,9 @@ DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
 		// std::cout << "progress mode: bdd\n";
 		// 获取action的BDD，核心实现，涉及到axioms
 		DdNode *t = groundActionDD(*(a->first));
+		// std::cout << "transition axioms BDD:\n";
+		// a->first->print(std::cout, my_problem->terms());
+		// printBDD(t);
 		Cudd_Ref(t);
 		if (verbosity > 2)
 		{
