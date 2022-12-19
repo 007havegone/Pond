@@ -1203,7 +1203,9 @@ void addUnknownEffect(DdNode *ps, const ProbabilisticEffect* pe)
 		throw Exception("No support this kind of unknown effect");
 	bool is_true = typeid(*t1) == typeid(AddEffect);
 	DdNode *effBDD = is_true ? formula_bdd(t1->atom(), false):Cudd_Not(formula_bdd(t1->atom(), false));
-	if(SEmapOneof.find(ps) == SEmapOneof.end())
+	if(!is_true)
+		Cudd_Ref(effBDD);
+	if (SEmapOneof.find(ps) == SEmapOneof.end())
 	{
 		SEmapOneof[ps] = vector<DdNodePair>();
 	}
@@ -1211,6 +1213,8 @@ void addUnknownEffect(DdNode *ps, const ProbabilisticEffect* pe)
 	pair.f = effBDD;
 	is_true = typeid(*t2) == typeid(AddEffect);
 	effBDD = is_true ? formula_bdd(t2->atom(), false) : Cudd_Not(formula_bdd(t2->atom(), false));
+	if(!is_true)
+		Cudd_Ref(effBDD);
 	pair.s = effBDD;
 	assert(pair.s != pair.f);
 	SEmapOneof[ps].push_back(pair);
@@ -1270,6 +1274,8 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 			}
 			bool is_true = typeid(*se) == typeid(AddEffect);
 			DdNode *effBDD = is_true ? formula_bdd(se->atom(), false):Cudd_Not(formula_bdd(se->atom(), false));
+			if(!is_true)
+				Cudd_Ref(effBDD);
 			if (SEmap[*ite].find(effBDD) == SEmap[*ite].end())
 			{
 				SEmap[*ite].insert(effBDD);
@@ -1307,10 +1313,8 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 				flag = true;
 				DdNode *t1 = Cudd_bddAnd(manager, *ite, preBDD);
 				Cudd_Ref(t1);
-				// Cudd_RecursiveDeref(manager, *ite);
 				DdNode *t2 = Cudd_bddAnd(manager,*ite, Cudd_Not(preBDD));
 				Cudd_Ref(t2);
-				// Cudd_RecursiveDeref(manager, *ite);
 				temp.push_back(t1);
 				temp.push_back(t2);
 				temp.remove(*ite);
@@ -1509,72 +1513,99 @@ void getDdNodeFromEffect(const Action* act, const pEffect& effect)
 	assert(0);
 }
 
-
-void definability_extract(const Action* act)
+set<const Action *> ifDone;
+int definability_extract(const Action* act)
 {
-	if(equivBDD.find(act->id()* num_alt_facts) != equivBDD.end())
-		return;
+	if(ifDone.find(act) != ifDone.end())
+	{
+		return -1;
+	}
+	ifDone.insert(act);
 	act->print(std::cout, my_problem->terms());
 	DdNode *T = groundActionDD(*act); // 获取T
 	if(T == Cudd_ReadZero(manager) || T == Cudd_ReadLogicZero(manager))
 	{
-		return;
+		return -1;
 	}
 	Cudd_Ref(T);
 	std::cout << "The action axioms T is:\n";
-	// printBDD(T);
 	DdNode *p;
 	DdNode *snc, *wsc, *temp;
 	DdNode *cube;
 	int act_shift = act->id() * num_alt_facts;
 	// dynamic_atoms
 	getDdNodeFromEffect(act, act->effect());// 获取当前action影响的effect
+	DdNode *mT = Cudd_ReadLogicZero(manager);
+	Cudd_Ref(mT);
+	DdNode *mTemp;
 	for (int i = 0; i < dynamic_atoms.size(); ++i)
 	{
 		p = formula_bdd(*dynamic_atoms[i],false);// 获取当前状态变量
-		if(act_affect_bdd[act].find(p) == act_affect_bdd[act].end())// 当前没有出现在effect中，跳过
-			continue;
+		// if(act_affect_bdd[act].find(p) == act_affect_bdd[act].end())// 当前没有出现在effect中，跳过
+		// {
+		// 	mTemp = Cudd_bddAnd(manager, mT, identity_bdds[i]);// p=p'
+		// 	Cudd_Ref(mTemp);
+		// 	Cudd_RecursiveDeref(manager, mT);
+		// 	mT = mTemp;
+		// 	continue;
+		// }
 		snc = Cudd_bddRestrict(manager, T, p);
 		Cudd_Ref(snc);
 		temp = Cudd_bddExistAbstract(manager, snc, current_state_cube);
 		Cudd_Ref(temp);
-		// Cudd_RecursiveDeref(manager, snc);
+		Cudd_RecursiveDeref(manager, snc);
 		snc = temp;
 		wsc = Cudd_bddRestrict(manager, T, Cudd_Not(p));
 		Cudd_Ref(wsc);
-		temp = Cudd_bddExistAbstract(manager, wsc, current_state_cube);
-		Cudd_Ref(temp);
-		// Cudd_RecursiveDeref(manager, wsc);
-		wsc = temp;
-		temp = Cudd_Not(wsc);
+		temp = Cudd_Not(Cudd_bddExistAbstract(manager, wsc, current_state_cube));
 		Cudd_Ref(temp);
 		Cudd_RecursiveDeref(manager, wsc);
 		wsc = temp;
 		// std::ostream& os, const PredicateTable& predicates,
 		//   const FunctionTable& functions,
 		//   const TermTable& terms
-		// dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
-		// std::cout << "SNC:\n"
-		// 		  << std::flush;
+		dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+		std::cout << "SNC:\n" << std::flush;
 		// printBDD(snc);
-		// std::cout << "WSC:\n" << std::flush;
+		std::cout << "WSC:\n" << std::flush;
 		// printBDD(wsc);
 		vector<DdNode *>* bdds = new vector<DdNode*>();
 		if (bdd_entailed(manager, T, Cudd_bddOr(manager, Cudd_Not(snc), wsc)))
 		{
-			// std::cout << "definability exist\n";
+			std::cout << "definability exist\n";
 			bdds->push_back(snc);
 			equivBDD[act_shift+i] = bdds;
+			Cudd_Ref(snc);
 		}
 		else
 		{
-			// std::cout << "conditional definability exist\n";
+			std::cout << "conditional definability exist\n";
 			bdds->push_back(snc);
 			bdds->push_back(wsc);
+			
+			assert(bdd_entailed(manager, T, Cudd_bddOr(manager, Cudd_Not(wsc), p)));
+			assert(bdd_entailed(manager, T,Cudd_bddOr(manager,Cudd_Not(p),snc)));
+			// std::cout << "T|= WSC -> p\n";
+			// std::cout << "T|= p -> SNC\n" << std::flush;
 			equivBDD[act_shift+i] = bdds;
+			Cudd_Ref(snc);
+			Cudd_Ref(wsc);
 		}
+		// mTemp = Cudd_bddAnd(manager, mT, Cudd_bddOr(manager, Cudd_bddAnd(manager, p, snc), Cudd_bddAnd(manager, Cudd_Not(p), Cudd_Not(wsc))));
+		mTemp = Cudd_bddOr(manager, mT, Cudd_bddAnd(manager, p, snc));
+		Cudd_Ref(mTemp);
+		Cudd_RecursiveDeref(manager, mT);
+		mT = mTemp;
+		Cudd_RecursiveDeref(manager, snc);
+		Cudd_RecursiveDeref(manager, wsc);
 	}
+	printBDD(mT);
+	printBDD(T);
+	act->print(std::cout, my_problem->terms());
+	std::cout << "\n";
+	int res = mT == T;
 	Cudd_RecursiveDeref(manager, T);
+	return res;
 }
 
 void preprocessCubeUnit()
@@ -1592,55 +1623,82 @@ void preprocessCubeUnit()
 }
 DdNode *definability_progress(DdNode *parent, const Action *a)
 {
+	if(groundActionDD(*a) == Cudd_ReadLogicZero(manager) || groundActionDD(*a) == Cudd_ReadZero(manager))
+	{
+		DdNode *ans = Cudd_ReadLogicZero(manager);
+		Cudd_Ref(ans);
+		return ans;
+	}
 	Cudd_Ref(parent);
 	DdNode *temp;
 	DdNode *part1, *part2, *temp1, *temp2;
 	int act_shift = a->id() * num_alt_facts;
-	DdNode **cv = new DdNode*[act_affect_bdd[a].size()];
-	DdNode **nv = new DdNode*[act_affect_bdd[a].size()];
+	// DdNode **cv = new DdNode*[act_affect_bdd[a].size()];
+	// DdNode **nv = new DdNode*[act_affect_bdd[a].size()];
+	vector<int> identity_id;
 	int k = 0;
 	bool flag = false;
+	a->print(std::cout, my_problem->terms());
 	// 考虑每个state varibale, 进行替换
 	for (int i = 0; i < dynamic_atoms.size();++i)
 	{
+		dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
 		if(equivBDD.find(act_shift+i) == equivBDD.end())
+		{
+			std::cout << "doesn't in effect\n";
+			identity_id.push_back(i);
 			continue;
+		}
 		flag = true;
-		cv[k] = formula_bdd(*dynamic_atoms[i], false);
-		nv[k++] = formula_bdd(*dynamic_atoms[i],true);
+		// cv[k] = formula_bdd(*dynamic_atoms[i], false);
+		// nv[k++] = formula_bdd(*dynamic_atoms[i],true);
 		if (equivBDD[act_shift + i]->size() == 1)
 		{
-			// printBDD((*equivBDD[act_shift+i])[0]);
-			temp = Cudd_bddCompose(manager, parent, (*equivBDD[act_shift+i])[0], i*2);
+			std::cout << "definability:";
+			// printBDD((*equivBDD[act_shift + i])[0]);
+			temp = Cudd_bddCompose(manager, parent, (*equivBDD[act_shift + i])[0], i * 2);
 			Cudd_Ref(temp);
-			// temp1 = Cudd_bddExistAbstract(manager, temp, unit_cube[i]);
-			// Cudd_Ref(temp1);
-			// Cudd_RecursiveDeref(manager, parent);
-			// temp = temp1;
+			Cudd_RecursiveDeref(manager, parent);
+			parent = temp;
 		}
 		else
 		{
 			DdNode *p = formula_bdd(*dynamic_atoms[i], false);
-			// printBDD((*equivBDD[act_shift+i])[0]);
-			// printBDD((*equivBDD[act_shift+i])[1]);
+			std::cout << "SNC:";
+			// printBDD((*equivBDD[act_shift + i])[0]);
+			std::cout << "WSC:";
+			// printBDD((*equivBDD[act_shift + i])[1]);
 			part1 = Cudd_bddRestrict(manager, parent, p);
 			Cudd_Ref(part1);
+			// std::cout << "phi_{p}\n";
 			// printBDD(part1);
 			part2 = Cudd_bddRestrict(manager, parent, Cudd_Not(p));
 			Cudd_Ref(part2);
+			// std::cout << "phi_{neg_p}\n";
 			// printBDD(part2);
+			// case 1
+			// DdNode *pp = Cudd_bddVarMap(manager, (*equivBDD[act_shift + i])[0]);
+			// Cudd_Ref(pp);
+			// printBDD(pp);
+			// temp1 = Cudd_bddAnd(manager, part1, pp);
+			// case 2
 			temp1 = Cudd_bddAnd(manager, part1, (*equivBDD[act_shift + i])[0]);
 			Cudd_Ref(temp1);
 			Cudd_RecursiveDeref(manager, part1);
 			part1 = temp1;
 			// printBDD(part1);
+			// case 1
+			// Cudd_RecursiveDeref(manager, pp);
+			// pp = Cudd_bddVarMap(manager, Cudd_Not((*equivBDD[act_shift + i])[1]));
+			// Cudd_Ref(pp);
+			// printBDD(pp);
+			// temp2 = Cudd_bddAnd(manager, part2, pp);
+			// case 2
 			temp2 = Cudd_bddAnd(manager, part2, Cudd_Not((*equivBDD[act_shift + i])[1]));
 			Cudd_Ref(temp2);
 			Cudd_RecursiveDeref(manager, part2);
 			part2 = temp2;
 			// printBDD(part2);
-			// temp1 = Cudd_bddCompose(manager, parent, (*equivBDD[act_shift + i])[0], i);
-			// temp2 = Cudd_bddCompose(manager, parent, Cudd_Not((*equivBDD[act_shift+i])[1]), i);
 			if(bdd_is_zero(manager, part1))
 			{
 				temp = part2;
@@ -1657,31 +1715,61 @@ DdNode *definability_progress(DdNode *parent, const Action *a)
 				Cudd_RecursiveDeref(manager, part2);
 				// printBDD(temp);
 			}
+			Cudd_RecursiveDeref(manager, parent);
+			parent = temp;
 		}
 		// printBDD(temp);
-		parent = temp;
 	}
 	if(flag)
 	{
-		for (int i = 0; i < act_affect_bdd[a].size();++i)
+		// for (int i = 0; i < act_affect_bdd[a].size();++i)
+		// {
+		// 	printBDD(cv[i]);
+		// 	printBDD(nv[i]);
+		// }
+		assert(identity_id.size() == 0);
+		for (int i = 0; i < identity_id.size(); ++i)
 		{
-			printBDD(cv[i]);
-			printBDD(nv[i]);
+			temp = Cudd_bddAnd(manager, parent, identity_bdds[identity_id[i]]); // must suppport p <=> p'
+			Cudd_Ref(temp);
+			// Cudd_RecursiveDeref(manager, parent);
+			parent = temp;
+			temp = Cudd_bddExistAbstract(manager, parent, unit_cube[identity_id[i]]);// forget the p
+			Cudd_Ref(temp);
+			// Cudd_RecursiveDeref(manager, parent);
+			parent = temp;
+			// printBDD(parent);
 		}
-		printBDD(parent);
-		// here, each action select the right variable map to get the successor state.
-		temp = Cudd_bddSwapVariables(manager, parent, cv, nv, act_affect_bdd[a].size());
-		Cudd_Ref(temp);
+		// temp = Cudd_bddExistAbstract(manager, parent, current_state_cube);
+		// Cudd_Ref(temp);
+		// parent = temp;
+		// printBDD(parent);
+		// case 1
+		// empty
+		// case 2
+		// temp = Cudd_bddVarMap(manager, parent);// 替换全部变量
+		// temp = Cudd_bddSwapVariables(manager, parent, cv, nv, act_affect_bdd[a].size());// 替换修改的变量
+		// Cudd_Ref(temp);
 		// Cudd_RecursiveDeref(manager,parent);
+		// parent = temp;
+		temp = Cudd_bddExistAbstract(manager, parent, current_state_cube);
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, parent);
+		parent = temp;
+		temp = Cudd_bddVarMap(manager, parent); // Phi[p'/p]
+		Cudd_Ref(temp);
+		Cudd_RecursiveDeref(manager, parent);
 		parent = temp;
 	}
+	// 完全没有更新，返回zero
 	else
 	{
-		parent = Cudd_ReadLogicZero(manager);
+		assert(0);
+		return parent;
 	}
 	// printBDD(parent);
-	delete[] cv;
-	delete[] nv;
+	// delete[] cv;
+	// delete[] nv;
 	return parent;
 }
 /**
@@ -2634,6 +2722,22 @@ void outputPlan(){
 
 	}
 	*/
+	int act_num = 0;
+	int not_def_act = 0;
+	int act_shift;
+	for (ActionList::const_iterator ai = my_problem->actions().begin();
+		 ai != my_problem->actions().end(); ai++)
+	{
+		act_num++;
+		act_shift = (*ai)->id() * num_alt_facts;
+		for (int i = 0; i < dynamic_atoms.size(); ++i)
+		{
+			if(equivBDD[act_shift + i]->size()==2)
+			{
+				not_def_act++;
+			}
+		}
+	}
 	gNumStates = state_count;
 	pfout << "(define (plan " << dname << ")" <<endl;
 	pfout << "\t(:problem " << pname << ")" <<endl;
@@ -2642,6 +2746,8 @@ void outputPlan(){
 	cout << "NumStatesGenerated = " << state_count << endl;
 	cout << "ExpandNode = " << expandedNodes << endl;
 	cout << "Heuristic type is:" << HEURISTYPE << endl;
+	cout << "Domain actions num:" << act_num << endl;
+	cout << "Doamin non-det act num:" << not_def_act << endl;
 	printf("Total User Time = %f secs\n", (float)((gEndTime - gStartTime) / (float)CLOCKS_PER_SEC));
 }
 
