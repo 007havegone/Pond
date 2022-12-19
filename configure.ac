@@ -28,5 +28,5 @@ AC_LANG(C++)
 AC_CONFIG_FILES(Makefile src/Makefile src/ppddl/Makefile src/search/Makefile src/cudd/Makefile src/lug/Makefile src/heuristics/Makefile src/simulator/Makefile) 
 AC_OUTPUT
 
-AC_DEFINE(SIZEOF_LONG, 8)
-AC_DEFINE(SIZEOF_VOID_P, 8)
+AC_DEFINE(SIZEOF_LONG, 16)
+AC_DEFINE(SIZEOF_VOID_P, 16)
