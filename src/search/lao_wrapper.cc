@@ -332,9 +332,8 @@ void computeSuccessors(pair<const Action* const, DdNode*>* action,
 
 		// use the action to progres the parent(current state bdd)
 		//	for(int i = 0; i < reps; i++){
-		causativeSuccessor = progress(&(*action),
+		causativeSuccessor = progress(parent->dd, &(*action)
 			//&(*tmp_successor)
-			parent->dd
 			);
 
 		Cudd_Ref(causativeSuccessor);
@@ -1688,7 +1687,7 @@ DdNode *definability_progress(DdNode *parent, const Action *a)
 	{
 		DdNode *preBdd = action_preconds.find(a)->second;
 		pair<const Action *const, DdNode *> act_pair(a, preBdd);
-		return progress(&act_pair, parent);
+		return progress(parent, &act_pair);
 	}
 	Cudd_Ref(parent);
 	DdNode *temp;
@@ -1882,7 +1881,7 @@ DdNode *definability_progress(DdNode *parent, const Action *a)
 /**
  * momo007 2022.05.11 动作节点进行更新
  */
-DdNode* progress(pair<const Action* const, DdNode*>* a, DdNode *parent){
+DdNode* progress(DdNode *parent, pair<const Action* const, DdNode*>* a){
 	DdNode* result,*fr = NULL, *fr1= NULL;
 	int i,j;
 

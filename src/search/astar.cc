@@ -94,7 +94,7 @@ bool AStar::step(){
 		{
 			DdNode *preBdd = action_preconds.find(action->act)->second;
 			pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
-			successor = progress(&act_pair, next->dd);						   // method1 fogetting progress
+			successor = progress(next->dd, &act_pair);						   // method1 fogetting progress
 			break;
 		}
 		case PARTITION_MERGE:
