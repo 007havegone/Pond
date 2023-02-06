@@ -505,7 +505,6 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * The formula is either TRUE or FALSE, so the BDD is either
 		 * constant 1 or 0.
 		 */
-		std::cout << "const 1 or 0" << std::endl;
 		DdNode* ddf = (formula.tautology() ?
 				Cudd_ReadOne(dd_man) : Cudd_ReadLogicZero(dd_man));//here we use the logic zero
 		Cudd_Ref(ddf);
@@ -521,8 +520,11 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 		 * primed代表状态变量加了'，即后即状态变量。
 		 */
 		// std::cout << "atom = " << state_variables[af] << std::endl;
-		if(dynamic_atoms.find((state_variables[af])) == dynamic_atoms.end())
-			return Cudd_ReadOne(manager);// 该变量不是dynamic,忽略,直接返回true.
+		if(dynamic_atoms.find((state_variables[af])) == dynamic_atoms.end()){
+			DdNode *ddf = Cudd_ReadOne(manager);
+			Cudd_Ref(ddf);
+			return ddf;// 该变量不是dynamic,忽略,直接返回true.
+		}
 
 		// 假设状态变量有[a,b,c,d]后即状态[a',b',c',d']排放位置为：[a,a',b,b',c,c',d,d']
 		// 当前atom是状态变量，获取他的位置，然后状态BDD，并返回该Node
@@ -629,9 +631,9 @@ DdNode* formula_bdd(const StateFormula& formula, bool primed = false) {
 			}
 		}
 
-		ddx = Cudd_ReadLogicZero(dd_man);
+		ddx = Cudd_ReadLogicZero(dd_man);// the conjuncts that only one literal is true
 		Cudd_Ref(ddx);
-		ddn = Cudd_ReadOne(dd_man);
+		ddn = Cudd_ReadOne(dd_man);// the conjuncts that all literal is false
 		Cudd_Ref(ddn);
 		// 考虑公式的每一个disjunct,利用ITE实现互斥的关系，最后ddx存储oneof情况下的全部disjunct
 		for (size_t i = 0; i < odf->size(); i++) {

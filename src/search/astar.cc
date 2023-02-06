@@ -84,14 +84,26 @@ bool AStar::step(){
 	for (ActionNodeList::iterator act_it = next->NextActions->begin(); act_it != next->NextActions->end(); act_it++)
 	{
 		ActionNode *action = *act_it;
-		DdNode *preBdd = action_preconds.find(action->act)->second;
 		// 计算得到后继状态结点
 		debugCnt++;
 		std::cout << "######:" << debugCnt << std::endl;
-		pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
-		DdNode *successor = progress(&act_pair, next->dd);// method1 fogetting progress
-		// DdNode *successor = progress(next->dd, action->act); // method 2 partition progress
-		// DdNode *successor1 = definability_progress(next->dd, action->act);// method3 definability progress
+		DdNode *successor;
+		switch (progMode)
+		{
+		case FORGETTING:
+		{
+			DdNode *preBdd = action_preconds.find(action->act)->second;
+			pair<const Action *const, DdNode *> act_pair(action->act, preBdd); // 动作及其前提条件pair
+			successor = progress(&act_pair, next->dd);						   // method1 fogetting progress
+			break;
+		}
+		case PARTITION_MERGE:
+			successor = progress(next->dd, action->act); // method 2 partition progress
+			break;
+		case DEFINABILITY:
+			successor = definability_progress(next->dd, action->act); // method3 definability progress
+			break;
+		}
 		// if (act_ndefp.find(action->act) != act_ndefp.end())
 		// {
 		// 	if(act_ndefp[action->act].size()>1)

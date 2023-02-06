@@ -110,6 +110,7 @@ static bool read_file(const char *name)
 		return success;
 	}
 }
+void preprocessSNCWSC();
 
 int main(int argc, char *argv[])
 {
@@ -358,6 +359,22 @@ int main(int argc, char *argv[])
 				if (strcmp(argv[i], "-i") == 0)
 				{
 					incremental_search = true;
+				}
+				if (strcmp(argv[i], "-p") == 0)
+				{
+					++i;
+					if(strcmp(argv[i], "fog") == 0) // forgetting
+					{
+						progMode = FORGETTING;
+					}
+					else if(strcmp(argv[i], "part") == 0) // partition merge
+					{
+						progMode = PARTITION_MERGE;
+					}
+					else if(strcmp(argv[i], "def") == 0) // definability progress
+					{
+						progMode = DEFINABILITY;
+					}
 				}
 				if (strcmp(argv[i], "-h") == 0)
 				{
@@ -837,43 +854,14 @@ int main(int argc, char *argv[])
 			std::cout << "using EHC() algorithm\n";
 			search = new EHC();
 		}
-		for (ActionList::const_iterator ai = my_problem->actions().begin();
-			 ai != my_problem->actions().end(); ai++)
-		{
-			std::cout << (*ai)->id() << std::endl;
-			int ret = definability_extract(*ai);
-			if ( ret == 1) // (p and SNC) or (!p and !WSC) = T
-			{
-				if(act_ndefp.find(*ai) == act_ndefp.end())// def-case
-				{
-					g1ndefTeqMT[0]++;
-				}
-				else // n-def case
-				{
-					g1ndefTeqMT[act_ndefp[*ai].size()]++;
-				}
-			}
-			else if ( ret == -1) // zero T
-			{
-				zero_act++;
-			}
-			else
-			{
-				if(act_ndefp.find(*ai) == act_ndefp.end())
-				{
-					g1ndefTneqMT[0]++;
-				}
-				else
-				{
-					g1ndefTneqMT[act_ndefp[*ai].size()]++;
-				}
-			}
-			total_act++;
+		if(progMode == DEFINABILITY){
+			preprocessSNCWSC();
 		}
 		// preprocessCubeUnit();
 		// 初始化动作个数，状态和目标状态
 		search->init(num_alt_acts, b_initial_state, b_goal_state);
-
+		cout << "SNC success\n";
+		// return 0;
 		cout << "starting search" << endl;
 		if (incremental_search && server_socket < 0) // Incremental AND offline?
 		{
@@ -886,7 +874,7 @@ int main(int argc, char *argv[])
 			search->search();
 		}
 			
-
+		
 		if (allowed_time > 0)
 		{
 			// disable the sender
@@ -938,6 +926,44 @@ int main(int argc, char *argv[])
 	catch (const exception &e)
 	{
 		cout << "caught something: " << e.what() << endl;
+	}
+}
+/**
+ * pre compute the SNC and WSC for actions
+ */
+void preprocessSNCWSC(){
+	for (ActionList::const_iterator ai = my_problem->actions().begin();
+				ai != my_problem->actions().end(); ai++)
+	{
+		std::cout << (*ai)->id() << std::endl;
+		int ret = definability_extract(*ai);
+		if ( ret == 1) // (p and SNC) or (!p and !WSC) = T
+		{
+			if(act_ndefp.find(*ai) == act_ndefp.end())// def-case
+			{
+				g1ndefTeqMT[0]++;
+			}
+			else // n-def case
+			{
+				g1ndefTeqMT[act_ndefp[*ai].size()]++;
+			}
+		}
+		else if ( ret == -1) // zero T
+		{
+			zero_act++;
+		}
+		else
+		{
+			if(act_ndefp.find(*ai) == act_ndefp.end())
+			{
+				g1ndefTneqMT[0]++;
+			}
+			else
+			{
+				g1ndefTneqMT[act_ndefp[*ai].size()]++;
+			}
+		}
+		total_act++;
 	}
 }
 /**

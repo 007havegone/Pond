@@ -260,6 +260,13 @@ extern std::map<const Action*, DdNode*> event_rewards;
  /* exhaustive conditional effects, ala SGP -- dan */
 extern std::map<const Action*, OutcomeSet*> event_outcomes;
 /*conditional definability, euqiv BDD*/
+enum ProgMode
+{
+   FORGETTING = 1,
+   PARTITION_MERGE = 2,
+   DEFINABILITY = 3,
+};
+extern ProgMode progMode;
 extern std::map<int, std::vector<DdNode*>* > equivBDD;
 extern std::map<int,DdNode *> unit_cube;
 extern std::map<const Action *, std::vector<int> > act_ndefp; // 每个动作不可定义的命题情况
