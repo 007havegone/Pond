@@ -1047,6 +1047,7 @@ DdNode* or_merge(list<DdNode*>& states)
 	{
 		temp = Cudd_bddOr(manager, res, *ite);
 		Cudd_Ref(temp);
+		// Cudd_RecursiveDeref(manager, res); 
 		Cudd_RecursiveDeref(manager, *ite);
 		res = temp;
 	}
@@ -1375,19 +1376,8 @@ void partition(list<DdNode*> &ps,const pEffect& effect)
 	}
 	assert(0);
 }
-/**
- * momo007 2022.10.24 BDD-based progress
- */
-int dt = 0;
-DdNode *progress(DdNode *parent, const Action *a)
+void releaseBDDPartition()
 {
-	dt++;
-	// TO.DO partition
-	// 1. consider each precondtion
-	// 2. partion the state and update te Effect set.
-	// 3. update the Belief state respectively.
-	// 4. merge states to get the successor belief state
-	// release the memory
 	for (map<DdNode *, set<DdNode *> >::iterator ite = SEmap.begin(); ite != SEmap.end(); ite++)
 	{
 		for (set<DdNode *>::iterator ite2 = (*ite).second.begin(); ite2 != (*ite).second.end(); ite2++)
@@ -1403,12 +1393,26 @@ DdNode *progress(DdNode *parent, const Action *a)
 			Cudd_RecursiveDeref(manager, ite2->s);
 		}
 	}
-	Cudd_Ref(parent);
 	SEmap.clear();
 	SEmapOneof.clear();
+}
+/**
+ * momo007 2022.10.24 BDD-based progress
+ */
+int dt = 0;
+DdNode *progress(DdNode *parent, const Action *a)
+{
+	dt++;
+	// TO.DO partition
+	// 1. consider each precondtion
+	// 2. partion the state and update te Effect set.
+	// 3. update the Belief state respectively.
+	// 4. merge states to get the successor belief state
+	// release the memory
+	DdNode *temp = parent;
+	Cudd_Ref(temp);
 	list<DdNode *> ps;
-	ps.push_back(parent);
-	// printBDD(parent);
+	ps.push_back(temp);
 	// std::cout << a->name() << std::endl;
 	partition(ps, a->effect());
 	DdNode *backup;
@@ -1459,6 +1463,7 @@ DdNode *progress(DdNode *parent, const Action *a)
 	DdNode *res = or_merge(ps);
 	// std::cout << "after or_merge operator()\n";
 	// printBDD(res);
+	releaseBDDPartition();
 	return res;
 }
 std::map<const Action *, set<DdNode *> > act_affect_bdd;
