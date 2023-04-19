@@ -1533,37 +1533,23 @@ int definability_extract(const Action* act)
 	DdNode *snc, *wsc, *temp;
 	int act_shift = act->id() * num_alt_facts;
 	// getDdNodeFromEffect(act, act->effect());// 获取当前action影响的effect
-	// DdNode *mT = Cudd_ReadOne(manager);
-	// Cudd_Ref(mT);
 	DdNode *mTemp;
 	for (int i = 0; i < dynamic_atoms.size(); ++i)
 	{
 		p = formula_bdd(*dynamic_atoms[i],false);// 获取当前状态变量
 		np = Cudd_Not(p);
 		Cudd_Ref(np);
-		// if(act_affect_bdd[act].find(p) == act_affect_bdd[act].end())// 当前没有出现在effect中，跳过
-		// {
-		// 	continue;
-		// }
 		snc = Cudd_bddAndAbstract(manager, groundActionDD(*act), p, current_state_cube);
 		Cudd_Ref(snc);
 		wsc = Cudd_Not(Cudd_bddAndAbstract(manager, groundActionDD(*act), np, current_state_cube));
 		Cudd_Ref(wsc);
-		// dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
-		// std::cout << "SNC:\n" << std::flush;
-		// printBDD(snc);
-		// std::cout << "WSC:\n" << std::flush;
-		// printBDD(wsc);
 		vector<DdNode *>* bdds = new vector<DdNode*>();
-		if (bdd_entailed(manager, groundActionDD(*act), Cudd_bddOr(manager, Cudd_Not(snc), wsc)))
+		DdNode *imply = bdd_imply(manager, snc, wsc);
+		Cudd_Ref(imply);
+		if (bdd_entailed(manager, groundActionDD(*act), imply))
 		{
-			// std::cout << "definability exist\n";s
 			bdds->push_back(snc);
 			equivBDD[act_shift+i] = bdds;
-			// mTemp = Cudd_bddAnd(manager, mT, Cudd_bddOr(manager, Cudd_bddAnd(manager, p, snc), Cudd_bddAnd(manager, np, Cudd_Not(wsc))));
-			// Cudd_Ref(mTemp);
-			// Cudd_RecursiveDeref(manager, mT);
-			// mT = mTemp;
 			Cudd_RecursiveDeref(manager, wsc);
 		}
 		else
@@ -1572,37 +1558,28 @@ int definability_extract(const Action* act)
 			{
 				act_ndefp[act] = vector<int>();
 			}
-			act_ndefp[act].push_back(i);//添加该不确定的variable
-			std::cout << "conditional definability exist\n";
-			// bdds->push_back(snc);
-			// bdds->push_back(wsc);
+			act_ndefp[act].push_back(i);
 			equivBDD[act_shift+i] = bdds;
 			Cudd_RecursiveDeref(manager, snc);
 			Cudd_RecursiveDeref(manager, wsc);
 		}
+		Cudd_RecursiveDeref(manager, imply);
 		Cudd_RecursiveDeref(manager, p);
 		Cudd_RecursiveDeref(manager, np);
 	}
 
-	// DdNode *mT2 = Cudd_ReadLogicZero(manager);
-	// Cudd_Ref(mT2);
-	// here
-	DdNode *mT3;
+	DdNode *mT;
 	DdNode *lit, *tl;
 	int cnt, total;
 	if (act_ndefp.find(act) != act_ndefp.end()) // 存在不可定义的命题
 	{
 		cnt = act_ndefp[act].size();
 		total = 1 << cnt;
-		// if(total > 16)// ndef > 4, just pass it, use the forgetting-based algorithm
-		// {
-		// 	return 1;
-		// }
 		ndef_literalT[act] = map<int, DdNode * >();
 		for (int i = 0; i < total; ++i)
 		{
-			mT3 = groundActionDD(*act);// 每个都需要单独的T
-			Cudd_Ref(mT3);
+			mT = groundActionDD(*act);// 每个都需要单独的T
+			Cudd_Ref(mT);
 			lit = Cudd_ReadOne(manager);
 			Cudd_Ref(lit);
 			for (int j = cnt - 1; j >= 0; --j)
@@ -1610,12 +1587,10 @@ int definability_extract(const Action* act)
 				DdNode *p;
 				if (i & (1 << j)) // 当前为1,positive literal
 				{
-					// cout << "p";
 					p = formula_bdd(*dynamic_atoms[act_ndefp[act][j]], false);
 				}
 				else// negative lietral
 				{
-					// cout << "n";
 					p = formula_bdd(*dynamic_atoms[act_ndefp[act][j]], false);
 					np = Cudd_Not(p);
 					Cudd_Ref(np);
@@ -1626,35 +1601,17 @@ int definability_extract(const Action* act)
 				Cudd_Ref(tl);
 				Cudd_RecursiveDeref(manager, lit);
 				lit = tl;
-				mTemp = Cudd_bddRestrict(manager, mT3, p);
+				mTemp = Cudd_bddRestrict(manager, mT, p);
 				Cudd_Ref(mTemp);
-				Cudd_RecursiveDeref(manager, mT3);
-				mT3 = mTemp;
+				Cudd_RecursiveDeref(manager, mT);
+				mT = mTemp;
 			}
-			// cout << endl;
-			ndef_literalT[act][i] = Cudd_bddAnd(manager, mT3, lit);
+			ndef_literalT[act][i] = Cudd_bddAnd(manager, mT, lit);
 			Cudd_Ref(ndef_literalT[act][i]);
 			Cudd_RecursiveDeref(manager, lit);
-			Cudd_RecursiveDeref(manager, mT3);
-			// mTemp = Cudd_bddOr(manager, mT2, Cudd_bddAnd(manager, mT3, lit));
-			// Cudd_Ref(mTemp);
-			// 这里不用释放T3，因为ndef_literalT存放一份
-			// Cudd_RecursiveDeref(manager, mT2);
-			// mT2 = mTemp;
+			Cudd_RecursiveDeref(manager, mT);
 		}
 	}
-	// if(mT2 != Cudd_ReadLogicZero(manager))
-	// {
-	// 	mTemp = Cudd_bddAnd(manager, mT, mT2);
-	// 	Cudd_Ref(mTemp);
-	// 	Cudd_RecursiveDeref(manager, mT);
-	// 	Cudd_RecursiveDeref(manager, mT2);
-	// 	mT = mTemp;
-	// }
-	// cout << "cnt: " << cnt << endl;
-	// assert(mT == T);
-	// int res = mT == T;
-	// Cudd_RecursiveDeref(manager, mT);
 	return 1;
 }
 
@@ -1671,8 +1628,10 @@ void preprocessCubeUnit()
 	}
 	delete []nlist;
 }
+// FILE *file;
 DdNode *definability_progress(DdNode *parent, const Action *a)
 {
+	definability_extract(a);
 	if (groundActionDD(*a) == Cudd_ReadLogicZero(manager) || groundActionDD(*a) == Cudd_ReadZero(manager))
 	{
 		return Cudd_ReadLogicZero(manager);
@@ -1694,7 +1653,7 @@ DdNode *definability_progress(DdNode *parent, const Action *a)
 	vector<int> identity_id;
 	int k = 0;
 	bool flag = false;
-	a->print(std::cout, my_problem->terms());
+	// a->print(std::cout, my_problem->terms());
 	// 考虑每个state varibale, 进行替换
 	for (int i = 0; i < dynamic_atoms.size();++i)
 	{
@@ -1711,13 +1670,20 @@ DdNode *definability_progress(DdNode *parent, const Action *a)
 		if (equivBDD[act_shift + i]->size() == 1)
 		{
 			// std::cout << "definability\n";
+			int k = 0;
+
 			temp = Cudd_bddCompose(manager, result, (*equivBDD[act_shift + i])[0], i * 2);
-			assert(temp != NULL);
+
 			if(temp == result)
 				continue;
 			Cudd_Ref(temp);
-			// Cudd_RecursiveDeref(manager, result);// this comment is a trick
+			// cout << "The ref counter is:"
+			// 	 << result->ref << endl;
+			// Cudd_PrintInfo(manager,file);
+			// Cudd_RecursiveDeref(manager, result); // this comment is a trick
 			result = temp;
+			// dynamic_atoms[i]->print(std::cout, my_problem->domain().predicates(), my_problem->domain().functions(), my_problem->terms());
+			// printBDD(result);
 		}
 		// else// this proposition is n-def
 		// {

@@ -932,39 +932,40 @@ int main(int argc, char *argv[])
  * pre compute the SNC and WSC for actions
  */
 void preprocessSNCWSC(){
-	for (ActionList::const_iterator ai = my_problem->actions().begin();
-				ai != my_problem->actions().end(); ai++)
-	{
-		std::cout << (*ai)->id() << std::endl;
-		int ret = definability_extract(*ai);
-		if ( ret == 1) // (p and SNC) or (!p and !WSC) = T
-		{
-			if(act_ndefp.find(*ai) == act_ndefp.end())// def-case
-			{
-				g1ndefTeqMT[0]++;
-			}
-			else // n-def case
-			{
-				g1ndefTeqMT[act_ndefp[*ai].size()]++;
-			}
-		}
-		else if ( ret == -1) // zero T
-		{
-			zero_act++;
-		}
-		else
-		{
-			if(act_ndefp.find(*ai) == act_ndefp.end())
-			{
-				g1ndefTneqMT[0]++;
-			}
-			else
-			{
-				g1ndefTneqMT[act_ndefp[*ai].size()]++;
-			}
-		}
-		total_act++;
-	}
+	preprocessCubeUnit();
+	// for (ActionList::const_iterator ai = my_problem->actions().begin();
+	// 			ai != my_problem->actions().end(); ai++)
+	// {
+	// 	std::cout << (*ai)->id() << std::endl;
+	// 	int ret = definability_extract(*ai);
+	// 	if ( ret == 1) // (p and SNC) or (!p and !WSC) = T
+	// 	{
+	// 		if(act_ndefp.find(*ai) == act_ndefp.end())// def-case
+	// 		{
+	// 			g1ndefTeqMT[0]++;
+	// 		}
+	// 		else // n-def case
+	// 		{
+	// 			g1ndefTeqMT[act_ndefp[*ai].size()]++;
+	// 		}
+	// 	}
+	// 	else if ( ret == -1) // zero T
+	// 	{
+	// 		zero_act++;
+	// 	}
+	// 	else
+	// 	{
+	// 		if(act_ndefp.find(*ai) == act_ndefp.end())
+	// 		{
+	// 			g1ndefTneqMT[0]++;
+	// 		}
+	// 		else
+	// 		{
+	// 			g1ndefTneqMT[act_ndefp[*ai].size()]++;
+	// 		}
+	// 	}
+	// 	total_act++;
+	// }
 }
 /**
  * 创建当前和后继状态变量的Cube，设置映射关系

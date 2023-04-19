@@ -86,7 +86,7 @@ bool AStar::step(){
 		ActionNode *action = *act_it;
 		// 计算得到后继状态结点
 		debugCnt++;
-		std::cout << "######:" << debugCnt << std::endl;
+		// std::cout << "######:" << debugCnt << std::endl;
 		DdNode *successor;
 		switch (progMode)
 		{

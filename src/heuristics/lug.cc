@@ -160,8 +160,9 @@ void initLUG(std::map<const Action*, DdNode*>* acts , DdNode* goal){
 		// 创建action的BitOperator
 		for(std::map<const Action*, DdNode*>::iterator a = acts->begin();
 				a != acts->end(); a++){
-
-			generate_BitOperators((*a).first);
+			// 007 here still need to check
+			if(!a->first->hasObservation())
+				generate_BitOperators((*a).first);
 		}
 #else
 		pos = Cudd_BddToAdd(manager, p);
