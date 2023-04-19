@@ -6,3 +6,5 @@ See INSTALL for installation instructions
 POND has been successfully built on the following platforms:
 Linux 64-bit
 Cygwin 32-bit
+
+In this Planner, we implement three different kinds of progression algorithms, use the CUDD packages to encode the belief state and action transition system.
