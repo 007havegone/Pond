@@ -714,21 +714,6 @@ int main(int argc, char *argv[])
 			clock_t groundingStartTime = clock();
 			// 获取problem
 			my_problem = (*(Problem::begin())).second;
-
-			/**
-			 * momo007 2022.07.06
-			 * this code may use in LUG construct
-			 */
-			     if(PF_LUG){
-			       NUMBER_OF_MGS = 8192;   // set to a constant to generate this many, why?
-			
-			       for(int i = 1; i <= NUMBER_OF_MGS; i++){
-			         if((2 << (i-1)) >= NUMBER_OF_MGS){
-			           num_new_labels = i;
-			           break;
-			         }
-			       }
-			     }
 			// 初始化规划问题，分配BDD操作
 			solve_problem(*my_problem, 1.0, 0.0);
 			/**
